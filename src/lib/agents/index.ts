@@ -1,9 +1,18 @@
-export { runAgent, defineAgent, formatRuleList, formatList } from "./core";
+export {
+  runAgent,
+  defineAgent,
+  runTextAgent,
+  defineTextAgent,
+  formatRuleList,
+  formatList,
+} from "./core";
 export type {
   AgentDef,
   AgentContext,
   AgentEvent,
   AgentRunResult,
+  TextAgentDef,
+  TextAgentRunResult,
 } from "./core";
 export {
   VoiceCardSchema,
@@ -23,3 +32,4 @@ export {
 } from "./voice-auditor";
 export * from "./copywriter";
 export * from "./localizer";
+export * from "./editor";

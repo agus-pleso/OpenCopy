@@ -1,5 +1,5 @@
 import "server-only";
-import { generateObject } from "ai";
+import { generateObject, generateText } from "ai";
 import { z } from "zod";
 
 import { resolveModel } from "@/lib/ai/providers";
@@ -116,6 +116,93 @@ export async function runAgent<TInput, TOutput>(
     });
 
     return { output: result.object, modelId, provider, durationMs };
+  } catch (err) {
+    const message = (err as Error).message;
+    ctx.onEvent?.({ type: "error", agent: def.name, message });
+    throw err;
+  }
+}
+
+/* ----------------------------------------------------------------------------
+ * Text agents — for surfaces that need PROSE output (editor commands).
+ * Uses generateText (no JSON wrapping). The model returns plain text which
+ * gets pasted back into the document.
+ * -------------------------------------------------------------------------- */
+
+export interface TextAgentDef<TInput> {
+  name: string;
+  description: string;
+  modelRole: ModelRole;
+  systemPrompt: string | ((input: TInput) => string);
+  buildPrompt: (input: TInput) => string;
+  temperature?: number;
+  maxTokens?: number;
+}
+
+export function defineTextAgent<TInput>(
+  def: TextAgentDef<TInput>,
+): TextAgentDef<TInput> {
+  return def;
+}
+
+export interface TextAgentRunResult {
+  text: string;
+  modelId: string;
+  provider: string;
+  durationMs: number;
+}
+
+export async function runTextAgent<TInput>(
+  def: TextAgentDef<TInput>,
+  input: TInput,
+  ctx: AgentContext,
+): Promise<TextAgentRunResult> {
+  const start = Date.now();
+  const { model, modelId, provider } = await resolveModel({
+    workspaceId: ctx.workspaceId,
+    role: def.modelRole,
+  });
+
+  ctx.onEvent?.({
+    type: "started",
+    agent: def.name,
+    modelId,
+    provider,
+    at: start,
+  });
+
+  const system =
+    typeof def.systemPrompt === "function"
+      ? def.systemPrompt(input)
+      : def.systemPrompt;
+
+  try {
+    const result = await generateText({
+      model,
+      system,
+      prompt: def.buildPrompt(input),
+      temperature: def.temperature ?? 0.7,
+      maxTokens: def.maxTokens,
+    });
+
+    const durationMs = Date.now() - start;
+    ctx.onEvent?.({
+      type: "finished",
+      agent: def.name,
+      modelId,
+      durationMs,
+      usage: {
+        inputTokens: result.usage?.promptTokens,
+        outputTokens: result.usage?.completionTokens,
+      },
+    });
+
+    return {
+      text: result.text.trim(),
+      modelId,
+      provider,
+      durationMs,
+    };
   } catch (err) {
     const message = (err as Error).message;
     ctx.onEvent?.({ type: "error", agent: def.name, message });

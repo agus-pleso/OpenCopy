@@ -688,3 +688,63 @@ export type AgentRunStatus = (typeof agentRunStatusEnum.enumValues)[number];
 export type AgentStepStatus = (typeof agentStepStatusEnum.enumValues)[number];
 export type VariantStatus = (typeof variantStatusEnum.enumValues)[number];
 export type Channel = (typeof channelEnum.enumValues)[number];
+
+/* ----------------------------------------------------------------------------
+ * Documents (V1.1) — long-form writing surface with inline AI commands.
+ * Tiptap editor on top, brand-voice-aware slash commands underneath.
+ * -------------------------------------------------------------------------- */
+
+export const documentStatusEnum = pgEnum("document_status", [
+  "draft",
+  "published",
+  "archived",
+]);
+
+export const documents = pgTable(
+  "document",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    workspaceId: uuid("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    title: text("title").notNull().default("Untitled"),
+    /** Tiptap-serialized HTML. */
+    contentHtml: text("content_html").notNull().default(""),
+    /** Plain-text projection for word/char counting and future search. */
+    contentText: text("content_text").notNull().default(""),
+    voiceId: uuid("voice_id").references(() => brandVoices.id, {
+      onDelete: "set null",
+    }),
+    locale: localeEnum("locale").notNull().default("en"),
+    status: documentStatusEnum("status").notNull().default("draft"),
+    wordCount: integer("word_count").notNull().default(0),
+    createdByUserId: text("created_by_user_id")
+      .notNull()
+      .references(() => users.id),
+    createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("document_workspace_idx").on(t.workspaceId, t.updatedAt),
+    index("document_voice_idx").on(t.voiceId),
+    index("document_status_idx").on(t.workspaceId, t.status),
+  ],
+);
+
+export const documentsRelations = relations(documents, ({ one }) => ({
+  workspace: one(workspaces, {
+    fields: [documents.workspaceId],
+    references: [workspaces.id],
+  }),
+  voice: one(brandVoices, {
+    fields: [documents.voiceId],
+    references: [brandVoices.id],
+  }),
+  createdBy: one(users, {
+    fields: [documents.createdByUserId],
+    references: [users.id],
+  }),
+}));
+
+export type Document = typeof documents.$inferSelect;
+export type DocumentStatus = (typeof documentStatusEnum.enumValues)[number];
