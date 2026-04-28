@@ -469,3 +469,222 @@ export type BrandVoice = typeof brandVoices.$inferSelect;
 export type VoiceSample = typeof voiceSamples.$inferSelect;
 export type VoiceAudit = typeof voiceAudits.$inferSelect;
 export type VoiceStatus = (typeof voiceStatusEnum.enumValues)[number];
+
+/* ----------------------------------------------------------------------------
+ * Agent runs (V1.0) — Copywriter + Localizer multi-agent orchestrations.
+ * Every run has many steps (one per agent invocation in the flow). Approved
+ * outputs land in `copy_variants` (the workspace library).
+ * -------------------------------------------------------------------------- */
+
+export const agentKindEnum = pgEnum("agent_kind", [
+  "copywriter",
+  "localizer",
+]);
+
+export const agentRunStatusEnum = pgEnum("agent_run_status", [
+  "queued",
+  "running",
+  "succeeded",
+  "failed",
+  "cancelled",
+]);
+
+export const agentStepStatusEnum = pgEnum("agent_step_status", [
+  "pending",
+  "running",
+  "succeeded",
+  "failed",
+]);
+
+export const variantStatusEnum = pgEnum("variant_status", [
+  "draft",
+  "saved",
+  "discarded",
+]);
+
+/** Channel hint for copywriter briefs. Affects format expectations only. */
+export const channelEnum = pgEnum("channel", [
+  "ad",
+  "email",
+  "landing",
+  "social",
+  "blog",
+  "headline",
+  "product_description",
+  "other",
+]);
+
+export interface CopywriterBrief {
+  voiceId: string;
+  channel: (typeof channelEnum.enumValues)[number];
+  locale: (typeof localeEnum.enumValues)[number];
+  objective: string;
+  audienceOverride?: string;
+  productInfo?: string;
+  length?: string;
+  variantCount: number;
+  keywords?: string[];
+  forbiddenTerms?: string[];
+  examples?: string;
+}
+
+export interface LocalizerBrief {
+  voiceId?: string;
+  sourceLocale: (typeof localeEnum.enumValues)[number];
+  targetLocale: (typeof localeEnum.enumValues)[number];
+  sourceText: string;
+  /** Optional original-context hint (channel, audience). */
+  contextHint?: string;
+}
+
+export const agentRuns = pgTable(
+  "agent_run",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    workspaceId: uuid("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    kind: agentKindEnum("kind").notNull(),
+    status: agentRunStatusEnum("status").notNull().default("queued"),
+    voiceId: uuid("voice_id").references(() => brandVoices.id, {
+      onDelete: "set null",
+    }),
+    /** Parsed brief (jsonb). Shape depends on `kind`. */
+    brief: jsonb("brief").$type<CopywriterBrief | LocalizerBrief>().notNull(),
+    /** Failure message if status=failed. */
+    error: text("error"),
+    /** Total wall-clock duration in ms (when finished). */
+    durationMs: integer("duration_ms"),
+    createdByUserId: text("created_by_user_id")
+      .notNull()
+      .references(() => users.id),
+    createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+    finishedAt: timestamp("finished_at", { mode: "date" }),
+  },
+  (t) => [
+    index("agent_run_workspace_idx").on(t.workspaceId, t.createdAt),
+    index("agent_run_voice_idx").on(t.voiceId),
+    index("agent_run_kind_status_idx").on(t.kind, t.status),
+  ],
+);
+
+export const agentRunSteps = pgTable(
+  "agent_run_step",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    runId: uuid("run_id")
+      .notNull()
+      .references(() => agentRuns.id, { onDelete: "cascade" }),
+    /** Order within the run, 0-indexed. */
+    seq: integer("seq").notNull(),
+    /** Stable agent name from AgentDef (e.g. "copywriter-planner"). */
+    agentName: text("agent_name").notNull(),
+    status: agentStepStatusEnum("status").notNull().default("pending"),
+    modelId: text("model_id"),
+    provider: text("provider"),
+    input: jsonb("input").$type<Record<string, unknown>>(),
+    output: jsonb("output").$type<Record<string, unknown>>(),
+    error: text("error"),
+    durationMs: integer("duration_ms"),
+    inputTokens: integer("input_tokens"),
+    outputTokens: integer("output_tokens"),
+    startedAt: timestamp("started_at", { mode: "date" }),
+    finishedAt: timestamp("finished_at", { mode: "date" }),
+  },
+  (t) => [index("agent_run_step_run_idx").on(t.runId, t.seq)],
+);
+
+/** A single piece of copy produced by a copywriter or localizer run. */
+export const copyVariants = pgTable(
+  "copy_variant",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    workspaceId: uuid("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    runId: uuid("run_id")
+      .notNull()
+      .references(() => agentRuns.id, { onDelete: "cascade" }),
+    voiceId: uuid("voice_id").references(() => brandVoices.id, {
+      onDelete: "set null",
+    }),
+    locale: localeEnum("locale").notNull().default("en"),
+    /** Variant ordinal within the run (0-indexed). */
+    seq: integer("seq").notNull(),
+    /** Optional label / angle name (e.g. "Direct: lead with the price"). */
+    label: text("label"),
+    /** Strategy/angle the planner picked, in plain text. */
+    strategy: text("strategy"),
+    content: text("content").notNull(),
+    /** Voice audit score for this variant (0-100). */
+    auditScore: integer("audit_score"),
+    auditSummary: text("audit_summary"),
+    auditIssues: jsonb("audit_issues").$type<VoiceAuditIssue[]>().default([]).notNull(),
+    auditStrengths: jsonb("audit_strengths").$type<string[]>().default([]).notNull(),
+    /** Optional refined version after a Refine pass. */
+    refinedContent: text("refined_content"),
+    refinedScore: integer("refined_score"),
+    /** For Localizer outputs only — back-translation to source for sanity check. */
+    backTranslation: text("back_translation"),
+    /** Cultural-adapter notes (idioms, references, formality calls). */
+    culturalNotes: jsonb("cultural_notes").$type<
+      Array<{ excerpt: string; note: string }>
+    >().default([]).notNull(),
+    status: variantStatusEnum("status").notNull().default("draft"),
+    createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+    savedAt: timestamp("saved_at", { mode: "date" }),
+  },
+  (t) => [
+    index("copy_variant_workspace_idx").on(t.workspaceId, t.status, t.createdAt),
+    index("copy_variant_run_idx").on(t.runId, t.seq),
+    index("copy_variant_voice_idx").on(t.voiceId),
+  ],
+);
+
+export const agentRunsRelations = relations(agentRuns, ({ one, many }) => ({
+  workspace: one(workspaces, {
+    fields: [agentRuns.workspaceId],
+    references: [workspaces.id],
+  }),
+  voice: one(brandVoices, {
+    fields: [agentRuns.voiceId],
+    references: [brandVoices.id],
+  }),
+  createdBy: one(users, {
+    fields: [agentRuns.createdByUserId],
+    references: [users.id],
+  }),
+  steps: many(agentRunSteps),
+  variants: many(copyVariants),
+}));
+
+export const agentRunStepsRelations = relations(agentRunSteps, ({ one }) => ({
+  run: one(agentRuns, {
+    fields: [agentRunSteps.runId],
+    references: [agentRuns.id],
+  }),
+}));
+
+export const copyVariantsRelations = relations(copyVariants, ({ one }) => ({
+  run: one(agentRuns, {
+    fields: [copyVariants.runId],
+    references: [agentRuns.id],
+  }),
+  workspace: one(workspaces, {
+    fields: [copyVariants.workspaceId],
+    references: [workspaces.id],
+  }),
+  voice: one(brandVoices, {
+    fields: [copyVariants.voiceId],
+    references: [brandVoices.id],
+  }),
+}));
+
+export type AgentRun = typeof agentRuns.$inferSelect;
+export type AgentRunStep = typeof agentRunSteps.$inferSelect;
+export type CopyVariant = typeof copyVariants.$inferSelect;
+export type AgentKind = (typeof agentKindEnum.enumValues)[number];
+export type AgentRunStatus = (typeof agentRunStatusEnum.enumValues)[number];
+export type AgentStepStatus = (typeof agentStepStatusEnum.enumValues)[number];
+export type VariantStatus = (typeof variantStatusEnum.enumValues)[number];
+export type Channel = (typeof channelEnum.enumValues)[number];

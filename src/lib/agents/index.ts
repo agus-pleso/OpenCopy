@@ -21,3 +21,5 @@ export {
   type VoiceAuditIssue,
   type VoiceAuditorInput,
 } from "./voice-auditor";
+export * from "./copywriter";
+export * from "./localizer";

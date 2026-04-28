@@ -3,7 +3,7 @@ import { ArrowRight, ScanText, Bot, Library, KeyRound, Languages, Sparkles } fro
 import { eq, and } from "drizzle-orm";
 
 import { db } from "@/db/client";
-import { apiKeys, brandVoices, modelDefaults } from "@/db/schema";
+import { agentRuns, apiKeys, brandVoices, copyVariants, modelDefaults } from "@/db/schema";
 import { getCurrentWorkspace } from "@/lib/auth/workspace";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -33,6 +33,24 @@ export default async function DashboardPage() {
     .where(eq(brandVoices.workspaceId, workspace.id));
   const hasActiveVoice = voices.some((v) => v.status === "active");
   const hasAnyVoice = voices.length > 0;
+
+  const runs = await db
+    .select({ id: agentRuns.id, kind: agentRuns.kind })
+    .from(agentRuns)
+    .where(eq(agentRuns.workspaceId, workspace.id));
+  const hasCopywriterRun = runs.some((r) => r.kind === "copywriter");
+  const hasLocalizerRun = runs.some((r) => r.kind === "localizer");
+
+  const savedVariants = await db
+    .select({ id: copyVariants.id })
+    .from(copyVariants)
+    .where(
+      and(
+        eq(copyVariants.workspaceId, workspace.id),
+        eq(copyVariants.status, "saved"),
+      ),
+    );
+  const hasSavedVariant = savedVariants.length > 0;
 
   const checklist = [
     {
@@ -71,23 +89,23 @@ export default async function DashboardPage() {
       title: "Run your first copywriter agent",
       description:
         "Multi-agent flow: planner → drafters → voice auditor → refiner.",
-      done: false,
-      cta: "Coming in V1.0",
-      href: "/agents",
+      done: hasCopywriterRun || hasSavedVariant,
+      cta: hasCopywriterRun ? "Run another" : "Run copywriter",
+      href: "/agents/copywriter",
       icon: Bot,
-      version: "V1.0",
-      enabled: false,
+      version: null,
+      enabled: hasActiveVoice,
     },
     {
       title: "Localize copy across PL · EN · RO · UA",
       description:
         "Transcreation flow that keeps your brand voice intact across markets.",
-      done: false,
-      cta: "Coming in V1.0",
-      href: "/agents",
+      done: hasLocalizerRun,
+      cta: hasLocalizerRun ? "Localize again" : "Run localizer",
+      href: "/agents/localizer",
       icon: Languages,
-      version: "V1.0",
-      enabled: false,
+      version: null,
+      enabled: defaults.length >= 4,
     },
   ];
 
@@ -110,7 +128,7 @@ export default async function DashboardPage() {
           </p>
         </div>
         <Badge variant="outline" className="hidden md:inline-flex">
-          V0.2 · brand voices
+          V1.0 · agents live
         </Badge>
       </div>
 

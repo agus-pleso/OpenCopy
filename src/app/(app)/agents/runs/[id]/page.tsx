@@ -1,0 +1,144 @@
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { ChevronLeft, Bot, Languages, RotateCw } from "lucide-react";
+
+import { getAgentRun } from "@/server/actions/agents";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { VariantCard } from "@/components/agents/variant-card";
+import { LocalizerResult } from "@/components/agents/localizer-result";
+import { AgentTimeline } from "@/components/agents/agent-timeline";
+import { formatDistanceShort } from "@/lib/utils";
+import type {
+  CopywriterBrief,
+  LocalizerBrief,
+} from "@/db/schema";
+
+const STATUS_VARIANT = {
+  succeeded: "success",
+  running: "warning",
+  queued: "muted",
+  failed: "destructive",
+  cancelled: "outline",
+} as const;
+
+interface PageProps {
+  params: Promise<{ id: string }>;
+}
+
+export default async function RunPage({ params }: PageProps) {
+  const { id } = await params;
+  const run = await getAgentRun(id);
+  if (!run) notFound();
+
+  const Icon = run.kind === "copywriter" ? Bot : Languages;
+  const variants = run.variants ?? [];
+
+  const cwBrief = run.kind === "copywriter" ? (run.brief as CopywriterBrief) : null;
+  const locBrief = run.kind === "localizer" ? (run.brief as LocalizerBrief) : null;
+
+  return (
+    <div className="mx-auto w-full max-w-6xl px-6 py-10 md:px-10 md:py-14">
+      <Link
+        href="/agents"
+        className="inline-flex items-center gap-1 text-xs uppercase tracking-wider text-[--color-muted-foreground] hover:text-[--color-foreground] transition"
+      >
+        <ChevronLeft className="h-3 w-3" /> Agents
+      </Link>
+
+      <div className="mt-3 flex items-start justify-between gap-4">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <Icon className="h-4 w-4 text-[--color-primary]" />
+            <p className="text-xs uppercase tracking-[0.18em] text-[--color-muted-foreground]">
+              {run.kind === "copywriter" ? "Copywriter run" : "Localizer run"}
+            </p>
+            <Badge
+              variant={STATUS_VARIANT[run.status]}
+              className="text-[10px] tracking-wider"
+            >
+              {run.status}
+            </Badge>
+          </div>
+          <h1 className="mt-2 font-display text-3xl tracking-tight md:text-4xl text-balance">
+            {cwBrief?.objective
+              ? cwBrief.objective.length > 100
+                ? cwBrief.objective.slice(0, 100) + "…"
+                : cwBrief.objective
+              : locBrief
+              ? `Localize ${locBrief.sourceLocale.toUpperCase()} → ${locBrief.targetLocale.toUpperCase()}`
+              : "Run"}
+          </h1>
+          <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-[--color-muted-foreground]">
+            {run.voice && (
+              <Link
+                href={`/voices/${run.voice.id}`}
+                className="inline-flex items-center gap-1 underline-offset-2 hover:underline"
+              >
+                Voice · {run.voice.name}
+              </Link>
+            )}
+            {cwBrief && <span>Channel · {cwBrief.channel}</span>}
+            {cwBrief && <span>Locale · {cwBrief.locale.toUpperCase()}</span>}
+            <span>Started {formatDistanceShort(run.createdAt)}</span>
+            {run.durationMs != null && (
+              <span className="tabular-nums">
+                Total · {(run.durationMs / 1000).toFixed(1)}s
+              </span>
+            )}
+          </div>
+        </div>
+        <Button asChild variant="outline" size="sm">
+          <Link
+            href={
+              run.kind === "copywriter" ? "/agents/copywriter" : "/agents/localizer"
+            }
+          >
+            <RotateCw className="h-3.5 w-3.5" /> New run
+          </Link>
+        </Button>
+      </div>
+
+      {run.status === "failed" && run.error && (
+        <div className="mt-6 rounded-md border border-[--color-destructive]/30 bg-[--color-destructive]/5 px-4 py-3 text-sm text-[--color-destructive]">
+          <p className="font-medium">Run failed</p>
+          <p className="mt-1 font-mono text-[12px]">{run.error}</p>
+        </div>
+      )}
+
+      <div className="mt-8 grid gap-8 lg:grid-cols-[1fr,260px]">
+        <div className="flex flex-col gap-4">
+          {run.kind === "copywriter" &&
+            variants.map((v) => (
+              <VariantCard
+                key={v.id}
+                variant={v}
+                canRefine={!!run.voiceId}
+              />
+            ))}
+          {run.kind === "localizer" && variants[0] && locBrief && (
+            <LocalizerResult
+              variant={variants[0]}
+              sourceText={locBrief.sourceText}
+              sourceLocale={locBrief.sourceLocale}
+            />
+          )}
+          {variants.length === 0 && run.status !== "failed" && (
+            <div className="rounded-lg border border-dashed border-[--color-border] bg-[--color-muted]/30 p-8 text-center text-sm text-[--color-muted-foreground]">
+              No variants yet — agents are still running. Refresh in a moment.
+            </div>
+          )}
+        </div>
+
+        <aside className="lg:sticky lg:top-20 lg:self-start">
+          <p className="text-xs uppercase tracking-[0.14em] text-[--color-muted-foreground]">
+            Agent timeline
+          </p>
+          <div className="mt-3 rounded-lg border border-[--color-border] bg-[--color-card] p-4">
+            <AgentTimeline steps={run.steps ?? []} />
+          </div>
+        </aside>
+      </div>
+    </div>
+  );
+}

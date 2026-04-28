@@ -1,6 +1,8 @@
 import { z } from "zod";
 import type { Locale } from "@/db/schema";
 
+export type { Locale };
+
 /**
  * Shared voice-card schema. Lives outside `server-only` modules so client
  * components can use the type / runtime checks if needed.
