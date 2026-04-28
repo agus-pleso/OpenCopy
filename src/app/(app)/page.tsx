@@ -3,7 +3,7 @@ import { ArrowRight, ScanText, Bot, Library, KeyRound, Languages, Sparkles } fro
 import { eq, and } from "drizzle-orm";
 
 import { db } from "@/db/client";
-import { apiKeys, modelDefaults } from "@/db/schema";
+import { apiKeys, brandVoices, modelDefaults } from "@/db/schema";
 import { getCurrentWorkspace } from "@/lib/auth/workspace";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -27,6 +27,13 @@ export default async function DashboardPage() {
     .from(modelDefaults)
     .where(eq(modelDefaults.workspaceId, workspace.id));
 
+  const voices = await db
+    .select({ id: brandVoices.id, status: brandVoices.status })
+    .from(brandVoices)
+    .where(eq(brandVoices.workspaceId, workspace.id));
+  const hasActiveVoice = voices.some((v) => v.status === "active");
+  const hasAnyVoice = voices.length > 0;
+
   const checklist = [
     {
       title: "Connect OpenRouter",
@@ -36,6 +43,7 @@ export default async function DashboardPage() {
       href: "/settings/ai",
       icon: KeyRound,
       version: null,
+      enabled: true,
     },
     {
       title: "Pick default models",
@@ -46,16 +54,18 @@ export default async function DashboardPage() {
       href: "/settings/ai",
       icon: Sparkles,
       version: null,
+      enabled: !!openrouter,
     },
     {
       title: "Define your first brand voice",
       description:
-        "Upload writing samples — the Voice Analyzer agent extracts a structured profile.",
-      done: false,
-      cta: "Coming in V0.2",
+        "Upload writing samples — the Voice Analyzer extracts a structured profile.",
+      done: hasActiveVoice,
+      cta: hasAnyVoice ? "Manage voices" : "Create voice",
       href: "/voices",
       icon: ScanText,
-      version: "V0.2",
+      version: null,
+      enabled: defaults.length >= 4,
     },
     {
       title: "Run your first copywriter agent",
@@ -66,6 +76,7 @@ export default async function DashboardPage() {
       href: "/agents",
       icon: Bot,
       version: "V1.0",
+      enabled: false,
     },
     {
       title: "Localize copy across PL · EN · RO · UA",
@@ -76,6 +87,7 @@ export default async function DashboardPage() {
       href: "/agents",
       icon: Languages,
       version: "V1.0",
+      enabled: false,
     },
   ];
 
@@ -98,7 +110,7 @@ export default async function DashboardPage() {
           </p>
         </div>
         <Badge variant="outline" className="hidden md:inline-flex">
-          V0.1 · scaffold
+          V0.2 · brand voices
         </Badge>
       </div>
 
@@ -147,14 +159,18 @@ export default async function DashboardPage() {
                   </p>
                 </div>
                 <Button
-                  asChild
+                  asChild={item.enabled}
                   size="sm"
                   variant={item.done ? "outline" : "default"}
-                  disabled={!!item.version && !item.done}
+                  disabled={!item.enabled}
                 >
-                  <Link href={item.href}>
-                    {item.cta} <ArrowRight className="h-3.5 w-3.5" />
-                  </Link>
+                  {item.enabled ? (
+                    <Link href={item.href}>
+                      {item.cta} <ArrowRight className="h-3.5 w-3.5" />
+                    </Link>
+                  ) : (
+                    <span>{item.cta}</span>
+                  )}
                 </Button>
               </li>
             );

@@ -22,7 +22,7 @@ interface NavItem {
 }
 
 const NAV: NavItem[] = [
-  { label: "Brand voices", href: "/voices", icon: ScanText, hint: "V0.2" },
+  { label: "Brand voices", href: "/voices", icon: ScanText },
   { label: "Agents", href: "/agents", icon: Bot, hint: "V1.0" },
   { label: "Library", href: "/library", icon: Library, hint: "V1.0" },
 ];

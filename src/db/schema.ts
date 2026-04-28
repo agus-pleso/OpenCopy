@@ -293,3 +293,179 @@ export type ApiKeyProvider = (typeof apiKeyProviderEnum.enumValues)[number];
 export type ModelRole = (typeof modelRoleEnum.enumValues)[number];
 export type ApiKey = typeof apiKeys.$inferSelect;
 export type ModelDefault = typeof modelDefaults.$inferSelect;
+
+/* ----------------------------------------------------------------------------
+ * Brand voices — the spine that every agent reads from.
+ * V0.2 introduces the primitive; Copywriter and Localizer agents in V1.0
+ * inject the structured voice card into their system prompts.
+ * -------------------------------------------------------------------------- */
+
+export const voiceStatusEnum = pgEnum("voice_status", [
+  "draft",
+  "active",
+  "archived",
+]);
+
+/** Severity of issues raised by the Voice Auditor. */
+export const auditSeverityEnum = pgEnum("audit_severity", [
+  "low",
+  "medium",
+  "high",
+]);
+
+export interface VoiceCardRule {
+  rule: string;
+  why?: string;
+}
+
+export interface VoiceCardLocaleNotes {
+  pl?: string;
+  en?: string;
+  ro?: string;
+  uk?: string;
+}
+
+export const brandVoices = pgTable(
+  "brand_voice",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    workspaceId: uuid("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    description: text("description"),
+    status: voiceStatusEnum("status").notNull().default("draft"),
+    defaultLocale: localeEnum("default_locale").notNull().default("en"),
+
+    // Structured voice card — populated by the Voice Analyzer agent, editable by user.
+    toneDescriptors: jsonb("tone_descriptors")
+      .$type<string[]>()
+      .notNull()
+      .default([]),
+    voicePersona: text("voice_persona"),
+    audience: text("audience"),
+    readingLevel: text("reading_level"),
+    dos: jsonb("dos").$type<VoiceCardRule[]>().notNull().default([]),
+    donts: jsonb("donts").$type<VoiceCardRule[]>().notNull().default([]),
+    requiredWords: jsonb("required_words")
+      .$type<string[]>()
+      .notNull()
+      .default([]),
+    forbiddenWords: jsonb("forbidden_words")
+      .$type<string[]>()
+      .notNull()
+      .default([]),
+    localeNotes: jsonb("locale_notes")
+      .$type<VoiceCardLocaleNotes>()
+      .notNull()
+      .default({}),
+    rationale: text("rationale"),
+
+    // Provenance
+    analyzerModelId: text("analyzer_model_id"),
+    analyzedAt: timestamp("analyzed_at", { mode: "date" }),
+
+    createdByUserId: text("created_by_user_id")
+      .notNull()
+      .references(() => users.id),
+    createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("brand_voice_workspace_idx").on(t.workspaceId),
+    index("brand_voice_status_idx").on(t.workspaceId, t.status),
+  ],
+);
+
+export const voiceSamples = pgTable(
+  "voice_sample",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    voiceId: uuid("voice_id")
+      .notNull()
+      .references(() => brandVoices.id, { onDelete: "cascade" }),
+    workspaceId: uuid("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    sourceLabel: text("source_label"),
+    locale: localeEnum("locale").notNull().default("en"),
+    content: text("content").notNull(),
+    wordCount: integer("word_count").notNull().default(0),
+    createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+  },
+  (t) => [index("voice_sample_voice_idx").on(t.voiceId)],
+);
+
+export interface VoiceAuditIssue {
+  excerpt: string;
+  category:
+    | "tone"
+    | "do_violation"
+    | "dont_violation"
+    | "forbidden_word"
+    | "missing_required"
+    | "reading_level"
+    | "audience_mismatch"
+    | "other";
+  severity: "low" | "medium" | "high";
+  explanation: string;
+  suggestion?: string;
+}
+
+/** Optional history of audit playground runs. Useful for showing "you've used
+ *  this voice 47 times" in workspace stats later. */
+export const voiceAudits = pgTable(
+  "voice_audit",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    voiceId: uuid("voice_id")
+      .notNull()
+      .references(() => brandVoices.id, { onDelete: "cascade" }),
+    workspaceId: uuid("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    draftText: text("draft_text").notNull(),
+    overallScore: integer("overall_score").notNull(),
+    summary: text("summary"),
+    strengths: jsonb("strengths").$type<string[]>().notNull().default([]),
+    issues: jsonb("issues").$type<VoiceAuditIssue[]>().notNull().default([]),
+    modelId: text("model_id"),
+    createdByUserId: text("created_by_user_id")
+      .notNull()
+      .references(() => users.id),
+    createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+  },
+  (t) => [index("voice_audit_voice_idx").on(t.voiceId)],
+);
+
+export const brandVoicesRelations = relations(brandVoices, ({ one, many }) => ({
+  workspace: one(workspaces, {
+    fields: [brandVoices.workspaceId],
+    references: [workspaces.id],
+  }),
+  createdBy: one(users, {
+    fields: [brandVoices.createdByUserId],
+    references: [users.id],
+  }),
+  samples: many(voiceSamples),
+  audits: many(voiceAudits),
+}));
+
+export const voiceSamplesRelations = relations(voiceSamples, ({ one }) => ({
+  voice: one(brandVoices, {
+    fields: [voiceSamples.voiceId],
+    references: [brandVoices.id],
+  }),
+}));
+
+export const voiceAuditsRelations = relations(voiceAudits, ({ one }) => ({
+  voice: one(brandVoices, {
+    fields: [voiceAudits.voiceId],
+    references: [brandVoices.id],
+  }),
+}));
+
+export type BrandVoice = typeof brandVoices.$inferSelect;
+export type VoiceSample = typeof voiceSamples.$inferSelect;
+export type VoiceAudit = typeof voiceAudits.$inferSelect;
+export type VoiceStatus = (typeof voiceStatusEnum.enumValues)[number];

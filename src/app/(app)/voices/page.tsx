@@ -1,11 +1,13 @@
-import Link from "next/link";
-import { ScanText, Sparkles, Wand2, ArrowRight } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { ScanText, Sparkles, BookOpen } from "lucide-react";
+import { listVoices } from "@/server/actions/voices";
+import { NewVoiceDialog } from "@/components/voices/new-voice-dialog";
+import { VoiceListCard } from "@/components/voices/voice-list-card";
 
-export default function VoicesPage() {
+export default async function VoicesPage() {
+  const voices = await listVoices();
+
   return (
-    <div className="mx-auto w-full max-w-4xl px-6 py-10 md:px-10 md:py-14">
+    <div className="mx-auto w-full max-w-6xl px-6 py-10 md:px-10 md:py-14">
       <div className="flex items-baseline justify-between">
         <div>
           <p className="text-sm uppercase tracking-[0.18em] text-[--color-muted-foreground]">
@@ -14,48 +16,68 @@ export default function VoicesPage() {
           <h1 className="mt-2 font-display text-4xl tracking-tight md:text-5xl text-balance">
             The spine of every agent run.
           </h1>
+          <p className="mt-3 max-w-2xl text-pretty text-[--color-muted-foreground]">
+            Upload writing samples — the Voice Analyzer extracts a structured
+            profile (tone, do&apos;s, don&apos;ts, audience, vocabulary). Every Copywriter
+            and Localizer run reads from the voices you define here.
+          </p>
         </div>
-        <Badge variant="muted">V0.2</Badge>
+        <NewVoiceDialog />
       </div>
-      <p className="mt-3 max-w-2xl text-pretty text-[--color-muted-foreground]">
-        Upload writing samples — the Voice Analyzer agent extracts a structured
-        profile (tone descriptors, do&apos;s, don&apos;ts, audience, reading level,
-        required and forbidden words). Every Copywriter and Localizer run reads
-        from this.
-      </p>
 
-      <div className="mt-12 grid gap-3 md:grid-cols-3">
-        <PreviewCard
+      {voices.length === 0 ? (
+        <EmptyState />
+      ) : (
+        <div className="mt-10 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {voices.map((v) => (
+            <VoiceListCard key={v.id} voice={v} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function EmptyState() {
+  return (
+    <div className="mt-12 grid gap-8 md:grid-cols-[1.2fr,1fr] md:gap-14">
+      <div className="rounded-2xl border border-dashed border-[--color-border] bg-[--color-muted]/30 px-8 py-16 text-center md:py-20">
+        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-[--color-primary]/10 text-[--color-primary]">
+          <ScanText className="h-5 w-5" />
+        </div>
+        <h2 className="mt-5 font-display text-2xl tracking-tight">
+          Define your first brand voice.
+        </h2>
+        <p className="mx-auto mt-2 max-w-md text-pretty text-sm text-[--color-muted-foreground]">
+          Paste 2–5 representative samples of your existing copy. The Voice
+          Analyzer reads them and proposes a structured profile in under a minute.
+        </p>
+        <div className="mt-6 inline-flex">
+          <NewVoiceDialog />
+        </div>
+      </div>
+      <div className="grid gap-4">
+        <Tip
           icon={ScanText}
-          title="Analyze"
-          body="Paste samples or upload .txt / .md / .docx. Get a structured voice card in under a minute."
+          title="Sample-driven, not preference-driven"
+          body="Don't write a brief in plain English — drop in real copy. The analyzer extracts what your brand actually does, not what you think it does."
         />
-        <PreviewCard
+        <Tip
           icon={Sparkles}
-          title="Audit"
-          body="Score any draft against the voice. Inline highlights show every off-brand line."
+          title="Review before shipping"
+          body="The proposed voice card is a starting point. Edit any field that doesn't ring true, then mark the voice 'active'."
         />
-        <PreviewCard
-          icon={Wand2}
-          title="Apply"
-          body="Inject the voice into Copywriter and Localizer agents — automatically and per-locale."
+        <Tip
+          icon={BookOpen}
+          title="One voice per brand, not per channel"
+          body="Add 3–5 samples mixing channels — homepage, ad, email, blog. The auditor handles channel-specific nuances at run time."
         />
-      </div>
-
-      <div className="mt-10 flex items-center gap-3 rounded-lg border border-dashed border-[--color-border] bg-[--color-muted]/40 px-5 py-4 text-sm text-[--color-muted-foreground]">
-        <span className="flex h-2 w-2 rounded-full bg-[--color-primary] animate-pulse" />
-        <span>Brand voices ship in V0.2 — finish setup to be ready.</span>
-        <Button asChild variant="ghost" size="sm" className="ml-auto">
-          <Link href="/settings/ai">
-            Configure AI <ArrowRight className="h-3.5 w-3.5" />
-          </Link>
-        </Button>
       </div>
     </div>
   );
 }
 
-function PreviewCard({
+function Tip({
   icon: Icon,
   title,
   body,
@@ -65,10 +87,10 @@ function PreviewCard({
   body: string;
 }) {
   return (
-    <div className="rounded-lg border border-[--color-border] bg-[--color-card] p-5">
-      <Icon className="h-5 w-5 text-[--color-primary]" />
-      <h3 className="mt-3 font-display text-base tracking-tight">{title}</h3>
-      <p className="mt-1.5 text-sm text-[--color-muted-foreground] text-pretty">
+    <div className="rounded-lg border border-[--color-border] bg-[--color-card] p-4">
+      <Icon className="h-4 w-4 text-[--color-primary]" />
+      <h3 className="mt-2 font-display text-base tracking-tight">{title}</h3>
+      <p className="mt-1 text-sm text-[--color-muted-foreground] text-pretty">
         {body}
       </p>
     </div>
