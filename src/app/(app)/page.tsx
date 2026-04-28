@@ -1,0 +1,204 @@
+import Link from "next/link";
+import { ArrowRight, ScanText, Bot, Library, KeyRound, Languages, Sparkles } from "lucide-react";
+import { eq, and } from "drizzle-orm";
+
+import { db } from "@/db/client";
+import { apiKeys, modelDefaults } from "@/db/schema";
+import { getCurrentWorkspace } from "@/lib/auth/workspace";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+
+export default async function DashboardPage() {
+  const { workspace } = await getCurrentWorkspace();
+
+  const [openrouter] = await db
+    .select()
+    .from(apiKeys)
+    .where(
+      and(
+        eq(apiKeys.workspaceId, workspace.id),
+        eq(apiKeys.provider, "openrouter"),
+      ),
+    )
+    .limit(1);
+
+  const defaults = await db
+    .select()
+    .from(modelDefaults)
+    .where(eq(modelDefaults.workspaceId, workspace.id));
+
+  const checklist = [
+    {
+      title: "Connect OpenRouter",
+      description: "Paste an API key. Use any model from any provider.",
+      done: !!openrouter,
+      cta: "Open settings",
+      href: "/settings/ai",
+      icon: KeyRound,
+      version: null,
+    },
+    {
+      title: "Pick default models",
+      description:
+        "Choose models for each role: planning, drafting, fast, critic.",
+      done: defaults.length >= 4,
+      cta: "Configure models",
+      href: "/settings/ai",
+      icon: Sparkles,
+      version: null,
+    },
+    {
+      title: "Define your first brand voice",
+      description:
+        "Upload writing samples — the Voice Analyzer agent extracts a structured profile.",
+      done: false,
+      cta: "Coming in V0.2",
+      href: "/voices",
+      icon: ScanText,
+      version: "V0.2",
+    },
+    {
+      title: "Run your first copywriter agent",
+      description:
+        "Multi-agent flow: planner → drafters → voice auditor → refiner.",
+      done: false,
+      cta: "Coming in V1.0",
+      href: "/agents",
+      icon: Bot,
+      version: "V1.0",
+    },
+    {
+      title: "Localize copy across PL · EN · RO · UA",
+      description:
+        "Transcreation flow that keeps your brand voice intact across markets.",
+      done: false,
+      cta: "Coming in V1.0",
+      href: "/agents",
+      icon: Languages,
+      version: "V1.0",
+    },
+  ];
+
+  const completed = checklist.filter((c) => c.done).length;
+  const total = checklist.length;
+
+  return (
+    <div className="mx-auto w-full max-w-5xl px-6 py-10 md:px-10 md:py-14">
+      <div className="flex items-baseline justify-between">
+        <div>
+          <p className="text-sm uppercase tracking-[0.18em] text-[--color-muted-foreground]">
+            {workspace.name}
+          </p>
+          <h1 className="mt-2 font-display text-4xl tracking-tight md:text-5xl text-balance">
+            Welcome to OpenCopy.
+          </h1>
+          <p className="mt-3 max-w-xl text-pretty text-[--color-muted-foreground]">
+            Agentic AI copywriters and localizers, trained on your brand voice.
+            Five quick steps to get you generating on-brand copy.
+          </p>
+        </div>
+        <Badge variant="outline" className="hidden md:inline-flex">
+          V0.1 · scaffold
+        </Badge>
+      </div>
+
+      <div className="mt-10 rounded-xl border border-[--color-border] bg-[--color-card] p-2">
+        <div className="flex items-center justify-between px-4 pb-2 pt-3">
+          <p className="text-xs uppercase tracking-wider text-[--color-muted-foreground]">
+            Get started · {completed}/{total}
+          </p>
+          <div className="flex h-1.5 w-32 overflow-hidden rounded-full bg-[--color-muted]">
+            <div
+              className="bg-[--color-primary] transition-all"
+              style={{ width: `${(completed / total) * 100}%` }}
+            />
+          </div>
+        </div>
+        <ol className="divide-y divide-[--color-border]/60">
+          {checklist.map((item, i) => {
+            const Icon = item.icon;
+            return (
+              <li key={i} className="grid grid-cols-[auto,1fr,auto] items-center gap-4 px-4 py-4">
+                <div
+                  className={
+                    item.done
+                      ? "flex h-9 w-9 items-center justify-center rounded-full bg-[--color-primary] text-[--color-primary-foreground]"
+                      : "flex h-9 w-9 items-center justify-center rounded-full border border-dashed border-[--color-border] text-[--color-muted-foreground]"
+                  }
+                >
+                  <Icon className="h-4 w-4" />
+                </div>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-medium tracking-tight">{item.title}</h3>
+                    {item.version && (
+                      <Badge variant="muted" className="text-[10px] tracking-wider">
+                        {item.version}
+                      </Badge>
+                    )}
+                    {item.done && (
+                      <Badge variant="success" className="text-[10px] tracking-wider">
+                        Done
+                      </Badge>
+                    )}
+                  </div>
+                  <p className="text-sm text-[--color-muted-foreground] text-pretty">
+                    {item.description}
+                  </p>
+                </div>
+                <Button
+                  asChild
+                  size="sm"
+                  variant={item.done ? "outline" : "default"}
+                  disabled={!!item.version && !item.done}
+                >
+                  <Link href={item.href}>
+                    {item.cta} <ArrowRight className="h-3.5 w-3.5" />
+                  </Link>
+                </Button>
+              </li>
+            );
+          })}
+        </ol>
+      </div>
+
+      <div className="mt-10 grid gap-4 md:grid-cols-3">
+        <Pillar
+          icon={ScanText}
+          title="Brand voice as the spine"
+          body="Every agent reads from a structured voice profile — tone, do's, don'ts, audience, reading level, required and forbidden words."
+        />
+        <Pillar
+          icon={Bot}
+          title="Multi-agent transparency"
+          body="Planner, drafters, auditor, refiner — every step streams to the timeline. Marketers see why the AI chose what it chose."
+        />
+        <Pillar
+          icon={Library}
+          title="You own the stack"
+          body="Self-hostable, MIT, Postgres-backed. Plug any model via OpenRouter, direct keys, or local Ollama."
+        />
+      </div>
+    </div>
+  );
+}
+
+function Pillar({
+  icon: Icon,
+  title,
+  body,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  title: string;
+  body: string;
+}) {
+  return (
+    <div className="rounded-lg border border-[--color-border] bg-[--color-card] p-5">
+      <Icon className="h-5 w-5 text-[--color-primary]" />
+      <h3 className="mt-3 font-display text-base tracking-tight">{title}</h3>
+      <p className="mt-1.5 text-sm text-[--color-muted-foreground] text-pretty">
+        {body}
+      </p>
+    </div>
+  );
+}

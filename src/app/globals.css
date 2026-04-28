@@ -1,0 +1,161 @@
+@import "tailwindcss";
+@plugin "tailwindcss-animate";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme {
+  /* OpenCopy palette — editorial / marketing tool
+     Light: warm paper-cream + deep ink + terracotta accent
+     Dark : near-black + warm cream + same terracotta */
+
+  --color-background: oklch(0.98 0.012 80);          /* warm cream #FAF7F2 */
+  --color-foreground: oklch(0.16 0.012 60);          /* deep ink */
+
+  --color-card: oklch(1 0 0);
+  --color-card-foreground: oklch(0.16 0.012 60);
+
+  --color-popover: oklch(1 0 0);
+  --color-popover-foreground: oklch(0.16 0.012 60);
+
+  --color-primary: oklch(0.58 0.16 40);              /* terracotta */
+  --color-primary-foreground: oklch(0.99 0.01 80);
+
+  --color-secondary: oklch(0.94 0.012 75);
+  --color-secondary-foreground: oklch(0.16 0.012 60);
+
+  --color-muted: oklch(0.94 0.012 75);
+  --color-muted-foreground: oklch(0.45 0.012 60);
+
+  --color-accent: oklch(0.94 0.022 60);
+  --color-accent-foreground: oklch(0.20 0.020 50);
+
+  --color-destructive: oklch(0.55 0.22 28);
+  --color-destructive-foreground: oklch(0.99 0.01 80);
+
+  --color-border: oklch(0.90 0.012 75);
+  --color-input: oklch(0.92 0.012 75);
+  --color-ring: oklch(0.58 0.16 40);
+
+  --color-success: oklch(0.62 0.13 150);
+  --color-warning: oklch(0.78 0.15 75);
+
+  /* Sidebar tokens */
+  --color-sidebar: oklch(0.97 0.014 80);
+  --color-sidebar-foreground: oklch(0.20 0.012 60);
+  --color-sidebar-border: oklch(0.90 0.012 75);
+  --color-sidebar-accent: oklch(0.94 0.020 60);
+  --color-sidebar-accent-foreground: oklch(0.20 0.012 60);
+
+  --radius: 0.5rem;
+  --radius-sm: 0.25rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+
+  /* Marketing-grade type scale */
+  --text-display: 3.5rem;
+  --text-display--line-height: 1.05;
+  --text-display--letter-spacing: -0.03em;
+}
+
+.dark {
+  --color-background: oklch(0.14 0.008 60);
+  --color-foreground: oklch(0.95 0.012 80);
+
+  --color-card: oklch(0.18 0.010 60);
+  --color-card-foreground: oklch(0.95 0.012 80);
+
+  --color-popover: oklch(0.18 0.010 60);
+  --color-popover-foreground: oklch(0.95 0.012 80);
+
+  --color-primary: oklch(0.66 0.16 42);
+  --color-primary-foreground: oklch(0.16 0.012 60);
+
+  --color-secondary: oklch(0.24 0.010 60);
+  --color-secondary-foreground: oklch(0.95 0.012 80);
+
+  --color-muted: oklch(0.24 0.010 60);
+  --color-muted-foreground: oklch(0.66 0.010 60);
+
+  --color-accent: oklch(0.26 0.018 50);
+  --color-accent-foreground: oklch(0.95 0.012 80);
+
+  --color-destructive: oklch(0.62 0.22 28);
+  --color-destructive-foreground: oklch(0.99 0.01 80);
+
+  --color-border: oklch(0.26 0.010 60);
+  --color-input: oklch(0.24 0.010 60);
+  --color-ring: oklch(0.66 0.16 42);
+
+  --color-success: oklch(0.70 0.13 150);
+  --color-warning: oklch(0.80 0.15 75);
+
+  --color-sidebar: oklch(0.16 0.008 60);
+  --color-sidebar-foreground: oklch(0.92 0.012 80);
+  --color-sidebar-border: oklch(0.24 0.010 60);
+  --color-sidebar-accent: oklch(0.22 0.018 50);
+  --color-sidebar-accent-foreground: oklch(0.95 0.012 80);
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+  body {
+    background: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    font-feature-settings: "ss01", "cv11";
+  }
+
+  /* Refined focus rings — no blue browser default */
+  :focus-visible {
+    outline: 2px solid var(--color-ring);
+    outline-offset: 2px;
+    border-radius: 0.25rem;
+  }
+
+  ::selection {
+    background: var(--color-primary);
+    color: var(--color-primary-foreground);
+  }
+
+  /* Subtle scrollbar — feels considered */
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: color-mix(in oklch, var(--color-border), transparent 30%);
+    border-radius: 999px;
+    border: 2px solid var(--color-background);
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--color-muted-foreground);
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+  .text-pretty {
+    text-wrap: pretty;
+  }
+  .font-display {
+    font-family: var(--font-sans);
+    letter-spacing: -0.03em;
+    font-weight: 600;
+  }
+}

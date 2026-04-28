@@ -1,0 +1,54 @@
+# OpenCopy — self-host docker compose.
+#
+# Usage:
+#   1. Copy .env.example to .env and fill in AUTH_SECRET, ENCRYPTION_KEY.
+#   2. docker compose up -d
+#   3. docker compose exec app pnpm db:migrate
+#   4. Open http://localhost:3000
+#
+# For dev where you only want Postgres locally:
+#   docker compose up -d postgres
+# and run the app on the host with `pnpm dev`.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: opencopy
+      POSTGRES_PASSWORD: opencopy
+      POSTGRES_DB: opencopy
+    volumes:
+      - opencopy_pg:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U opencopy -d opencopy"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  app:
+    profiles: ["full"] # only starts on `docker compose --profile full up`
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://opencopy:opencopy@postgres:5432/opencopy
+      AUTH_SECRET: ${AUTH_SECRET}
+      AUTH_TRUST_HOST: "true"
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+      NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
+      DEV_AUTH_ENABLED: ${DEV_AUTH_ENABLED:-false}
+      AUTH_RESEND_KEY: ${AUTH_RESEND_KEY:-}
+      EMAIL_FROM: ${EMAIL_FROM:-}
+      NODE_ENV: production
+    ports:
+      - "3000:3000"
+
+volumes:
+  opencopy_pg:
