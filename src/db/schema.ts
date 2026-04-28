@@ -10,6 +10,7 @@ import {
   uniqueIndex,
   index,
   boolean,
+  vector,
 } from "drizzle-orm/pg-core";
 import type { AdapterAccountType } from "next-auth/adapters";
 import { relations } from "drizzle-orm";
@@ -526,6 +527,8 @@ export interface CopywriterBrief {
   keywords?: string[];
   forbiddenTerms?: string[];
   examples?: string;
+  /** Knowledge-base source ids to consult during planning + drafting. */
+  sourceIds?: string[];
 }
 
 export interface LocalizerBrief {
@@ -748,3 +751,108 @@ export const documentsRelations = relations(documents, ({ one }) => ({
 
 export type Document = typeof documents.$inferSelect;
 export type DocumentStatus = (typeof documentStatusEnum.enumValues)[number];
+
+/* ----------------------------------------------------------------------------
+ * Knowledge base (V1.2) — workspace-scoped sources + pgvector chunks.
+ * Copywriter, Localizer, and editor commands can pull relevant chunks at
+ * generation time so output is grounded in the user's actual product/brand
+ * facts, not just the brief.
+ * -------------------------------------------------------------------------- */
+
+export const kbSourceStatusEnum = pgEnum("kb_source_status", [
+  "indexing",
+  "ready",
+  "failed",
+  "archived",
+]);
+
+/** Embedding dimensions are tied to the chosen embedding model.
+ *  Default: OpenAI text-embedding-3-small @ 1536 dims.
+ *  When V1.5 introduces alternate providers (Voyage, Cohere, local), each
+ *  workspace's chunks must use a single model — we'll add a workspace-level
+ *  embedding-model column to enforce that. */
+export const KB_EMBEDDING_DIMENSIONS = 1536;
+
+export const kbSources = pgTable(
+  "kb_source",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    workspaceId: uuid("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    description: text("description"),
+    /** Free-form tags for filtering / multi-select in the copywriter form. */
+    tags: jsonb("tags").$type<string[]>().notNull().default([]),
+    /** Original source content (markdown / plain text). */
+    rawContent: text("raw_content").notNull(),
+    status: kbSourceStatusEnum("status").notNull().default("indexing"),
+    /** Number of chunks produced by the last indexing pass. */
+    chunkCount: integer("chunk_count").notNull().default(0),
+    /** Total tokens (estimated) across all chunks. */
+    tokenCount: integer("token_count").notNull().default(0),
+    /** Embedding model used for this source — guards against mixing models. */
+    embeddingModel: text("embedding_model"),
+    error: text("error"),
+    createdByUserId: text("created_by_user_id")
+      .notNull()
+      .references(() => users.id),
+    createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
+    indexedAt: timestamp("indexed_at", { mode: "date" }),
+  },
+  (t) => [
+    index("kb_source_workspace_idx").on(t.workspaceId, t.updatedAt),
+    index("kb_source_status_idx").on(t.workspaceId, t.status),
+  ],
+);
+
+export const kbChunks = pgTable(
+  "kb_chunk",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    sourceId: uuid("source_id")
+      .notNull()
+      .references(() => kbSources.id, { onDelete: "cascade" }),
+    workspaceId: uuid("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    /** Order within the source. 0-indexed. */
+    seq: integer("seq").notNull(),
+    content: text("content").notNull(),
+    tokenCount: integer("token_count").notNull().default(0),
+    embedding: vector("embedding", {
+      dimensions: KB_EMBEDDING_DIMENSIONS,
+    }),
+    /** Free-form metadata — heading text, page number when PDFs land, etc. */
+    metadata: jsonb("metadata").$type<Record<string, unknown>>().notNull().default({}),
+    createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("kb_chunk_source_idx").on(t.sourceId, t.seq),
+    index("kb_chunk_workspace_idx").on(t.workspaceId),
+  ],
+);
+
+export const kbSourcesRelations = relations(kbSources, ({ one, many }) => ({
+  workspace: one(workspaces, {
+    fields: [kbSources.workspaceId],
+    references: [workspaces.id],
+  }),
+  createdBy: one(users, {
+    fields: [kbSources.createdByUserId],
+    references: [users.id],
+  }),
+  chunks: many(kbChunks),
+}));
+
+export const kbChunksRelations = relations(kbChunks, ({ one }) => ({
+  source: one(kbSources, {
+    fields: [kbChunks.sourceId],
+    references: [kbSources.id],
+  }),
+}));
+
+export type KbSource = typeof kbSources.$inferSelect;
+export type KbChunk = typeof kbChunks.$inferSelect;
+export type KbSourceStatus = (typeof kbSourceStatusEnum.enumValues)[number];

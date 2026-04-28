@@ -4,7 +4,7 @@ import * as React from "react";
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Sparkles, X } from "lucide-react";
+import { Sparkles, X, BookOpen } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -18,8 +18,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
 import { startCopywriterRun } from "@/server/actions/agents";
 import { AgentRunningOverlay } from "./agent-running-overlay";
+import { cn } from "@/lib/utils";
 import type { Locale, Channel } from "@/db/schema";
 
 interface VoiceOption {
@@ -30,8 +32,17 @@ interface VoiceOption {
   isAnalyzed: boolean;
 }
 
+interface KnowledgeSourceOption {
+  id: string;
+  name: string;
+  chunkCount: number;
+  status: string;
+  tags: string[];
+}
+
 interface Props {
   voices: VoiceOption[];
+  sources?: KnowledgeSourceOption[];
 }
 
 const CHANNELS: { value: Channel; label: string; lengthHint: string }[] = [
@@ -52,11 +63,12 @@ const LOCALES: { value: Locale; label: string }[] = [
   { value: "uk", label: "Українська" },
 ];
 
-export function CopywriterForm({ voices }: Props) {
+export function CopywriterForm({ voices, sources = [] }: Props) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
 
   const usable = voices.filter((v) => v.isAnalyzed);
+  const usableSources = sources.filter((s) => s.status === "ready");
 
   const [voiceId, setVoiceId] = React.useState<string>(usable[0]?.id ?? "");
   const [channel, setChannel] = React.useState<Channel>("ad");
@@ -68,8 +80,15 @@ export function CopywriterForm({ voices }: Props) {
   const [length, setLength] = React.useState("");
   const [variantCount, setVariantCount] = React.useState(3);
   const [keywordsRaw, setKeywordsRaw] = React.useState("");
+  const [selectedSourceIds, setSelectedSourceIds] = React.useState<string[]>([]);
 
   const channelMeta = CHANNELS.find((c) => c.value === channel);
+
+  const toggleSource = (id: string) => {
+    setSelectedSourceIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
+    );
+  };
 
   const onSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -97,6 +116,7 @@ export function CopywriterForm({ voices }: Props) {
           length: length.trim() || channelMeta?.lengthHint || undefined,
           variantCount,
           keywords: keywords.length > 0 ? keywords : undefined,
+          sourceIds: selectedSourceIds.length > 0 ? selectedSourceIds : undefined,
         });
         router.push(`/agents/runs/${runId}`);
       } catch (err) {
@@ -244,6 +264,57 @@ export function CopywriterForm({ voices }: Props) {
           />
         </Field>
 
+        {usableSources.length > 0 && (
+          <div className="md:col-span-2 rounded-lg border border-[--color-border] bg-[--color-card] p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <BookOpen className="h-4 w-4 text-[--color-primary]" />
+                <Label className="text-xs uppercase tracking-[0.14em] text-[--color-muted-foreground]">
+                  Knowledge sources
+                </Label>
+                {selectedSourceIds.length > 0 && (
+                  <Badge variant="muted" className="text-[10px] tracking-wider">
+                    {selectedSourceIds.length} selected
+                  </Badge>
+                )}
+              </div>
+              <Link
+                href="/knowledge"
+                className="text-[11px] uppercase tracking-wider text-[--color-muted-foreground] hover:text-[--color-foreground] transition"
+              >
+                Manage
+              </Link>
+            </div>
+            <p className="mt-2 text-[11px] text-[--color-muted-foreground]">
+              Pick which sources the planner + drafters consult. We retrieve the
+              top 8 most relevant chunks per run.
+            </p>
+            <div className="mt-3 flex flex-wrap gap-1.5">
+              {usableSources.map((s) => {
+                const selected = selectedSourceIds.includes(s.id);
+                return (
+                  <button
+                    key={s.id}
+                    type="button"
+                    onClick={() => toggleSource(s.id)}
+                    className={cn(
+                      "inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-medium transition",
+                      selected
+                        ? "border-[--color-primary]/40 bg-[--color-primary]/10 text-[--color-primary]"
+                        : "border-[--color-border] bg-[--color-background] text-[--color-foreground] hover:bg-[--color-accent]",
+                    )}
+                  >
+                    <span>{s.name}</span>
+                    <span className="text-[10px] tabular-nums text-[--color-muted-foreground]">
+                      {s.chunkCount}c
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         <div className="md:col-span-2 flex items-center justify-end gap-3">
           <Button
             type="button"
@@ -253,6 +324,7 @@ export function CopywriterForm({ voices }: Props) {
               setProductInfo("");
               setKeywordsRaw("");
               setLength("");
+              setSelectedSourceIds([]);
             }}
           >
             <X className="h-3.5 w-3.5" /> Clear

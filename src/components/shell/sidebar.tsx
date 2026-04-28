@@ -9,6 +9,7 @@ import {
   Settings,
   ScanText,
   FileText,
+  BookOpen,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/marketing/logo";
@@ -24,6 +25,7 @@ interface NavItem {
 
 const NAV: NavItem[] = [
   { label: "Brand voices", href: "/voices", icon: ScanText },
+  { label: "Knowledge", href: "/knowledge", icon: BookOpen },
   { label: "Agents", href: "/agents", icon: Bot },
   { label: "Documents", href: "/documents", icon: FileText },
   { label: "Library", href: "/library", icon: Library },

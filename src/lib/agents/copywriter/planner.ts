@@ -64,6 +64,8 @@ export interface PlannerInput {
   keywords?: string[];
   forbiddenTerms?: string[];
   examples?: string;
+  /** Pre-formatted knowledge-base excerpts (output of formatKnowledgeForPrompt). */
+  knowledge?: string;
 }
 
 const SYSTEM = `You are a senior creative director planning a copywriting brief. \
@@ -110,6 +112,16 @@ function buildPrompt(input: PlannerInput): string {
   }
   if (input.examples?.trim()) {
     lines.push(`\nReference examples (style only, do not copy):\n${input.examples.trim()}`);
+  }
+  if (input.knowledge?.trim()) {
+    lines.push("");
+    lines.push("---");
+    lines.push("");
+    lines.push(input.knowledge.trim());
+    lines.push("");
+    lines.push(
+      "Use the knowledge excerpts above as factual grounding. Each angle should be informed by what's in there — not by inventing product specifics.",
+    );
   }
   lines.push(
     `\nProduce exactly ${input.variantCount} meaningfully different angles for the drafters.`,

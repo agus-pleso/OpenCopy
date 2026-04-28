@@ -1,25 +1,42 @@
 import Link from "next/link";
 import { ChevronLeft, Bot } from "lucide-react";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 import { db } from "@/db/client";
-import { brandVoices } from "@/db/schema";
+import { brandVoices, kbSources } from "@/db/schema";
 import { getCurrentWorkspace } from "@/lib/auth/workspace";
 import { CopywriterForm } from "@/components/agents/copywriter-form";
 
 export default async function CopywriterPage() {
   const { workspace } = await getCurrentWorkspace();
 
-  const voices = await db
-    .select({
-      id: brandVoices.id,
-      name: brandVoices.name,
-      defaultLocale: brandVoices.defaultLocale,
-      status: brandVoices.status,
-      analyzedAt: brandVoices.analyzedAt,
-    })
-    .from(brandVoices)
-    .where(eq(brandVoices.workspaceId, workspace.id));
+  const [voices, sources] = await Promise.all([
+    db
+      .select({
+        id: brandVoices.id,
+        name: brandVoices.name,
+        defaultLocale: brandVoices.defaultLocale,
+        status: brandVoices.status,
+        analyzedAt: brandVoices.analyzedAt,
+      })
+      .from(brandVoices)
+      .where(eq(brandVoices.workspaceId, workspace.id)),
+    db
+      .select({
+        id: kbSources.id,
+        name: kbSources.name,
+        chunkCount: kbSources.chunkCount,
+        status: kbSources.status,
+        tags: kbSources.tags,
+      })
+      .from(kbSources)
+      .where(
+        and(
+          eq(kbSources.workspaceId, workspace.id),
+          eq(kbSources.status, "ready"),
+        ),
+      ),
+  ]);
 
   const voiceOptions = voices.map((v) => ({
     id: v.id,
@@ -54,7 +71,7 @@ export default async function CopywriterPage() {
       </p>
 
       <div className="mt-10">
-        <CopywriterForm voices={voiceOptions} />
+        <CopywriterForm voices={voiceOptions} sources={sources} />
       </div>
     </div>
   );

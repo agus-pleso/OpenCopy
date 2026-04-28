@@ -12,7 +12,9 @@
 
 services:
   postgres:
-    image: postgres:16-alpine
+    # pgvector is required for the V1.2 knowledge base. The pgvector/pgvector
+    # image is just postgres:16 with the extension pre-built — drop-in.
+    image: pgvector/pgvector:pg16
     restart: unless-stopped
     environment:
       POSTGRES_USER: opencopy

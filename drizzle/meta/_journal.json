@@ -29,6 +29,13 @@
       "when": 1777400245228,
       "tag": "0003_closed_darkstar",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1777401071532,
+      "tag": "0004_warm_franklin_richards",
+      "breakpoints": true
     }
   ]
 }

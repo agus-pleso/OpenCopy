@@ -41,6 +41,8 @@ export interface DrafterInput {
     must_include?: string[];
     avoid?: string[];
   };
+  /** Pre-formatted knowledge-base excerpts. */
+  knowledge?: string;
 }
 
 const SYSTEM = `You are a copywriter drafting one variant from a planned angle. \
@@ -97,6 +99,18 @@ function buildPrompt(input: DrafterInput): string {
   if (input.angle.avoid?.length) {
     lines.push(`Specifically avoid: ${input.angle.avoid.join(", ")}`);
   }
+
+  if (input.knowledge?.trim()) {
+    lines.push("");
+    lines.push("---");
+    lines.push("");
+    lines.push(input.knowledge.trim());
+    lines.push("");
+    lines.push(
+      "Use these excerpts as your source of factual specifics. Don't invent product features, pricing, or stats not present here.",
+    );
+  }
+
   lines.push(
     "\nDraft the copy now. Output the copy itself plus a brief rationale. Match the channel + length. Stay in the voice.",
   );

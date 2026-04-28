@@ -32,6 +32,7 @@ import {
   type VoiceCardForPrompt,
 } from "@/lib/agents";
 import { runAgent } from "@/lib/agents/core";
+import { searchKnowledge, formatKnowledgeForPrompt } from "@/lib/kb/search";
 
 const LocaleEnum = z.enum(["en", "pl", "ro", "uk"]);
 
@@ -60,6 +61,7 @@ const CopywriterBriefSchema = z.object({
   keywords: z.array(z.string().min(1).max(60)).max(15).optional(),
   forbiddenTerms: z.array(z.string().min(1).max(60)).max(15).optional(),
   examples: z.string().max(4000).optional(),
+  sourceIds: z.array(z.string().uuid()).max(20).optional(),
 });
 
 export interface CopywriterStartResult {
@@ -108,6 +110,26 @@ export async function startCopywriterRun(input: unknown): Promise<CopywriterStar
     localeNotes: voice.localeNotes,
   };
 
+  // Optional knowledge retrieval — runs once before the orchestrator and is
+  // injected into both planner and drafters via the same formatted block.
+  let knowledge: string | undefined;
+  if (brief.sourceIds && brief.sourceIds.length > 0) {
+    try {
+      const queryText = [brief.objective, brief.productInfo, brief.audienceOverride]
+        .filter(Boolean)
+        .join("\n");
+      const hits = await searchKnowledge(queryText, {
+        workspaceId: workspace.id,
+        sourceIds: brief.sourceIds,
+        topK: 8,
+      });
+      if (hits.length > 0) knowledge = formatKnowledgeForPrompt(hits);
+    } catch (err) {
+      // KB failure is non-fatal — log it and proceed without grounding.
+      console.warn("[copywriter] knowledge retrieval failed:", err);
+    }
+  }
+
   try {
     const result = await runCopywriter(
       {
@@ -122,6 +144,7 @@ export async function startCopywriterRun(input: unknown): Promise<CopywriterStar
         keywords: brief.keywords,
         forbiddenTerms: brief.forbiddenTerms,
         examples: brief.examples,
+        knowledge,
       },
       { workspaceId: workspace.id, userId },
     );

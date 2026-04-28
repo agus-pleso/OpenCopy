@@ -20,6 +20,8 @@ export interface CopywriterOrchestratorInput {
   keywords?: string[];
   forbiddenTerms?: string[];
   examples?: string;
+  /** Pre-formatted knowledge excerpts (already retrieved by the caller). */
+  knowledge?: string;
 }
 
 export interface CopywriterVariant {
@@ -69,6 +71,7 @@ export async function runCopywriter(
       keywords: input.keywords,
       forbiddenTerms: input.forbiddenTerms,
       examples: input.examples,
+      knowledge: input.knowledge,
     },
     ctx,
   );
@@ -101,6 +104,7 @@ export async function runCopywriter(
           must_include: angle.must_include,
           avoid: angle.avoid,
         },
+        knowledge: input.knowledge,
       },
       ctx,
     ),

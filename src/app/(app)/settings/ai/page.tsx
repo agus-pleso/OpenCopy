@@ -1,5 +1,5 @@
 import { eq, and } from "drizzle-orm";
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, BookOpen } from "lucide-react";
 
 import { db } from "@/db/client";
 import { apiKeys, modelDefaults } from "@/db/schema";
@@ -12,6 +12,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { OpenRouterKeyForm } from "@/components/settings/api-key-form";
+import { OpenAIKeyForm } from "@/components/settings/openai-key-form";
 import { ModelDefaultsForm } from "@/components/settings/model-defaults-form";
 
 export default async function AiSettingsPage() {
@@ -24,6 +25,17 @@ export default async function AiSettingsPage() {
       and(
         eq(apiKeys.workspaceId, workspace.id),
         eq(apiKeys.provider, "openrouter"),
+      ),
+    )
+    .limit(1);
+
+  const [openai] = await db
+    .select()
+    .from(apiKeys)
+    .where(
+      and(
+        eq(apiKeys.workspaceId, workspace.id),
+        eq(apiKeys.provider, "openai"),
       ),
     )
     .limit(1);
@@ -66,9 +78,45 @@ export default async function AiSettingsPage() {
             }
           />
           <p className="mt-4 text-xs text-[--color-muted-foreground]">
-            Direct provider keys (Anthropic, OpenAI, Google, Mistral) and Ollama
+            Direct provider keys (Anthropic, Google, Mistral) and Ollama
             self-host land in V1.5. The provider abstraction is already in
             place — adding them is plug-and-play.
+          </p>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>Embeddings</CardTitle>
+              <CardDescription>
+                The knowledge base uses OpenAI&apos;s{" "}
+                <code className="font-mono text-xs">text-embedding-3-small</code>{" "}
+                to vectorize chunks. A separate key from your OpenRouter key —
+                OpenRouter doesn&apos;t cover embeddings cleanly.
+              </CardDescription>
+            </div>
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[--color-primary]/10 text-[--color-primary]">
+              <BookOpen className="h-4 w-4" />
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <OpenAIKeyForm
+            existing={
+              openai
+                ? {
+                    last4: openai.last4,
+                    updatedAt: openai.updatedAt,
+                    label: openai.label,
+                  }
+                : undefined
+            }
+          />
+          <p className="mt-4 text-xs text-[--color-muted-foreground]">
+            Voyage and direct Cohere embeddings (better multilingual quality
+            for PL/RO/UA) land in V1.5.
           </p>
         </CardContent>
       </Card>
