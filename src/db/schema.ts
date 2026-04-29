@@ -856,3 +856,107 @@ export const kbChunksRelations = relations(kbChunks, ({ one }) => ({
 export type KbSource = typeof kbSources.$inferSelect;
 export type KbChunk = typeof kbChunks.$inferSelect;
 export type KbSourceStatus = (typeof kbSourceStatusEnum.enumValues)[number];
+
+/* ----------------------------------------------------------------------------
+ * Chat (V1.3) — threaded conversations with voice + KB grounding.
+ * Composes everything: voice card injected into the system prompt, KB chunks
+ * retrieved per-message and woven in, model resolved through the same
+ * provider abstraction as agent runs.
+ * -------------------------------------------------------------------------- */
+
+export const chatRoleEnum = pgEnum("chat_role", [
+  "system",
+  "user",
+  "assistant",
+]);
+
+export const chatThreads = pgTable(
+  "chat_thread",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    workspaceId: uuid("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    /** Auto-derived from first user message or user-edited. */
+    title: text("title").notNull().default("New chat"),
+    /** Optional brand voice — when set, every assistant turn injects the voice card. */
+    voiceId: uuid("voice_id").references(() => brandVoices.id, {
+      onDelete: "set null",
+    }),
+    locale: localeEnum("locale").notNull().default("en"),
+    /** Optional custom system prompt to layer on top of voice card. */
+    systemPrompt: text("system_prompt"),
+    /** Knowledge sources to consult for retrieval per turn. */
+    sourceIds: jsonb("source_ids").$type<string[]>().notNull().default([]),
+    /** Model id override for this thread (defaults to drafting role). */
+    modelId: text("model_id"),
+    pinned: boolean("pinned").notNull().default(false),
+    archivedAt: timestamp("archived_at", { mode: "date" }),
+    createdByUserId: text("created_by_user_id")
+      .notNull()
+      .references(() => users.id),
+    createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("chat_thread_workspace_idx").on(t.workspaceId, t.updatedAt),
+    index("chat_thread_voice_idx").on(t.voiceId),
+    index("chat_thread_pinned_idx").on(t.workspaceId, t.pinned),
+  ],
+);
+
+export const chatMessages = pgTable(
+  "chat_message",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    threadId: uuid("thread_id")
+      .notNull()
+      .references(() => chatThreads.id, { onDelete: "cascade" }),
+    workspaceId: uuid("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    role: chatRoleEnum("role").notNull(),
+    content: text("content").notNull(),
+    /** Model used to generate this message (assistant only). */
+    modelId: text("model_id"),
+    provider: text("provider"),
+    /** Knowledge source ids retrieved for this turn — for traceability. */
+    retrievedSourceIds: jsonb("retrieved_source_ids")
+      .$type<string[]>()
+      .notNull()
+      .default([]),
+    inputTokens: integer("input_tokens"),
+    outputTokens: integer("output_tokens"),
+    durationMs: integer("duration_ms"),
+    error: text("error"),
+    createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+  },
+  (t) => [index("chat_message_thread_idx").on(t.threadId, t.createdAt)],
+);
+
+export const chatThreadsRelations = relations(chatThreads, ({ one, many }) => ({
+  workspace: one(workspaces, {
+    fields: [chatThreads.workspaceId],
+    references: [workspaces.id],
+  }),
+  voice: one(brandVoices, {
+    fields: [chatThreads.voiceId],
+    references: [brandVoices.id],
+  }),
+  createdBy: one(users, {
+    fields: [chatThreads.createdByUserId],
+    references: [users.id],
+  }),
+  messages: many(chatMessages),
+}));
+
+export const chatMessagesRelations = relations(chatMessages, ({ one }) => ({
+  thread: one(chatThreads, {
+    fields: [chatMessages.threadId],
+    references: [chatThreads.id],
+  }),
+}));
+
+export type ChatThread = typeof chatThreads.$inferSelect;
+export type ChatMessage = typeof chatMessages.$inferSelect;
+export type ChatRole = (typeof chatRoleEnum.enumValues)[number];

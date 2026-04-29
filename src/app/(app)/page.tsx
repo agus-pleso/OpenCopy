@@ -128,7 +128,7 @@ export default async function DashboardPage() {
           </p>
         </div>
         <Badge variant="outline" className="hidden md:inline-flex">
-          V1.1 · long-form editor
+          V1.3 · chat assistant
         </Badge>
       </div>
 

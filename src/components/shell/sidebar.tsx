@@ -10,6 +10,7 @@ import {
   ScanText,
   FileText,
   BookOpen,
+  MessageSquare,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/marketing/logo";
@@ -28,6 +29,7 @@ const NAV: NavItem[] = [
   { label: "Knowledge", href: "/knowledge", icon: BookOpen },
   { label: "Agents", href: "/agents", icon: Bot },
   { label: "Documents", href: "/documents", icon: FileText },
+  { label: "Chat", href: "/chat", icon: MessageSquare },
   { label: "Library", href: "/library", icon: Library },
 ];
 
