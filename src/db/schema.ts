@@ -960,3 +960,151 @@ export const chatMessagesRelations = relations(chatMessages, ({ one }) => ({
 export type ChatThread = typeof chatThreads.$inferSelect;
 export type ChatMessage = typeof chatMessages.$inferSelect;
 export type ChatRole = (typeof chatRoleEnum.enumValues)[number];
+
+/* ----------------------------------------------------------------------------
+ * Campaigns (V1.4) — a campaign produces multiple linked assets in one
+ * orchestrated run (blog + social + email + ad variants), all sharing voice
+ * and KB. Each asset is auditable and savable independently.
+ * -------------------------------------------------------------------------- */
+
+export const campaignStatusEnum = pgEnum("campaign_status", [
+  "queued",
+  "running",
+  "succeeded",
+  "failed",
+  "cancelled",
+]);
+
+export const campaignAssetStatusEnum = pgEnum("campaign_asset_status", [
+  "draft",
+  "saved",
+  "discarded",
+]);
+
+export interface CampaignPlanItem {
+  channel: (typeof channelEnum.enumValues)[number];
+  label: string;
+  angle: string;
+  length_hint: string;
+}
+
+export interface CampaignPlan {
+  strategy: string;
+  hook: string;
+  assets: CampaignPlanItem[];
+}
+
+export const campaigns = pgTable(
+  "campaign",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    workspaceId: uuid("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    objective: text("objective").notNull(),
+    audienceOverride: text("audience_override"),
+    productInfo: text("product_info"),
+    voiceId: uuid("voice_id").references(() => brandVoices.id, {
+      onDelete: "set null",
+    }),
+    locale: localeEnum("locale").notNull().default("en"),
+    /** Channels the user requested. Planner respects this list. */
+    requestedChannels: jsonb("requested_channels")
+      .$type<Array<(typeof channelEnum.enumValues)[number]>>()
+      .notNull()
+      .default([]),
+    sourceIds: jsonb("source_ids").$type<string[]>().notNull().default([]),
+    status: campaignStatusEnum("status").notNull().default("queued"),
+    plan: jsonb("plan").$type<CampaignPlan>(),
+    plannerModelId: text("planner_model_id"),
+    error: text("error"),
+    durationMs: integer("duration_ms"),
+    createdByUserId: text("created_by_user_id")
+      .notNull()
+      .references(() => users.id),
+    createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
+    finishedAt: timestamp("finished_at", { mode: "date" }),
+  },
+  (t) => [
+    index("campaign_workspace_idx").on(t.workspaceId, t.createdAt),
+    index("campaign_voice_idx").on(t.voiceId),
+    index("campaign_status_idx").on(t.workspaceId, t.status),
+  ],
+);
+
+export const campaignAssets = pgTable(
+  "campaign_asset",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    workspaceId: uuid("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    campaignId: uuid("campaign_id")
+      .notNull()
+      .references(() => campaigns.id, { onDelete: "cascade" }),
+    voiceId: uuid("voice_id").references(() => brandVoices.id, {
+      onDelete: "set null",
+    }),
+    locale: localeEnum("locale").notNull().default("en"),
+    /** Order within the campaign (0-indexed). */
+    seq: integer("seq").notNull(),
+    channel: channelEnum("channel").notNull(),
+    label: text("label").notNull(),
+    strategy: text("strategy"),
+    content: text("content").notNull(),
+    rationale: text("rationale"),
+    auditScore: integer("audit_score"),
+    auditSummary: text("audit_summary"),
+    auditStrengths: jsonb("audit_strengths").$type<string[]>().notNull().default([]),
+    auditIssues: jsonb("audit_issues").$type<VoiceAuditIssue[]>().notNull().default([]),
+    drafterModelId: text("drafter_model_id"),
+    auditorModelId: text("auditor_model_id"),
+    status: campaignAssetStatusEnum("status").notNull().default("draft"),
+    createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+    savedAt: timestamp("saved_at", { mode: "date" }),
+  },
+  (t) => [
+    index("campaign_asset_campaign_idx").on(t.campaignId, t.seq),
+    index("campaign_asset_workspace_idx").on(t.workspaceId, t.status),
+    index("campaign_asset_voice_idx").on(t.voiceId),
+  ],
+);
+
+export const campaignsRelations = relations(campaigns, ({ one, many }) => ({
+  workspace: one(workspaces, {
+    fields: [campaigns.workspaceId],
+    references: [workspaces.id],
+  }),
+  voice: one(brandVoices, {
+    fields: [campaigns.voiceId],
+    references: [brandVoices.id],
+  }),
+  createdBy: one(users, {
+    fields: [campaigns.createdByUserId],
+    references: [users.id],
+  }),
+  assets: many(campaignAssets),
+}));
+
+export const campaignAssetsRelations = relations(campaignAssets, ({ one }) => ({
+  campaign: one(campaigns, {
+    fields: [campaignAssets.campaignId],
+    references: [campaigns.id],
+  }),
+  workspace: one(workspaces, {
+    fields: [campaignAssets.workspaceId],
+    references: [workspaces.id],
+  }),
+  voice: one(brandVoices, {
+    fields: [campaignAssets.voiceId],
+    references: [brandVoices.id],
+  }),
+}));
+
+export type Campaign = typeof campaigns.$inferSelect;
+export type CampaignAsset = typeof campaignAssets.$inferSelect;
+export type CampaignStatus = (typeof campaignStatusEnum.enumValues)[number];
+export type CampaignAssetStatus =
+  (typeof campaignAssetStatusEnum.enumValues)[number];

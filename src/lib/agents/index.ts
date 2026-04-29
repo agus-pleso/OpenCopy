@@ -33,3 +33,4 @@ export {
 export * from "./copywriter";
 export * from "./localizer";
 export * from "./editor";
+export * from "./campaign";

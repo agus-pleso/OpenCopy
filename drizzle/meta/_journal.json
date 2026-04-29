@@ -43,6 +43,13 @@
       "when": 1777480353031,
       "tag": "0005_unknown_silver_sable",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1777482497664,
+      "tag": "0006_purple_darkhawk",
+      "breakpoints": true
     }
   ]
 }

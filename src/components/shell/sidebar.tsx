@@ -11,6 +11,7 @@ import {
   FileText,
   BookOpen,
   MessageSquare,
+  Megaphone,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/marketing/logo";
@@ -28,6 +29,7 @@ const NAV: NavItem[] = [
   { label: "Brand voices", href: "/voices", icon: ScanText },
   { label: "Knowledge", href: "/knowledge", icon: BookOpen },
   { label: "Agents", href: "/agents", icon: Bot },
+  { label: "Campaigns", href: "/campaigns", icon: Megaphone },
   { label: "Documents", href: "/documents", icon: FileText },
   { label: "Chat", href: "/chat", icon: MessageSquare },
   { label: "Library", href: "/library", icon: Library },
