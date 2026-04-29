@@ -33,6 +33,10 @@ export interface CopywriterVariant {
   audit: VoiceAudit;
   modelIds: { drafter: string; auditor: string };
   durationMs: { drafter: number; auditor: number };
+  usage: {
+    drafter: { inputTokens?: number; outputTokens?: number };
+    auditor: { inputTokens?: number; outputTokens?: number };
+  };
 }
 
 export interface CopywriterRunResult {
@@ -40,6 +44,7 @@ export interface CopywriterRunResult {
   variants: CopywriterVariant[];
   totalDurationMs: number;
   modelIds: { planner: string };
+  plannerUsage: { inputTokens?: number; outputTokens?: number };
 }
 
 /**
@@ -144,6 +149,10 @@ export async function runCopywriter(
         drafter: drafter.durationMs,
         auditor: auditor.durationMs,
       },
+      usage: {
+        drafter: drafter.usage ?? {},
+        auditor: auditor.usage ?? {},
+      },
     };
   });
 
@@ -152,5 +161,6 @@ export async function runCopywriter(
     variants,
     totalDurationMs: Date.now() - start,
     modelIds: { planner: plannerResult.modelId },
+    plannerUsage: plannerResult.usage ?? {},
   };
 }

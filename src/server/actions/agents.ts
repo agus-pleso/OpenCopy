@@ -178,6 +178,8 @@ export async function startCopywriterRun(input: unknown): Promise<CopywriterStar
       agentName: "copywriter-planner",
       status: "succeeded",
       modelId: result.modelIds.planner,
+      inputTokens: result.plannerUsage.inputTokens ?? null,
+      outputTokens: result.plannerUsage.outputTokens ?? null,
       output: result.plan as unknown as Record<string, unknown>,
     });
     result.variants.forEach((v) => {
@@ -188,6 +190,8 @@ export async function startCopywriterRun(input: unknown): Promise<CopywriterStar
         status: "succeeded",
         modelId: v.modelIds.drafter,
         durationMs: v.durationMs.drafter,
+        inputTokens: v.usage.drafter.inputTokens ?? null,
+        outputTokens: v.usage.drafter.outputTokens ?? null,
         output: { label: v.label, rationale: v.rationale } as Record<string, unknown>,
       });
       steps.push({
@@ -197,6 +201,8 @@ export async function startCopywriterRun(input: unknown): Promise<CopywriterStar
         status: "succeeded",
         modelId: v.modelIds.auditor,
         durationMs: v.durationMs.auditor,
+        inputTokens: v.usage.auditor.inputTokens ?? null,
+        outputTokens: v.usage.auditor.outputTokens ?? null,
         output: v.audit as unknown as Record<string, unknown>,
       });
     });

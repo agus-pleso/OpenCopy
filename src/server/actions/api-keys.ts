@@ -9,20 +9,43 @@ import { apiKeys, type ApiKeyProvider } from "@/db/schema";
 import { encryptSecret, maskKey } from "@/lib/crypto";
 import { getCurrentWorkspace, requireRole, requireUserId } from "@/lib/auth/workspace";
 import { verifyOpenRouterKey } from "@/lib/ai/openrouter";
+import { verifyOpenAIKey } from "@/lib/ai/embeddings";
 
-const SaveSchema = z.object({
-  provider: z.enum([
-    "openrouter",
-    "anthropic",
-    "openai",
-    "google",
-    "mistral",
-    "ollama",
-  ]) satisfies z.ZodType<ApiKeyProvider>,
-  apiKey: z.string().min(8).max(2048),
-  baseUrl: z.string().url().optional().or(z.literal("")),
-  label: z.string().max(80).optional(),
-});
+const ProviderEnum = z.enum([
+  "openrouter",
+  "anthropic",
+  "openai",
+  "google",
+  "mistral",
+  "ollama",
+]) satisfies z.ZodType<ApiKeyProvider>;
+
+const SaveSchema = z
+  .object({
+    provider: ProviderEnum,
+    apiKey: z.string().min(0).max(2048),
+    baseUrl: z.string().url().optional().or(z.literal("")),
+    label: z.string().max(80).optional(),
+  })
+  .refine(
+    (v) => {
+      // Ollama allows empty key (local). All other providers need ≥8 chars.
+      if (v.provider === "ollama") return true;
+      return v.apiKey.length >= 8;
+    },
+    { message: "API key must be at least 8 characters.", path: ["apiKey"] },
+  )
+  .refine(
+    (v) => {
+      // Ollama needs a baseUrl (defaults are local but should be explicit).
+      if (v.provider === "ollama") return !!v.baseUrl;
+      return true;
+    },
+    {
+      message: "Ollama requires a base URL (e.g. http://localhost:11434/api).",
+      path: ["baseUrl"],
+    },
+  );
 
 export interface SaveApiKeyResult {
   ok: boolean;
@@ -42,7 +65,7 @@ export async function saveApiKey(input: unknown): Promise<SaveApiKeyResult> {
 
   const { provider, apiKey, baseUrl, label } = parsed.data;
 
-  // Verify the key when we know how to (currently OpenRouter).
+  // Verify the key against the provider when we know how.
   if (provider === "openrouter") {
     const check = await verifyOpenRouterKey(apiKey);
     if (!check.ok) {
@@ -51,10 +74,21 @@ export async function saveApiKey(input: unknown): Promise<SaveApiKeyResult> {
         message: `OpenRouter rejected the key: ${check.message ?? "unknown error"}`,
       };
     }
+  } else if (provider === "openai") {
+    const check = await verifyOpenAIKey(apiKey);
+    if (!check.ok) {
+      return {
+        ok: false,
+        message: `OpenAI rejected the key: ${check.message ?? "unknown error"}`,
+      };
+    }
   }
 
-  const ciphertext = encryptSecret(apiKey);
-  const last4 = maskKey(apiKey, 4);
+  // Ollama stores a placeholder ciphertext — the baseUrl is what matters.
+  const effectiveKey = provider === "ollama" ? "ollama-local" : apiKey;
+  const ciphertext = encryptSecret(effectiveKey);
+  const last4 =
+    provider === "ollama" ? "local" : maskKey(apiKey, 4);
 
   const existing = await db.query.apiKeys.findFirst({
     where: and(

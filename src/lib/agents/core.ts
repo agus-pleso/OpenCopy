@@ -66,6 +66,10 @@ export interface AgentRunResult<TOutput> {
   modelId: string;
   provider: string;
   durationMs: number;
+  usage?: {
+    inputTokens?: number;
+    outputTokens?: number;
+  };
 }
 
 /** Run a single agent end-to-end. Returns the parsed structured output. */
@@ -104,18 +108,19 @@ export async function runAgent<TInput, TOutput>(
     });
 
     const durationMs = Date.now() - start;
+    const usage = {
+      inputTokens: result.usage?.promptTokens,
+      outputTokens: result.usage?.completionTokens,
+    };
     ctx.onEvent?.({
       type: "finished",
       agent: def.name,
       modelId,
       durationMs,
-      usage: {
-        inputTokens: result.usage?.promptTokens,
-        outputTokens: result.usage?.completionTokens,
-      },
+      usage,
     });
 
-    return { output: result.object, modelId, provider, durationMs };
+    return { output: result.object, modelId, provider, durationMs, usage };
   } catch (err) {
     const message = (err as Error).message;
     ctx.onEvent?.({ type: "error", agent: def.name, message });
@@ -150,6 +155,10 @@ export interface TextAgentRunResult {
   modelId: string;
   provider: string;
   durationMs: number;
+  usage?: {
+    inputTokens?: number;
+    outputTokens?: number;
+  };
 }
 
 export async function runTextAgent<TInput>(
@@ -186,15 +195,16 @@ export async function runTextAgent<TInput>(
     });
 
     const durationMs = Date.now() - start;
+    const usage = {
+      inputTokens: result.usage?.promptTokens,
+      outputTokens: result.usage?.completionTokens,
+    };
     ctx.onEvent?.({
       type: "finished",
       agent: def.name,
       modelId,
       durationMs,
-      usage: {
-        inputTokens: result.usage?.promptTokens,
-        outputTokens: result.usage?.completionTokens,
-      },
+      usage,
     });
 
     return {
@@ -202,6 +212,7 @@ export async function runTextAgent<TInput>(
       modelId,
       provider,
       durationMs,
+      usage,
     };
   } catch (err) {
     const message = (err as Error).message;

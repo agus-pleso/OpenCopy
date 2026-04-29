@@ -128,7 +128,7 @@ export default async function DashboardPage() {
           </p>
         </div>
         <Badge variant="outline" className="hidden md:inline-flex">
-          V1.4 · campaigns
+          V1.5 · provider polish
         </Badge>
       </div>
 

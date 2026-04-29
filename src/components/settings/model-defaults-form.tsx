@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useTransition } from "react";
-import { Loader2, Sparkles, FileText, Zap, Gavel } from "lucide-react";
+import { Loader2, Sparkles, FileText, Zap, Gavel, Server } from "lucide-react";
 import { toast } from "sonner";
 
 import {
@@ -12,6 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   modelDisplayName,
@@ -19,8 +20,12 @@ import {
   type OpenRouterModel,
   SUGGESTED_DEFAULTS,
 } from "@/lib/ai/openrouter-shared";
+import {
+  PROVIDER_PRICING,
+  PROVIDER_LABELS,
+} from "@/lib/ai/model-pricing";
 import { setModelDefault } from "@/server/actions/model-defaults";
-import type { ModelRole } from "@/db/schema";
+import type { ApiKeyProvider, ModelRole } from "@/db/schema";
 
 const ROLES: Array<{
   role: ModelRole;
@@ -57,15 +62,29 @@ const ROLES: Array<{
 interface ExistingDefault {
   role: ModelRole;
   modelId: string;
+  provider: ApiKeyProvider;
+}
+
+export interface ConnectedProviders {
+  openrouter: boolean;
+  anthropic: boolean;
+  openai: boolean;
+  google: boolean;
+  mistral: boolean;
+  ollama: boolean;
+}
+
+interface Props {
+  existing: ExistingDefault[];
+  hasKey: boolean;
+  connectedProviders: ConnectedProviders;
 }
 
 export function ModelDefaultsForm({
   existing,
   hasKey,
-}: {
-  existing: ExistingDefault[];
-  hasKey: boolean;
-}) {
+  connectedProviders,
+}: Props) {
   const [models, setModels] = React.useState<OpenRouterModel[] | null>(null);
   const [loading, setLoading] = React.useState(false);
   const [err, setErr] = React.useState<string | null>(null);
@@ -73,6 +92,7 @@ export function ModelDefaultsForm({
   React.useEffect(() => {
     let cancelled = false;
     async function load() {
+      if (!connectedProviders.openrouter) return;
       setLoading(true);
       try {
         const res = await fetch("/api/openrouter/models", { cache: "no-store" });
@@ -89,36 +109,42 @@ export function ModelDefaultsForm({
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [connectedProviders.openrouter]);
 
-  const map = new Map(existing.map((e) => [e.role, e.modelId]));
+  const map = new Map(existing.map((e) => [e.role, e]));
 
   return (
     <div className="flex flex-col gap-3">
       {!hasKey && (
         <p className="rounded-md border border-dashed border-[--color-border] bg-[--color-muted]/50 px-4 py-3 text-sm text-[--color-muted-foreground]">
-          Add your OpenRouter key first — model picker uses it to fetch live
-          pricing and availability.
+          Add your OpenRouter key first — the model picker uses it to fetch live
+          pricing. Direct providers can still be used by selecting them per-role
+          and entering a model id.
         </p>
       )}
       {err && (
         <p className="rounded-md border border-[--color-destructive]/30 bg-[--color-destructive]/5 px-4 py-3 text-sm text-[--color-destructive]">
-          Couldn&apos;t load models: {err}
+          Couldn&apos;t load OpenRouter models: {err}
         </p>
       )}
       <div className="grid gap-3">
-        {ROLES.map((r) => (
-          <RolePicker
-            key={r.role}
-            role={r.role}
-            title={r.title}
-            description={r.description}
-            icon={r.icon}
-            models={models}
-            loading={loading}
-            current={map.get(r.role) ?? SUGGESTED_DEFAULTS[r.role]}
-          />
-        ))}
+        {ROLES.map((r) => {
+          const current = map.get(r.role);
+          return (
+            <RolePicker
+              key={r.role}
+              role={r.role}
+              title={r.title}
+              description={r.description}
+              icon={r.icon}
+              models={models}
+              loading={loading}
+              currentModelId={current?.modelId ?? SUGGESTED_DEFAULTS[r.role]}
+              currentProvider={current?.provider ?? "openrouter"}
+              connectedProviders={connectedProviders}
+            />
+          );
+        })}
       </div>
     </div>
   );
@@ -131,7 +157,9 @@ function RolePicker({
   icon: Icon,
   models,
   loading,
-  current,
+  currentModelId,
+  currentProvider,
+  connectedProviders,
 }: {
   role: ModelRole;
   title: string;
@@ -139,20 +167,28 @@ function RolePicker({
   icon: React.ComponentType<{ className?: string }>;
   models: OpenRouterModel[] | null;
   loading: boolean;
-  current: string | undefined;
+  currentModelId: string | undefined;
+  currentProvider: ApiKeyProvider;
+  connectedProviders: ConnectedProviders;
 }) {
   const [pending, startTransition] = useTransition();
-  const [value, setValue] = React.useState<string>(current ?? "");
+  const [provider, setProvider] = React.useState<ApiKeyProvider>(currentProvider);
+  const [modelId, setModelId] = React.useState<string>(currentModelId ?? "");
 
   React.useEffect(() => {
-    if (current) setValue(current);
-  }, [current]);
+    if (currentProvider) setProvider(currentProvider);
+    if (currentModelId) setModelId(currentModelId);
+  }, [currentProvider, currentModelId]);
 
-  const onChange = (next: string) => {
-    setValue(next);
+  const persist = (nextProvider: ApiKeyProvider, nextModelId: string) => {
+    if (!nextModelId.trim()) return;
     startTransition(async () => {
       try {
-        await setModelDefault({ role, modelId: next, provider: "openrouter" });
+        await setModelDefault({
+          role,
+          modelId: nextModelId.trim(),
+          provider: nextProvider,
+        });
         toast.success(`${title} model set.`);
       } catch (e) {
         toast.error((e as Error).message);
@@ -160,53 +196,170 @@ function RolePicker({
     });
   };
 
-  const selected = models?.find((m) => m.id === value);
+  const onProviderChange = (next: string) => {
+    const p = next as ApiKeyProvider;
+    setProvider(p);
+    // Suggest a sensible default for the new provider.
+    const suggested = suggestModelForProvider(p);
+    if (suggested) {
+      setModelId(suggested);
+      persist(p, suggested);
+    } else {
+      // Persist the provider change with the existing modelId — user will tweak.
+      persist(p, modelId);
+    }
+  };
+
+  const onOpenRouterModel = (next: string) => {
+    setModelId(next);
+    persist("openrouter", next);
+  };
+
+  const onDirectModel = (next: string) => {
+    setModelId(next);
+  };
+
+  const onDirectModelBlur = () => {
+    persist(provider, modelId);
+  };
+
+  const availableProviders: ApiKeyProvider[] = (
+    [
+      "openrouter",
+      "anthropic",
+      "openai",
+      "google",
+      "mistral",
+      "ollama",
+    ] satisfies ApiKeyProvider[]
+  ).filter((p) => connectedProviders[p]);
+
+  const selectedOR = models?.find((m) => m.id === modelId);
+  const directHints =
+    provider !== "openrouter"
+      ? PROVIDER_PRICING[provider as Exclude<ApiKeyProvider, "openrouter">]
+      : null;
 
   return (
-    <div className="flex items-center gap-4 rounded-lg border border-[--color-border] bg-[--color-card] p-4">
-      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-[--color-primary]/10 text-[--color-primary]">
-        <Icon className="h-4 w-4" />
-      </div>
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
-          <p className="font-medium tracking-tight">{title}</p>
-          {pending && (
-            <Loader2 className="h-3 w-3 animate-spin text-[--color-muted-foreground]" />
-          )}
+    <div className="flex flex-col gap-3 rounded-lg border border-[--color-border] bg-[--color-card] p-4 md:flex-row md:items-start">
+      <div className="flex flex-1 items-center gap-3">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-[--color-primary]/10 text-[--color-primary]">
+          <Icon className="h-4 w-4" />
         </div>
-        <p className="text-xs text-[--color-muted-foreground] line-clamp-1">
-          {description}
-        </p>
-      </div>
-      <div className="w-[280px] shrink-0">
-        {loading && !models ? (
-          <Skeleton className="h-9 w-full" />
-        ) : (
-          <Select value={value} onValueChange={onChange} disabled={!models}>
-            <SelectTrigger>
-              <SelectValue placeholder="Pick a model" />
-            </SelectTrigger>
-            <SelectContent className="max-h-72">
-              {models?.map((m) => (
-                <SelectItem key={m.id} value={m.id}>
-                  <div className="flex flex-col">
-                    <span className="text-sm">{modelDisplayName(m)}</span>
-                    <span className="text-[10px] font-mono text-[--color-muted-foreground]">
-                      {m.id}
-                      {modelPricingLabel(m) ? ` · ${modelPricingLabel(m)}` : ""}
-                    </span>
-                  </div>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
-        {selected && modelPricingLabel(selected) && (
-          <p className="mt-1 text-right text-[10px] font-mono text-[--color-muted-foreground]">
-            {modelPricingLabel(selected)}
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <p className="font-medium tracking-tight">{title}</p>
+            {pending && (
+              <Loader2 className="h-3 w-3 animate-spin text-[--color-muted-foreground]" />
+            )}
+          </div>
+          <p className="text-xs text-[--color-muted-foreground] line-clamp-1">
+            {description}
           </p>
+        </div>
+      </div>
+      <div className="flex flex-col gap-1.5 md:w-[180px]">
+        <Select value={provider} onValueChange={onProviderChange}>
+          <SelectTrigger className="h-9">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {availableProviders.map((p) => (
+              <SelectItem key={p} value={p}>
+                {PROVIDER_LABELS[p]}
+                {p === "ollama" && (
+                  <Server className="ml-2 inline h-3 w-3 text-[--color-muted-foreground]" />
+                )}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="flex flex-col gap-1.5 md:w-[280px]">
+        {provider === "openrouter" ? (
+          <>
+            {loading && !models ? (
+              <Skeleton className="h-9 w-full" />
+            ) : (
+              <Select
+                value={modelId}
+                onValueChange={onOpenRouterModel}
+                disabled={!models}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Pick a model" />
+                </SelectTrigger>
+                <SelectContent className="max-h-72">
+                  {models?.map((m) => (
+                    <SelectItem key={m.id} value={m.id}>
+                      <div className="flex flex-col">
+                        <span className="text-sm">{modelDisplayName(m)}</span>
+                        <span className="text-[10px] font-mono text-[--color-muted-foreground]">
+                          {m.id}
+                          {modelPricingLabel(m) ? ` · ${modelPricingLabel(m)}` : ""}
+                        </span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+            {selectedOR && modelPricingLabel(selectedOR) && (
+              <p className="text-right text-[10px] font-mono text-[--color-muted-foreground]">
+                {modelPricingLabel(selectedOR)}
+              </p>
+            )}
+          </>
+        ) : (
+          <>
+            <Input
+              value={modelId}
+              onChange={(e) => onDirectModel(e.target.value)}
+              onBlur={onDirectModelBlur}
+              placeholder={
+                provider === "ollama"
+                  ? "e.g. llama3.1:8b"
+                  : "Provider-native model id"
+              }
+              className="h-9 font-mono text-xs"
+            />
+            {directHints && directHints.length > 0 && (
+              <div className="flex flex-wrap gap-1">
+                {directHints.slice(0, 4).map((h) => (
+                  <button
+                    key={h.id}
+                    type="button"
+                    onClick={() => {
+                      setModelId(h.id);
+                      persist(provider, h.id);
+                    }}
+                    className="inline-flex items-center rounded-full border border-[--color-border] bg-[--color-muted] px-2 py-0.5 text-[10px] font-mono hover:bg-[--color-accent]"
+                  >
+                    {h.id}
+                  </button>
+                ))}
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>
   );
+}
+
+function suggestModelForProvider(p: ApiKeyProvider): string | null {
+  switch (p) {
+    case "anthropic":
+      return "claude-sonnet-4-6-20251104";
+    case "openai":
+      return "gpt-4.1";
+    case "google":
+      return "gemini-2.0-flash";
+    case "mistral":
+      return "mistral-large-latest";
+    case "ollama":
+      return "llama3.1:8b";
+    case "openrouter":
+      return null;
+  }
 }

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ChevronLeft, KeyRound, Building2 } from "lucide-react";
+import { ChevronLeft, KeyRound, Building2, Activity } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const SETTINGS_NAV = [
@@ -16,7 +16,13 @@ const SETTINGS_NAV = [
     label: "AI providers",
     href: "/settings/ai",
     icon: KeyRound,
-    description: "OpenRouter key, model defaults.",
+    description: "Keys, embeddings, model defaults.",
+  },
+  {
+    label: "Usage",
+    href: "/settings/usage",
+    icon: Activity,
+    description: "Tokens + estimated spend.",
   },
 ];
 
