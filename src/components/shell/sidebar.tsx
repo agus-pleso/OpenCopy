@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  Sparkles,
   Bot,
   Library,
   Settings,
@@ -15,6 +14,8 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/marketing/logo";
+import { WorkspaceSwitcher } from "@/components/workspaces/workspace-switcher";
+import type { MyWorkspaceRow } from "@/server/actions/workspaces";
 
 interface NavItem {
   label: string;
@@ -44,7 +45,13 @@ const FOOTER_NAV: NavItem[] = [
   },
 ];
 
-export function Sidebar({ workspaceName }: { workspaceName: string }) {
+export function Sidebar({
+  currentWorkspace,
+  workspaces,
+}: {
+  currentWorkspace: { id: string; name: string };
+  workspaces: MyWorkspaceRow[];
+}) {
   const pathname = usePathname();
 
   const isActive = (item: NavItem) => {
@@ -61,13 +68,7 @@ export function Sidebar({ workspaceName }: { workspaceName: string }) {
       </div>
 
       <div className="px-3 pb-3">
-        <Link
-          href="/"
-          className="flex items-center gap-2 rounded-md border border-[--color-sidebar-border] bg-[--color-background]/40 px-2.5 py-2 text-sm transition hover:bg-[--color-sidebar-accent]"
-        >
-          <Sparkles className="h-4 w-4 text-[--color-primary]" />
-          <span className="truncate font-medium">{workspaceName}</span>
-        </Link>
+        <WorkspaceSwitcher current={currentWorkspace} workspaces={workspaces} />
       </div>
 
       <nav className="flex-1 px-2 py-2">

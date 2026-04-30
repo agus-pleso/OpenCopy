@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ChevronLeft, KeyRound, Building2, Activity } from "lucide-react";
+import { ChevronLeft, KeyRound, Building2, Activity, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const SETTINGS_NAV = [
@@ -10,7 +10,13 @@ const SETTINGS_NAV = [
     label: "Workspace",
     href: "/settings/workspace",
     icon: Building2,
-    description: "Workspace name, locale, members.",
+    description: "Name, locale, danger zone.",
+  },
+  {
+    label: "Members",
+    href: "/settings/members",
+    icon: Users,
+    description: "Roles, invitations, access.",
   },
   {
     label: "AI providers",

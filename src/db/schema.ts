@@ -1108,3 +1108,68 @@ export type CampaignAsset = typeof campaignAssets.$inferSelect;
 export type CampaignStatus = (typeof campaignStatusEnum.enumValues)[number];
 export type CampaignAssetStatus =
   (typeof campaignAssetStatusEnum.enumValues)[number];
+
+/* ----------------------------------------------------------------------------
+ * Workspace invitations (V1.6) — invite-by-link flow that activates the
+ * multi-tenant data model that's been in place since V0.1. Auth.js handles
+ * sign-in; once authed, the recipient hits /invitations/[token] and lands as
+ * a member with the role the inviter chose.
+ * -------------------------------------------------------------------------- */
+
+export const invitationStatusEnum = pgEnum("invitation_status", [
+  "pending",
+  "accepted",
+  "revoked",
+  "expired",
+]);
+
+export const workspaceInvitations = pgTable(
+  "workspace_invitation",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    workspaceId: uuid("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    /** Recipient email — informational; users can sign in with any address. */
+    email: text("email").notNull(),
+    role: memberRoleEnum("role").notNull().default("editor"),
+    /** URL-safe random token (32 bytes base64url). */
+    token: text("token").notNull().unique(),
+    status: invitationStatusEnum("status").notNull().default("pending"),
+    expiresAt: timestamp("expires_at", { mode: "date" }).notNull(),
+    acceptedAt: timestamp("accepted_at", { mode: "date" }),
+    acceptedByUserId: text("accepted_by_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    invitedByUserId: text("invited_by_user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("workspace_invitation_workspace_idx").on(t.workspaceId, t.status),
+    index("workspace_invitation_email_idx").on(t.email),
+  ],
+);
+
+export const workspaceInvitationsRelations = relations(
+  workspaceInvitations,
+  ({ one }) => ({
+    workspace: one(workspaces, {
+      fields: [workspaceInvitations.workspaceId],
+      references: [workspaces.id],
+    }),
+    invitedBy: one(users, {
+      fields: [workspaceInvitations.invitedByUserId],
+      references: [users.id],
+    }),
+    acceptedBy: one(users, {
+      fields: [workspaceInvitations.acceptedByUserId],
+      references: [users.id],
+    }),
+  }),
+);
+
+export type WorkspaceInvitation = typeof workspaceInvitations.$inferSelect;
+export type InvitationStatus =
+  (typeof invitationStatusEnum.enumValues)[number];

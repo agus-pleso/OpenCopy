@@ -4,6 +4,7 @@ import { db } from "@/db/client";
 import { eq } from "drizzle-orm";
 import { users } from "@/db/schema";
 import { getCurrentWorkspace } from "@/lib/auth/workspace";
+import { listMyWorkspaces } from "@/server/actions/workspaces";
 import { Sidebar } from "@/components/shell/sidebar";
 import { Topbar } from "@/components/shell/topbar";
 import { CommandPalette } from "@/components/shell/command-palette";
@@ -30,11 +31,16 @@ export default async function AppLayout({
     redirect("/login");
   }
 
+  const myWorkspaces = await listMyWorkspaces();
+
   return (
     <SessionProvider>
       <TooltipProvider delayDuration={200}>
         <div className="flex h-svh overflow-hidden">
-          <Sidebar workspaceName={ws.workspace.name} />
+          <Sidebar
+            currentWorkspace={{ id: ws.workspace.id, name: ws.workspace.name }}
+            workspaces={myWorkspaces}
+          />
           <div className="flex min-w-0 flex-1 flex-col">
             <Topbar
               user={{ email: user.email, name: user.name }}
