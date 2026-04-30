@@ -1,8 +1,9 @@
 import Link from "next/link";
-import { Library, Bot, Languages, Copy } from "lucide-react";
+import { Library, Bot, Languages } from "lucide-react";
 import { listLibraryVariants } from "@/server/actions/agents";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { LibraryCopyButton } from "@/components/library/library-copy-button";
 import { formatDistanceShort } from "@/lib/utils";
 import type {
   CopywriterBrief,
@@ -103,14 +104,9 @@ export default async function LibraryPage() {
                   >
                     View run
                   </Link>
-                  <button
-                    type="button"
-                    className="ml-auto inline-flex items-center gap-1 hover:text-[var(--color-foreground)]"
-                    // Server components can't have onClick — render an anchor or use a client component.
-                    // For V1.0 we keep this as a static 'Copy' badge; library polish lands in V1.1.
-                  >
-                    <Copy className="h-3 w-3" /> Copy via run page
-                  </button>
+                  <LibraryCopyButton
+                    content={v.refinedContent ?? v.content}
+                  />
                 </footer>
               </article>
             );

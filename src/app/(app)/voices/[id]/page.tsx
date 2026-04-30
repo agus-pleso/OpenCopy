@@ -1,8 +1,16 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ChevronLeft, ScanText, Bot } from "lucide-react";
+import {
+  ChevronLeft,
+  ScanText,
+  Bot,
+  Megaphone,
+  MessageSquare,
+  FileText,
+  Library as LibraryIcon,
+} from "lucide-react";
 
-import { getVoiceWithSamples } from "@/server/actions/voices";
+import { getVoiceWithSamples, getVoiceUsage } from "@/server/actions/voices";
 import { Badge } from "@/components/ui/badge";
 import {
   Tabs,
@@ -32,12 +40,21 @@ export default async function VoiceDetailPage({
 }: PageProps) {
   const { id } = await params;
   const { tab } = await searchParams;
-  const voice = await getVoiceWithSamples(id);
+  const [voice, usage] = await Promise.all([
+    getVoiceWithSamples(id),
+    getVoiceUsage(id),
+  ]);
   if (!voice) notFound();
 
   const samples = voice.samples ?? [];
   const hasSamples = samples.length > 0;
   const isAnalyzed = !!voice.analyzedAt;
+  const usageTotal =
+    usage.runs +
+    usage.campaigns +
+    usage.threads +
+    usage.documents +
+    usage.savedVariants;
 
   const defaultTab = tab
     ? tab
@@ -85,6 +102,52 @@ export default async function VoiceDetailPage({
           hasAnalysis={isAnalyzed}
         />
       </div>
+
+      {usageTotal > 0 && (
+        <div className="mt-6 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-card)]/60 px-4 py-3">
+          <span className="text-[10px] uppercase tracking-[0.16em] text-[var(--color-muted-foreground)]">
+            Used by
+          </span>
+          {usage.runs > 0 && (
+            <UsageChip
+              icon={Bot}
+              label={`${usage.runs} run${usage.runs === 1 ? "" : "s"}`}
+            />
+          )}
+          {usage.campaigns > 0 && (
+            <UsageChip
+              icon={Megaphone}
+              label={`${usage.campaigns} campaign${
+                usage.campaigns === 1 ? "" : "s"
+              }`}
+            />
+          )}
+          {usage.threads > 0 && (
+            <UsageChip
+              icon={MessageSquare}
+              label={`${usage.threads} chat thread${
+                usage.threads === 1 ? "" : "s"
+              }`}
+            />
+          )}
+          {usage.documents > 0 && (
+            <UsageChip
+              icon={FileText}
+              label={`${usage.documents} document${
+                usage.documents === 1 ? "" : "s"
+              }`}
+            />
+          )}
+          {usage.savedVariants > 0 && (
+            <UsageChip
+              icon={LibraryIcon}
+              label={`${usage.savedVariants} saved variant${
+                usage.savedVariants === 1 ? "" : "s"
+              }`}
+            />
+          )}
+        </div>
+      )}
 
       <Tabs defaultValue={defaultTab} className="mt-8">
         <TabsList>
@@ -143,5 +206,20 @@ export default async function VoiceDetailPage({
         </TabsContent>
       </Tabs>
     </div>
+  );
+}
+
+function UsageChip({
+  icon: Icon,
+  label,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+}) {
+  return (
+    <span className="inline-flex items-center gap-1.5 text-xs text-[var(--color-foreground)]/85">
+      <Icon className="h-3.5 w-3.5 text-[var(--color-muted-foreground)]" />
+      <span className="tabular-nums">{label}</span>
+    </span>
   );
 }

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  Activity,
   Bot,
   Library,
   Settings,
@@ -23,6 +24,8 @@ interface NavItem {
   icon: React.ComponentType<{ className?: string }>;
   /** Path prefixes that should mark this item active. */
   activeWhen?: string[];
+  /** Path prefixes that should explicitly NOT mark this item active, overriding other matches. */
+  activeExcept?: string[];
   hint?: string;
 }
 
@@ -38,10 +41,16 @@ const NAV: NavItem[] = [
 
 const FOOTER_NAV: NavItem[] = [
   {
+    label: "Usage",
+    href: "/settings/usage",
+    icon: Activity,
+  },
+  {
     label: "Settings",
     href: "/settings",
     icon: Settings,
     activeWhen: ["/settings"],
+    activeExcept: ["/settings/usage"],
   },
 ];
 
@@ -55,6 +64,13 @@ export function Sidebar({
   const pathname = usePathname();
 
   const isActive = (item: NavItem) => {
+    if (
+      item.activeExcept?.some(
+        (p) => pathname === p || pathname.startsWith(`${p}/`),
+      )
+    ) {
+      return false;
+    }
     if (item.activeWhen?.some((p) => pathname.startsWith(p))) return true;
     return pathname === item.href || pathname.startsWith(`${item.href}/`);
   };

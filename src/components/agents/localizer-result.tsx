@@ -1,13 +1,24 @@
 "use client";
 
 import * as React from "react";
-import { Copy, Languages, Globe, ArrowLeftRight } from "lucide-react";
+import { useTransition } from "react";
+import {
+  Copy,
+  Languages,
+  Globe,
+  ArrowLeftRight,
+  Sparkles,
+  Trash2,
+  Check,
+  Loader2,
+} from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { saveVariant, discardVariant } from "@/server/actions/agents";
 import type { CopyVariant, Locale } from "@/db/schema";
 
 const LOCALE_LABEL: Record<Locale, string> = {
@@ -23,7 +34,11 @@ interface Props {
   sourceLocale: Locale;
 }
 
-export function LocalizerResult({ variant, sourceText, sourceLocale }: Props) {
+export function LocalizerResult({ variant: initial, sourceText, sourceLocale }: Props) {
+  const [variant, setVariant] = React.useState(initial);
+  const [pendingSave, startSave] = useTransition();
+  const [pendingDiscard, startDiscard] = useTransition();
+
   const culturalNotes = (variant.culturalNotes ?? []) as Array<{
     excerpt: string;
     note: string;
@@ -33,6 +48,41 @@ export function LocalizerResult({ variant, sourceText, sourceLocale }: Props) {
     navigator.clipboard.writeText(text);
     toast.success(`${label} copied.`);
   };
+
+  const onSave = () => {
+    startSave(async () => {
+      try {
+        await saveVariant(variant.id);
+        setVariant({ ...variant, status: "saved" });
+        toast.success("Saved to library.");
+      } catch (err) {
+        toast.error((err as Error).message);
+      }
+    });
+  };
+
+  const onDiscard = () => {
+    startDiscard(async () => {
+      try {
+        await discardVariant(variant.id);
+        setVariant({ ...variant, status: "discarded" });
+        toast.success("Variant discarded.");
+      } catch (err) {
+        toast.error((err as Error).message);
+      }
+    });
+  };
+
+  if (variant.status === "discarded") {
+    return (
+      <div className="flex items-center gap-3 rounded-lg border border-dashed border-[var(--color-border)] bg-[var(--color-muted)]/30 px-4 py-3 text-sm text-[var(--color-muted-foreground)]">
+        <Trash2 className="h-4 w-4" />
+        <span>
+          Discarded — {LOCALE_LABEL[sourceLocale]} → {LOCALE_LABEL[variant.locale]}
+        </span>
+      </div>
+    );
+  }
 
   return (
     <motion.div
@@ -50,6 +100,11 @@ export function LocalizerResult({ variant, sourceText, sourceLocale }: Props) {
         <Badge variant="default" className="text-[10px] tracking-wider">
           {LOCALE_LABEL[variant.locale]}
         </Badge>
+        {variant.status === "saved" && (
+          <Badge variant="success" className="text-[10px] tracking-wider">
+            Saved
+          </Badge>
+        )}
         {variant.auditScore != null && (
           <span className="ml-auto inline-flex items-center gap-1.5 rounded-full bg-[var(--color-success)]/12 px-2 py-0.5 text-xs font-medium tabular-nums text-[var(--color-success)]">
             <span className="font-mono">{variant.auditScore}</span>
@@ -159,6 +214,44 @@ export function LocalizerResult({ variant, sourceText, sourceLocale }: Props) {
           </Tabs>
         </div>
       )}
+
+      <div className="flex flex-wrap items-center gap-2 border-t border-[var(--color-border)] px-5 py-3">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => copy(variant.content, "Target")}
+        >
+          <Copy className="h-3.5 w-3.5" /> Copy target
+        </Button>
+        <div className="ml-auto flex items-center gap-2">
+          {variant.status !== "saved" && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onDiscard}
+              disabled={pendingDiscard}
+              className="text-[var(--color-muted-foreground)]"
+            >
+              <Trash2 className="h-3.5 w-3.5" /> Discard
+            </Button>
+          )}
+          {variant.status !== "saved" && (
+            <Button size="sm" onClick={onSave} disabled={pendingSave}>
+              {pendingSave ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Sparkles className="h-3.5 w-3.5" />
+              )}
+              Save to library
+            </Button>
+          )}
+          {variant.status === "saved" && (
+            <span className="inline-flex items-center gap-1.5 text-xs text-[var(--color-success)]">
+              <Check className="h-3.5 w-3.5" /> Saved
+            </span>
+          )}
+        </div>
+      </div>
     </motion.div>
   );
 }

@@ -2,7 +2,23 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Bot, Library, ScanText, Settings, Sparkles, Sun, Moon } from "lucide-react";
+import {
+  Bot,
+  BookOpen,
+  Building2,
+  Activity,
+  FileText,
+  KeyRound,
+  Languages,
+  Library,
+  Megaphone,
+  MessageSquare,
+  Moon,
+  ScanText,
+  Sparkles,
+  Sun,
+  Users,
+} from "lucide-react";
 import { useTheme } from "next-themes";
 import {
   CommandDialog,
@@ -50,9 +66,25 @@ export function CommandPalette() {
             <ScanText className="h-4 w-4" /> Brand voices
             <CommandShortcut>G V</CommandShortcut>
           </CommandItem>
+          <CommandItem onSelect={() => go("/knowledge")}>
+            <BookOpen className="h-4 w-4" /> Knowledge
+            <CommandShortcut>G K</CommandShortcut>
+          </CommandItem>
           <CommandItem onSelect={() => go("/agents")}>
             <Bot className="h-4 w-4" /> Agents
             <CommandShortcut>G A</CommandShortcut>
+          </CommandItem>
+          <CommandItem onSelect={() => go("/campaigns")}>
+            <Megaphone className="h-4 w-4" /> Campaigns
+            <CommandShortcut>G C</CommandShortcut>
+          </CommandItem>
+          <CommandItem onSelect={() => go("/documents")}>
+            <FileText className="h-4 w-4" /> Documents
+            <CommandShortcut>G D</CommandShortcut>
+          </CommandItem>
+          <CommandItem onSelect={() => go("/chat")}>
+            <MessageSquare className="h-4 w-4" /> Chat
+            <CommandShortcut>G T</CommandShortcut>
           </CommandItem>
           <CommandItem onSelect={() => go("/library")}>
             <Library className="h-4 w-4" /> Library
@@ -60,12 +92,30 @@ export function CommandPalette() {
           </CommandItem>
         </CommandGroup>
         <CommandSeparator />
+        <CommandGroup heading="Run an agent">
+          <CommandItem onSelect={() => go("/agents/copywriter")}>
+            <Bot className="h-4 w-4" /> New copywriter run
+          </CommandItem>
+          <CommandItem onSelect={() => go("/agents/localizer")}>
+            <Languages className="h-4 w-4" /> New localizer run
+          </CommandItem>
+          <CommandItem onSelect={() => go("/campaigns/new")}>
+            <Megaphone className="h-4 w-4" /> New campaign
+          </CommandItem>
+        </CommandGroup>
+        <CommandSeparator />
         <CommandGroup heading="Settings">
           <CommandItem onSelect={() => go("/settings/workspace")}>
-            <Settings className="h-4 w-4" /> Workspace
+            <Building2 className="h-4 w-4" /> Workspace
+          </CommandItem>
+          <CommandItem onSelect={() => go("/settings/members")}>
+            <Users className="h-4 w-4" /> Members
           </CommandItem>
           <CommandItem onSelect={() => go("/settings/ai")}>
-            <Settings className="h-4 w-4" /> AI providers
+            <KeyRound className="h-4 w-4" /> AI providers
+          </CommandItem>
+          <CommandItem onSelect={() => go("/settings/usage")}>
+            <Activity className="h-4 w-4" /> Usage
           </CommandItem>
         </CommandGroup>
         <CommandSeparator />

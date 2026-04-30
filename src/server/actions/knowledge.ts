@@ -2,11 +2,17 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { and, asc, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "@/db/client";
-import { kbChunks, kbSources, type KbSource } from "@/db/schema";
+import {
+  campaigns,
+  chatThreads,
+  kbChunks,
+  kbSources,
+  type KbSource,
+} from "@/db/schema";
 import {
   getCurrentWorkspace,
   requireRole,
@@ -311,4 +317,46 @@ export async function queryKnowledge(input: unknown): Promise<KnowledgeQueryResu
   } catch (err) {
     return { ok: false, hits: [], message: (err as Error).message };
   }
+}
+
+export interface KnowledgeUsage {
+  campaigns: number;
+  threads: number;
+}
+
+/**
+ * Count the workspace surfaces that reference this knowledge source. Threads
+ * and campaigns store source IDs as jsonb arrays, so we use the `@>` containment
+ * operator with a single-element array literal.
+ */
+export async function getKnowledgeUsage(sourceId: string): Promise<KnowledgeUsage> {
+  const { workspace } = await getCurrentWorkspace();
+
+  const literal = JSON.stringify([sourceId]);
+
+  const [threadsRows, campaignsRows] = await Promise.all([
+    db
+      .select({ id: chatThreads.id })
+      .from(chatThreads)
+      .where(
+        and(
+          eq(chatThreads.workspaceId, workspace.id),
+          sql`${chatThreads.sourceIds} @> ${literal}::jsonb`,
+        ),
+      ),
+    db
+      .select({ id: campaigns.id })
+      .from(campaigns)
+      .where(
+        and(
+          eq(campaigns.workspaceId, workspace.id),
+          sql`${campaigns.sourceIds} @> ${literal}::jsonb`,
+        ),
+      ),
+  ]);
+
+  return {
+    threads: threadsRows.length,
+    campaigns: campaignsRows.length,
+  };
 }

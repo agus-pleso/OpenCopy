@@ -1,8 +1,18 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ChevronLeft, BookOpen, FileText, AlertTriangle } from "lucide-react";
+import {
+  ChevronLeft,
+  BookOpen,
+  FileText,
+  AlertTriangle,
+  Megaphone,
+  MessageSquare,
+} from "lucide-react";
 
-import { getKnowledgeSource } from "@/server/actions/knowledge";
+import {
+  getKnowledgeSource,
+  getKnowledgeUsage,
+} from "@/server/actions/knowledge";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SourceActions } from "@/components/knowledge/source-actions";
@@ -21,10 +31,14 @@ interface PageProps {
 
 export default async function KnowledgeDetailPage({ params }: PageProps) {
   const { id } = await params;
-  const source = await getKnowledgeSource(id);
+  const [source, usage] = await Promise.all([
+    getKnowledgeSource(id),
+    getKnowledgeUsage(id),
+  ]);
   if (!source) notFound();
 
   const chunks = source.chunks ?? [];
+  const usageTotal = usage.campaigns + usage.threads;
 
   return (
     <div className="mx-auto w-full max-w-5xl px-6 py-10 md:px-10 md:py-14">
@@ -104,6 +118,30 @@ export default async function KnowledgeDetailPage({ params }: PageProps) {
         </div>
       )}
 
+      {usageTotal > 0 && (
+        <div className="mt-6 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-card)]/60 px-4 py-3">
+          <span className="text-[10px] uppercase tracking-[0.16em] text-[var(--color-muted-foreground)]">
+            Used by
+          </span>
+          {usage.campaigns > 0 && (
+            <UsageChip
+              icon={Megaphone}
+              label={`${usage.campaigns} campaign${
+                usage.campaigns === 1 ? "" : "s"
+              }`}
+            />
+          )}
+          {usage.threads > 0 && (
+            <UsageChip
+              icon={MessageSquare}
+              label={`${usage.threads} chat thread${
+                usage.threads === 1 ? "" : "s"
+              }`}
+            />
+          )}
+        </div>
+      )}
+
       <Tabs defaultValue="content" className="mt-8">
         <TabsList>
           <TabsTrigger value="content">Content</TabsTrigger>
@@ -163,5 +201,20 @@ export default async function KnowledgeDetailPage({ params }: PageProps) {
         </TabsContent>
       </Tabs>
     </div>
+  );
+}
+
+function UsageChip({
+  icon: Icon,
+  label,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+}) {
+  return (
+    <span className="inline-flex items-center gap-1.5 text-xs text-[var(--color-foreground)]/85">
+      <Icon className="h-3.5 w-3.5 text-[var(--color-muted-foreground)]" />
+      <span className="tabular-nums">{label}</span>
+    </span>
   );
 }

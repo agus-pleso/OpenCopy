@@ -2,12 +2,17 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { and, eq, desc, asc } from "drizzle-orm";
+import { and, eq, desc, asc, count } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "@/db/client";
 import {
+  agentRuns,
   brandVoices,
+  campaigns,
+  chatThreads,
+  copyVariants,
+  documents,
   voiceSamples,
   voiceAudits,
   type BrandVoice,
@@ -512,4 +517,79 @@ export async function listVoiceLocaleOptions(): Promise<
     { value: "ro", label: "Română" },
     { value: "uk", label: "Українська" },
   ];
+}
+
+export interface VoiceUsage {
+  runs: number;
+  campaigns: number;
+  threads: number;
+  documents: number;
+  savedVariants: number;
+}
+
+export async function getVoiceUsage(voiceId: string): Promise<VoiceUsage> {
+  const { workspace } = await getCurrentWorkspace();
+
+  const [
+    [{ value: runsCount }],
+    [{ value: campaignsCount }],
+    [{ value: threadsCount }],
+    [{ value: docsCount }],
+    [{ value: savedCount }],
+  ] = await Promise.all([
+    db
+      .select({ value: count() })
+      .from(agentRuns)
+      .where(
+        and(
+          eq(agentRuns.workspaceId, workspace.id),
+          eq(agentRuns.voiceId, voiceId),
+        ),
+      ),
+    db
+      .select({ value: count() })
+      .from(campaigns)
+      .where(
+        and(
+          eq(campaigns.workspaceId, workspace.id),
+          eq(campaigns.voiceId, voiceId),
+        ),
+      ),
+    db
+      .select({ value: count() })
+      .from(chatThreads)
+      .where(
+        and(
+          eq(chatThreads.workspaceId, workspace.id),
+          eq(chatThreads.voiceId, voiceId),
+        ),
+      ),
+    db
+      .select({ value: count() })
+      .from(documents)
+      .where(
+        and(
+          eq(documents.workspaceId, workspace.id),
+          eq(documents.voiceId, voiceId),
+        ),
+      ),
+    db
+      .select({ value: count() })
+      .from(copyVariants)
+      .where(
+        and(
+          eq(copyVariants.workspaceId, workspace.id),
+          eq(copyVariants.voiceId, voiceId),
+          eq(copyVariants.status, "saved"),
+        ),
+      ),
+  ]);
+
+  return {
+    runs: runsCount,
+    campaigns: campaignsCount,
+    threads: threadsCount,
+    documents: docsCount,
+    savedVariants: savedCount,
+  };
 }
