@@ -23,6 +23,7 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { ExportButton } from "@/components/exports/export-button";
 import { cn } from "@/lib/utils";
 import {
   saveCampaignAsset,
@@ -174,6 +175,7 @@ export function AssetCard({ asset: initial }: Props) {
         <Button variant="ghost" size="sm" onClick={onCopy}>
           <Copy className="h-3.5 w-3.5" /> Copy
         </Button>
+        <ExportButton kind="variant" id={asset.id} variant="ghost" label="" />
         {issues.length > 0 && (
           <Button
             variant="ghost"

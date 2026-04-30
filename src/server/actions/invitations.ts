@@ -19,6 +19,10 @@ import {
   requireRole,
   requireUserId,
 } from "@/lib/auth/workspace";
+import {
+  isEmailDeliveryConfigured,
+  sendInvitationEmail,
+} from "@/lib/email/resend";
 
 const RoleEnum = z.enum([
   "admin",
@@ -46,6 +50,8 @@ export interface CreateInvitationResult {
   ok: boolean;
   invitationId?: string;
   inviteUrl?: string;
+  emailDelivered?: boolean;
+  emailMessage?: string;
   message?: string;
 }
 
@@ -115,8 +121,36 @@ export async function createInvitation(
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
   const inviteUrl = `${baseUrl}/invitations/${token}`;
 
+  // Optionally fire off the email. We don't block the user — surface
+  // delivered:bool + the manual link either way.
+  let emailDelivered = false;
+  let emailMessage: string | undefined;
+  if (isEmailDeliveryConfigured()) {
+    const inviter = await db.query.users.findFirst({
+      where: eq(users.id, userId),
+    });
+    const { workspace: ws } = await getCurrentWorkspace();
+    const send = await sendInvitationEmail({
+      to: parsed.data.email,
+      workspaceName: ws.name,
+      role: parsed.data.role,
+      inviterName: inviter?.name ?? null,
+      inviterEmail: inviter?.email ?? "",
+      inviteUrl,
+      expiresInDays: DEFAULT_EXPIRY_DAYS,
+    });
+    emailDelivered = send.delivered;
+    emailMessage = send.message;
+  }
+
   revalidatePath("/settings/members");
-  return { ok: true, invitationId: created.id, inviteUrl };
+  return {
+    ok: true,
+    invitationId: created.id,
+    inviteUrl,
+    emailDelivered,
+    emailMessage,
+  };
 }
 
 /* ----------------------------------------------------------------------------

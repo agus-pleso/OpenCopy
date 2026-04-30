@@ -38,6 +38,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { DocumentEditor } from "@/components/editor/editor";
+import { ExportButton } from "@/components/exports/export-button";
 import {
   AutosaveIndicator,
   type SaveState,
@@ -149,6 +150,7 @@ export function DocumentShell({ document, voices }: Props) {
         </Link>
         <div className="flex items-center gap-3">
           <AutosaveIndicator state={saveState} lastSavedAt={lastSavedAt} />
+          <ExportButton kind="document" id={document.id} />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="icon">

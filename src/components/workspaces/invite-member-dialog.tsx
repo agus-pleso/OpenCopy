@@ -40,12 +40,14 @@ export function InviteMemberDialog() {
   const [email, setEmail] = React.useState("");
   const [role, setRole] = React.useState<InviteRole>("editor");
   const [generatedUrl, setGeneratedUrl] = React.useState<string | null>(null);
+  const [emailDelivered, setEmailDelivered] = React.useState(false);
   const [copied, setCopied] = React.useState(false);
 
   const reset = () => {
     setEmail("");
     setRole("editor");
     setGeneratedUrl(null);
+    setEmailDelivered(false);
     setCopied(false);
   };
 
@@ -56,7 +58,15 @@ export function InviteMemberDialog() {
       const res = await createInvitation({ email: email.trim().toLowerCase(), role });
       if (res.ok && res.inviteUrl) {
         setGeneratedUrl(res.inviteUrl);
-        toast.success("Invitation created.");
+        setEmailDelivered(!!res.emailDelivered);
+        if (res.emailDelivered) {
+          toast.success(`Invitation emailed to ${email}.`);
+        } else {
+          toast.success("Invitation created.");
+          if (res.emailMessage) {
+            toast.message("Email not sent", { description: res.emailMessage });
+          }
+        }
       } else {
         toast.error(res.message ?? "Couldn't create invitation.");
       }
@@ -149,10 +159,22 @@ export function InviteMemberDialog() {
               <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[--color-success]/10 text-[--color-success]">
                 <Check className="h-5 w-5" />
               </div>
-              <DialogTitle>Invitation ready</DialogTitle>
+              <DialogTitle>
+                {emailDelivered ? "Invitation emailed" : "Invitation ready"}
+              </DialogTitle>
               <DialogDescription>
-                Send this link to <strong>{email}</strong>. They&apos;ll join
-                as <strong>{role}</strong>. Expires in 7 days.
+                {emailDelivered ? (
+                  <>
+                    Sent to <strong>{email}</strong>. They&apos;ll join as{" "}
+                    <strong>{role}</strong>. The link expires in 7 days. You
+                    can also copy it below as a backup.
+                  </>
+                ) : (
+                  <>
+                    Send this link to <strong>{email}</strong>. They&apos;ll
+                    join as <strong>{role}</strong>. Expires in 7 days.
+                  </>
+                )}
               </DialogDescription>
             </DialogHeader>
             <div className="flex items-center gap-2 rounded-md border border-[--color-border] bg-[--color-muted]/40 p-3">
@@ -169,8 +191,9 @@ export function InviteMemberDialog() {
               </Button>
             </div>
             <p className="text-[11px] text-[--color-muted-foreground] text-pretty">
-              Email delivery via Resend lands in V1.7. For now copy + paste the
-              link into your existing email / Slack / wherever.
+              {emailDelivered
+                ? "Resend delivered the email. If it doesn't show up, share the link directly."
+                : "AUTH_RESEND_KEY isn't configured — copy + paste the link into your existing email / Slack / wherever."}
             </p>
             <DialogFooter>
               <Button
