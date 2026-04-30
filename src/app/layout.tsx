@@ -37,7 +37,7 @@ export default function RootLayout({
             toastOptions={{
               classNames: {
                 toast:
-                  "border border-[--color-border] bg-[--color-card] text-[--color-card-foreground]",
+                  "border border-[var(--color-border)] bg-[var(--color-card)] text-[var(--color-card-foreground)]",
               },
             }}
           />

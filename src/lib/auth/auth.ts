@@ -14,6 +14,7 @@ import {
   verificationTokens,
   credentials,
 } from "@/db/schema";
+import { authConfig as baseAuthConfig } from "./auth.config";
 import { ensureWorkspaceForUser } from "./workspace";
 
 const devEnabled = process.env.DEV_AUTH_ENABLED === "true";
@@ -83,42 +84,20 @@ if (devEnabled) {
 }
 
 export const authConfig: NextAuthConfig = {
+  ...baseAuthConfig,
   adapter: DrizzleAdapter(db, {
     usersTable: users,
     accountsTable: accounts,
     sessionsTable: sessions,
     verificationTokensTable: verificationTokens,
   }),
-  // We use database sessions when only Resend is configured; for the
-  // credentials provider Auth.js requires JWT sessions. Keep JWT to support
-  // both consistently.
-  session: { strategy: "jwt" },
   providers,
-  pages: {
-    signIn: "/login",
-    verifyRequest: "/login/verify",
-  },
-  callbacks: {
-    async jwt({ token, user }) {
-      if (user) {
-        token.userId = user.id;
-      }
-      return token;
-    },
-    async session({ session, token }) {
-      if (token?.userId && session.user) {
-        session.user.id = token.userId as string;
-      }
-      return session;
-    },
-  },
   events: {
     async signIn({ user }) {
       if (!user?.id) return;
       await ensureWorkspaceForUser(user.id, user.email ?? null, user.name ?? null);
     },
   },
-  trustHost: true,
 };
 
 export const { handlers, auth, signIn, signOut } = NextAuth(authConfig);

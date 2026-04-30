@@ -95,7 +95,7 @@ export function ExportButton({
               onClick={() => onSelect(f.id)}
               className="flex items-start gap-2.5"
             >
-              <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-[--color-muted] text-[--color-muted-foreground]">
+              <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-[var(--color-muted)] text-[var(--color-muted-foreground)]">
                 {busy ? (
                   <Check className="h-3 w-3 animate-pulse" />
                 ) : (
@@ -106,7 +106,7 @@ export function ExportButton({
                 <span className="block font-medium tracking-tight">
                   {f.label}
                 </span>
-                <span className="block text-[11px] text-[--color-muted-foreground] text-pretty">
+                <span className="block text-[11px] text-[var(--color-muted-foreground)] text-pretty">
                   {f.description}
                 </span>
               </span>

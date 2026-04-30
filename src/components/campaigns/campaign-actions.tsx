@@ -21,6 +21,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { deleteCampaign } from "@/server/actions/campaigns";
+import { isRedirectError } from "@/lib/utils";
 
 export function CampaignActions({ campaignId }: { campaignId: string }) {
   const [pending, startTransition] = useTransition();
@@ -31,6 +32,7 @@ export function CampaignActions({ campaignId }: { campaignId: string }) {
       try {
         await deleteCampaign(campaignId);
       } catch (err) {
+        if (isRedirectError(err)) throw err;
         toast.error((err as Error).message);
       }
     });
@@ -47,7 +49,7 @@ export function CampaignActions({ campaignId }: { campaignId: string }) {
         <DropdownMenuContent align="end">
           <DropdownMenuItem
             onClick={() => setConfirmDelete(true)}
-            className="text-[--color-destructive] focus:text-[--color-destructive]"
+            className="text-[var(--color-destructive)] focus:text-[var(--color-destructive)]"
           >
             <Trash2 className="h-4 w-4" /> Delete campaign
           </DropdownMenuItem>

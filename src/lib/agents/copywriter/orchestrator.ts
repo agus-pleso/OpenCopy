@@ -1,12 +1,12 @@
 import "server-only";
-import { runAgent, type AgentContext } from "../core";
+import { type AgentContext } from "../core";
 import {
-  voiceAuditor,
+  runVoiceAuditor,
   type VoiceAudit,
 } from "../voice-auditor";
 import type { VoiceCardForPrompt, Locale } from "../voice-card";
-import { copywriterPlanner, type PlannerOutput } from "./planner";
-import { copywriterDrafter, type DrafterOutput } from "./drafter";
+import { runCopywriterPlanner, type PlannerOutput } from "./planner";
+import { runCopywriterDrafter, type DrafterOutput } from "./drafter";
 
 export interface CopywriterOrchestratorInput {
   voice: VoiceCardForPrompt & { id: string };
@@ -62,8 +62,7 @@ export async function runCopywriter(
   const start = Date.now();
 
   // Step 1 — plan
-  const plannerResult = await runAgent(
-    copywriterPlanner,
+  const plannerResult = await runCopywriterPlanner(
     {
       voice: input.voice,
       channel: input.channel,
@@ -78,7 +77,7 @@ export async function runCopywriter(
       examples: input.examples,
       knowledge: input.knowledge,
     },
-    ctx,
+    { workspaceId: ctx.workspaceId, userId: ctx.userId },
   );
 
   const plan = plannerResult.output;
@@ -90,8 +89,7 @@ export async function runCopywriter(
 
   // Step 2 — draft N variants in parallel
   const draftPromises = angles.map((angle) =>
-    runAgent(
-      copywriterDrafter,
+    runCopywriterDrafter(
       {
         voice: input.voice,
         channel: input.channel,
@@ -111,21 +109,20 @@ export async function runCopywriter(
         },
         knowledge: input.knowledge,
       },
-      ctx,
+      { workspaceId: ctx.workspaceId, userId: ctx.userId },
     ),
   );
   const drafts = await Promise.all(draftPromises);
 
   // Step 3 — audit each variant in parallel
   const auditPromises = drafts.map((draft) =>
-    runAgent(
-      voiceAuditor,
+    runVoiceAuditor(
       {
         voice: input.voice,
         draft: draft.output.content,
         locale: input.locale,
       },
-      ctx,
+      { workspaceId: ctx.workspaceId, userId: ctx.userId },
     ),
   );
   const audits = await Promise.all(auditPromises);

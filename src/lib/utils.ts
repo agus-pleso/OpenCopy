@@ -27,3 +27,31 @@ export function formatDistanceShort(date: Date | string): string {
   if (days < 7) return `${days}d ago`;
   return d.toLocaleDateString();
 }
+
+/**
+ * Detect Next.js's `redirect()` control-flow signal so we can re-throw it
+ * instead of swallowing it into a toast. Server actions that call
+ * `redirect()` throw an Error with `digest` starting with "NEXT_REDIRECT" —
+ * Next.js intercepts that on its way back up the stack to perform the
+ * navigation. If a generic `catch (err)` block toasts the message, the
+ * navigation never happens and the user sees "NEXT_REDIRECT" as an error.
+ *
+ * Usage:
+ *   try { await deleteCampaign(id); }
+ *   catch (err) {
+ *     if (isRedirectError(err)) throw err;
+ *     toast.error(...);
+ *   }
+ */
+export function isRedirectError(err: unknown): boolean {
+  if (!(err instanceof Error)) return false;
+  const digest = (err as { digest?: unknown }).digest;
+  return typeof digest === "string" && digest.startsWith("NEXT_REDIRECT");
+}
+
+/** Same idea for `notFound()` — throws with digest "NEXT_NOT_FOUND". */
+export function isNotFoundError(err: unknown): boolean {
+  if (!(err instanceof Error)) return false;
+  const digest = (err as { digest?: unknown }).digest;
+  return typeof digest === "string" && digest.startsWith("NEXT_NOT_FOUND");
+}

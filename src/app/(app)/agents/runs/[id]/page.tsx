@@ -41,7 +41,7 @@ export default async function RunPage({ params }: PageProps) {
     <div className="mx-auto w-full max-w-6xl px-6 py-10 md:px-10 md:py-14">
       <Link
         href="/agents"
-        className="inline-flex items-center gap-1 text-xs uppercase tracking-wider text-[--color-muted-foreground] hover:text-[--color-foreground] transition"
+        className="inline-flex items-center gap-1 text-xs uppercase tracking-wider text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)] transition"
       >
         <ChevronLeft className="h-3 w-3" /> Agents
       </Link>
@@ -49,8 +49,8 @@ export default async function RunPage({ params }: PageProps) {
       <div className="mt-3 flex items-start justify-between gap-4">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <Icon className="h-4 w-4 text-[--color-primary]" />
-            <p className="text-xs uppercase tracking-[0.18em] text-[--color-muted-foreground]">
+            <Icon className="h-4 w-4 text-[var(--color-primary)]" />
+            <p className="text-xs uppercase tracking-[0.18em] text-[var(--color-muted-foreground)]">
               {run.kind === "copywriter" ? "Copywriter run" : "Localizer run"}
             </p>
             <Badge
@@ -66,10 +66,15 @@ export default async function RunPage({ params }: PageProps) {
                 ? cwBrief.objective.slice(0, 100) + "…"
                 : cwBrief.objective
               : locBrief
-              ? `Localize ${locBrief.sourceLocale.toUpperCase()} → ${locBrief.targetLocale.toUpperCase()}`
+              ? `Localize ${locBrief.sourceLocale.toUpperCase()} → ${(
+                  locBrief.targetLocales ??
+                  (locBrief.targetLocale ? [locBrief.targetLocale] : [])
+                )
+                  .map((l) => l.toUpperCase())
+                  .join(", ")}`
               : "Run"}
           </h1>
-          <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-[--color-muted-foreground]">
+          <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-[var(--color-muted-foreground)]">
             {run.voice && (
               <Link
                 href={`/voices/${run.voice.id}`}
@@ -100,13 +105,13 @@ export default async function RunPage({ params }: PageProps) {
       </div>
 
       {run.status === "failed" && run.error && (
-        <div className="mt-6 rounded-md border border-[--color-destructive]/30 bg-[--color-destructive]/5 px-4 py-3 text-sm text-[--color-destructive]">
+        <div className="mt-6 rounded-md border border-[var(--color-destructive)]/30 bg-[var(--color-destructive)]/5 px-4 py-3 text-sm text-[var(--color-destructive)]">
           <p className="font-medium">Run failed</p>
           <p className="mt-1 font-mono text-[12px]">{run.error}</p>
         </div>
       )}
 
-      <div className="mt-8 grid gap-8 lg:grid-cols-[1fr,260px]">
+      <div className="mt-8 grid gap-8 lg:grid-cols-[1fr_260px]">
         <div className="flex flex-col gap-4">
           {run.kind === "copywriter" &&
             variants.map((v) => (
@@ -124,17 +129,17 @@ export default async function RunPage({ params }: PageProps) {
             />
           )}
           {variants.length === 0 && run.status !== "failed" && (
-            <div className="rounded-lg border border-dashed border-[--color-border] bg-[--color-muted]/30 p-8 text-center text-sm text-[--color-muted-foreground]">
+            <div className="rounded-lg border border-dashed border-[var(--color-border)] bg-[var(--color-muted)]/30 p-8 text-center text-sm text-[var(--color-muted-foreground)]">
               No variants yet — agents are still running. Refresh in a moment.
             </div>
           )}
         </div>
 
         <aside className="lg:sticky lg:top-20 lg:self-start">
-          <p className="text-xs uppercase tracking-[0.14em] text-[--color-muted-foreground]">
+          <p className="text-xs uppercase tracking-[0.14em] text-[var(--color-muted-foreground)]">
             Agent timeline
           </p>
-          <div className="mt-3 rounded-lg border border-[--color-border] bg-[--color-card] p-4">
+          <div className="mt-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] p-4">
             <AgentTimeline steps={run.steps ?? []} />
           </div>
         </aside>

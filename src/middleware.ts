@@ -1,5 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { auth } from "@/lib/auth/auth";
+import NextAuth from "next-auth";
+import { authConfig } from "@/lib/auth/auth.config";
+
+const { auth } = NextAuth(authConfig);
 
 const PUBLIC_PATHS = [
   "/login",
@@ -15,18 +18,18 @@ function isPublic(pathname: string): boolean {
   return PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 }
 
-export default async function middleware(req: NextRequest) {
+export default auth((req: NextRequest & { auth: unknown }) => {
   const { pathname } = req.nextUrl;
   if (isPublic(pathname)) return NextResponse.next();
 
-  const session = await auth();
+  const session = (req as unknown as { auth: { user?: { id?: string } } | null }).auth;
   if (!session?.user?.id) {
     const url = new URL("/login", req.url);
     url.searchParams.set("from", pathname);
     return NextResponse.redirect(url);
   }
   return NextResponse.next();
-}
+});
 
 export const config = {
   matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)"],

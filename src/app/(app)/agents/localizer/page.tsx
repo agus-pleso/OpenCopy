@@ -29,21 +29,21 @@ export default async function LocalizerPage() {
     <div className="mx-auto w-full max-w-5xl px-6 py-10 md:px-10 md:py-14">
       <Link
         href="/agents"
-        className="inline-flex items-center gap-1 text-xs uppercase tracking-wider text-[--color-muted-foreground] hover:text-[--color-foreground] transition"
+        className="inline-flex items-center gap-1 text-xs uppercase tracking-wider text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)] transition"
       >
         <ChevronLeft className="h-3 w-3" /> Agents
       </Link>
 
       <div className="mt-3 flex items-center gap-3">
-        <Languages className="h-5 w-5 text-[--color-primary]" />
-        <p className="text-xs uppercase tracking-[0.18em] text-[--color-muted-foreground]">
+        <Languages className="h-5 w-5 text-[var(--color-primary)]" />
+        <p className="text-xs uppercase tracking-[0.18em] text-[var(--color-muted-foreground)]">
           Localizer agent
         </p>
       </div>
       <h1 className="mt-2 font-display text-3xl tracking-tight md:text-4xl text-balance">
         New localization run.
       </h1>
-      <p className="mt-2 max-w-2xl text-pretty text-[--color-muted-foreground]">
+      <p className="mt-2 max-w-2xl text-pretty text-[var(--color-muted-foreground)]">
         Transcreation, not translation. The Cultural Adapter flags idioms and
         formality calls; the Localizer transcreates; the Back-Translator gives
         you a literal sanity-check; the Voice Auditor validates the result stays

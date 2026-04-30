@@ -127,11 +127,11 @@ export function CopywriterForm({ voices, sources = [] }: Props) {
 
   if (usable.length === 0) {
     return (
-      <div className="rounded-2xl border border-dashed border-[--color-border] bg-[--color-muted]/30 px-8 py-16 text-center">
+      <div className="rounded-2xl border border-dashed border-[var(--color-border)] bg-[var(--color-muted)]/30 px-8 py-16 text-center">
         <h3 className="font-display text-xl tracking-tight">
           Define a brand voice first
         </h3>
-        <p className="mx-auto mt-2 max-w-md text-pretty text-sm text-[--color-muted-foreground]">
+        <p className="mx-auto mt-2 max-w-md text-pretty text-sm text-[var(--color-muted-foreground)]">
           The Copywriter agent reads from a brand voice. Create one in{" "}
           <Link href="/voices" className="underline underline-offset-2">
             Brand voices
@@ -169,7 +169,7 @@ export function CopywriterForm({ voices, sources = [] }: Props) {
               {CHANNELS.map((c) => (
                 <SelectItem key={c.value} value={c.value}>
                   {c.label}
-                  <span className="ml-2 text-xs text-[--color-muted-foreground]">
+                  <span className="ml-2 text-xs text-[var(--color-muted-foreground)]">
                     {c.lengthHint}
                   </span>
                 </SelectItem>
@@ -232,8 +232,8 @@ export function CopywriterForm({ voices, sources = [] }: Props) {
                 onClick={() => setVariantCount(n)}
                 className={
                   n === variantCount
-                    ? "h-9 w-9 rounded-md bg-[--color-primary] text-[--color-primary-foreground] font-medium"
-                    : "h-9 w-9 rounded-md border border-[--color-border] hover:bg-[--color-accent]"
+                    ? "h-9 w-9 rounded-md bg-[var(--color-primary)] text-[var(--color-primary-foreground)] font-medium"
+                    : "h-9 w-9 rounded-md border border-[var(--color-border)] hover:bg-[var(--color-accent)]"
                 }
               >
                 {n}
@@ -265,11 +265,11 @@ export function CopywriterForm({ voices, sources = [] }: Props) {
         </Field>
 
         {usableSources.length > 0 && (
-          <div className="md:col-span-2 rounded-lg border border-[--color-border] bg-[--color-card] p-4">
+          <div className="md:col-span-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] p-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <BookOpen className="h-4 w-4 text-[--color-primary]" />
-                <Label className="text-xs uppercase tracking-[0.14em] text-[--color-muted-foreground]">
+                <BookOpen className="h-4 w-4 text-[var(--color-primary)]" />
+                <Label className="text-xs uppercase tracking-[0.14em] text-[var(--color-muted-foreground)]">
                   Knowledge sources
                 </Label>
                 {selectedSourceIds.length > 0 && (
@@ -280,12 +280,12 @@ export function CopywriterForm({ voices, sources = [] }: Props) {
               </div>
               <Link
                 href="/knowledge"
-                className="text-[11px] uppercase tracking-wider text-[--color-muted-foreground] hover:text-[--color-foreground] transition"
+                className="text-[11px] uppercase tracking-wider text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)] transition"
               >
                 Manage
               </Link>
             </div>
-            <p className="mt-2 text-[11px] text-[--color-muted-foreground]">
+            <p className="mt-2 text-[11px] text-[var(--color-muted-foreground)]">
               Pick which sources the planner + drafters consult. We retrieve the
               top 8 most relevant chunks per run.
             </p>
@@ -300,12 +300,12 @@ export function CopywriterForm({ voices, sources = [] }: Props) {
                     className={cn(
                       "inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-medium transition",
                       selected
-                        ? "border-[--color-primary]/40 bg-[--color-primary]/10 text-[--color-primary]"
-                        : "border-[--color-border] bg-[--color-background] text-[--color-foreground] hover:bg-[--color-accent]",
+                        ? "border-[var(--color-primary)]/40 bg-[var(--color-primary)]/10 text-[var(--color-primary)]"
+                        : "border-[var(--color-border)] bg-[var(--color-background)] text-[var(--color-foreground)] hover:bg-[var(--color-accent)]",
                     )}
                   >
                     <span>{s.name}</span>
-                    <span className="text-[10px] tabular-nums text-[--color-muted-foreground]">
+                    <span className="text-[10px] tabular-nums text-[var(--color-muted-foreground)]">
                       {s.chunkCount}c
                     </span>
                   </button>
@@ -352,12 +352,12 @@ function Field({
 }) {
   return (
     <div className="flex flex-col gap-1.5">
-      <Label className="text-xs uppercase tracking-[0.14em] text-[--color-muted-foreground]">
+      <Label className="text-xs uppercase tracking-[0.14em] text-[var(--color-muted-foreground)]">
         {label}
       </Label>
       {children}
       {hint && (
-        <p className="text-[11px] text-[--color-muted-foreground] text-pretty">
+        <p className="text-[11px] text-[var(--color-muted-foreground)] text-pretty">
           {hint}
         </p>
       )}

@@ -3,7 +3,7 @@
 import * as React from "react";
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Languages, ArrowRight } from "lucide-react";
+import { Languages, ArrowRight, Check } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { cn } from "@/lib/utils";
 import { startLocalizerRun } from "@/server/actions/agents";
 import { AgentRunningOverlay } from "./agent-running-overlay";
 import type { Locale } from "@/db/schema";
@@ -43,16 +44,23 @@ export function LocalizerForm({ voices }: Props) {
 
   const [voiceId, setVoiceId] = React.useState<string>("__none");
   const [sourceLocale, setSourceLocale] = React.useState<Locale>("en");
-  const [targetLocale, setTargetLocale] = React.useState<Locale>("pl");
+  const [targetLocales, setTargetLocales] = React.useState<Locale[]>(["pl"]);
   const [sourceText, setSourceText] = React.useState("");
   const [contextHint, setContextHint] = React.useState("");
 
   const usable = voices.filter((v) => v.isAnalyzed);
 
+  const toggleTarget = (l: Locale) => {
+    setTargetLocales((prev) =>
+      prev.includes(l) ? prev.filter((x) => x !== l) : [...prev, l],
+    );
+  };
+
   const onSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (sourceLocale === targetLocale) {
-      toast.error("Source and target locale must differ.");
+    const targets = targetLocales.filter((l) => l !== sourceLocale);
+    if (targets.length === 0) {
+      toast.error("Pick at least one target locale that differs from the source.");
       return;
     }
     if (sourceText.trim().length < 20) {
@@ -64,7 +72,7 @@ export function LocalizerForm({ voices }: Props) {
         const { runId } = await startLocalizerRun({
           voiceId: voiceId !== "__none" ? voiceId : undefined,
           sourceLocale,
-          targetLocale,
+          targetLocales: targets,
           sourceText: sourceText.trim(),
           contextHint: contextHint.trim() || undefined,
         });
@@ -114,26 +122,36 @@ export function LocalizerForm({ voices }: Props) {
               </Select>
             </Field>
 
-            <div className="flex items-center justify-center text-[--color-muted-foreground]">
+            <div className="flex items-center justify-center text-[var(--color-muted-foreground)]">
               <ArrowRight className="h-4 w-4" />
             </div>
 
-            <Field label="Target locale" hint="Where the copy needs to land.">
-              <Select
-                value={targetLocale}
-                onValueChange={(v) => setTargetLocale(v as Locale)}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {LOCALES.filter((l) => l.value !== sourceLocale).map((l) => (
-                    <SelectItem key={l.value} value={l.value}>
+            <Field
+              label="Target locales"
+              hint="Pick one or more — each runs in parallel and produces its own variant."
+            >
+              <div className="flex flex-wrap gap-1.5">
+                {LOCALES.filter((l) => l.value !== sourceLocale).map((l) => {
+                  const active = targetLocales.includes(l.value);
+                  return (
+                    <button
+                      key={l.value}
+                      type="button"
+                      onClick={() => toggleTarget(l.value)}
+                      className={cn(
+                        "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs transition",
+                        active
+                          ? "border-[var(--color-primary)] bg-[var(--color-primary)] text-[var(--color-primary-foreground)]"
+                          : "border-[var(--color-border)] bg-[var(--color-background)] text-[var(--color-foreground)] hover:border-[var(--color-primary)]/40",
+                      )}
+                      aria-pressed={active}
+                    >
+                      {active && <Check className="h-3 w-3" />}
                       {l.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                    </button>
+                  );
+                })}
+              </div>
             </Field>
           </div>
         </div>
@@ -196,12 +214,12 @@ function Field({
 }) {
   return (
     <div className="flex flex-col gap-1.5">
-      <Label className="text-xs uppercase tracking-[0.14em] text-[--color-muted-foreground]">
+      <Label className="text-xs uppercase tracking-[0.14em] text-[var(--color-muted-foreground)]">
         {label}
       </Label>
       {children}
       {hint && (
-        <p className="text-[11px] text-[--color-muted-foreground] text-pretty">
+        <p className="text-[11px] text-[var(--color-muted-foreground)] text-pretty">
           {hint}
         </p>
       )}

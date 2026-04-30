@@ -10,7 +10,6 @@ import {
   brandVoices,
   documents,
   type Document,
-  type Locale,
 } from "@/db/schema";
 import {
   getCurrentWorkspace,
@@ -244,5 +243,3 @@ export async function runEditorCommand(
     return { ok: false, message: (err as Error).message };
   }
 }
-
-export type { Locale };

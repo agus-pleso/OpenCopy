@@ -4,6 +4,7 @@ import * as React from "react";
 import { useTransition } from "react";
 import { Loader2, Save, AlertTriangle, LogOut, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { isRedirectError } from "@/lib/utils";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -62,6 +63,7 @@ export function WorkspaceMetaForm({ workspace, role }: Props) {
         });
         toast.success("Workspace updated.");
       } catch (err) {
+        if (isRedirectError(err)) throw err;
         toast.error((err as Error).message);
       }
     });
@@ -72,6 +74,7 @@ export function WorkspaceMetaForm({ workspace, role }: Props) {
       try {
         await leaveWorkspace(workspace.id);
       } catch (err) {
+        if (isRedirectError(err)) throw err;
         toast.error((err as Error).message);
       }
     });
@@ -82,6 +85,7 @@ export function WorkspaceMetaForm({ workspace, role }: Props) {
       try {
         await deleteCurrentWorkspace();
       } catch (err) {
+        if (isRedirectError(err)) throw err;
         toast.error((err as Error).message);
       }
     });
@@ -108,7 +112,7 @@ export function WorkspaceMetaForm({ workspace, role }: Props) {
             disabled
             className="font-mono text-sm"
           />
-          <p className="text-[11px] text-[--color-muted-foreground]">
+          <p className="text-[11px] text-[var(--color-muted-foreground)]">
             Slug stays stable for the lifetime of the workspace.
           </p>
         </div>
@@ -144,18 +148,18 @@ export function WorkspaceMetaForm({ workspace, role }: Props) {
         </div>
       )}
 
-      <div className="mt-4 rounded-lg border border-[--color-destructive]/30 bg-[--color-destructive]/5 p-5">
+      <div className="mt-4 rounded-lg border border-[var(--color-destructive)]/30 bg-[var(--color-destructive)]/5 p-5">
         <div className="flex items-center gap-2">
-          <AlertTriangle className="h-4 w-4 text-[--color-destructive]" />
-          <p className="text-xs uppercase tracking-[0.14em] text-[--color-destructive]">
+          <AlertTriangle className="h-4 w-4 text-[var(--color-destructive)]" />
+          <p className="text-xs uppercase tracking-[0.14em] text-[var(--color-destructive)]">
             Danger zone
           </p>
         </div>
         <div className="mt-4 flex flex-col gap-3">
-          <div className="flex items-center justify-between gap-3 rounded-md border border-[--color-border] bg-[--color-card] p-3">
+          <div className="flex items-center justify-between gap-3 rounded-md border border-[var(--color-border)] bg-[var(--color-card)] p-3">
             <div>
               <p className="font-medium tracking-tight">Leave workspace</p>
-              <p className="text-xs text-[--color-muted-foreground] text-pretty">
+              <p className="text-xs text-[var(--color-muted-foreground)] text-pretty">
                 Remove yourself from this workspace. Your saved copy stays;
                 you lose access to voices, knowledge, agents, etc.
               </p>
@@ -170,12 +174,12 @@ export function WorkspaceMetaForm({ workspace, role }: Props) {
             </Button>
           </div>
           {canDelete && (
-            <div className="flex items-center justify-between gap-3 rounded-md border border-[--color-destructive]/30 bg-[--color-destructive]/5 p-3">
+            <div className="flex items-center justify-between gap-3 rounded-md border border-[var(--color-destructive)]/30 bg-[var(--color-destructive)]/5 p-3">
               <div>
-                <p className="font-medium tracking-tight text-[--color-destructive]">
+                <p className="font-medium tracking-tight text-[var(--color-destructive)]">
                   Delete workspace
                 </p>
-                <p className="text-xs text-[--color-destructive]/80 text-pretty">
+                <p className="text-xs text-[var(--color-destructive)]/80 text-pretty">
                   Permanently removes the workspace and EVERYTHING in it —
                   voices, sources, agents, runs, documents, threads, library.
                   No undo.

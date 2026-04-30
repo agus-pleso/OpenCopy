@@ -27,7 +27,9 @@ export async function searchKnowledge(
 ): Promise<KnowledgeHit[]> {
   if (!query.trim()) return [];
 
-  const { vector } = await embedQuery(query, { workspaceId: opts.workspaceId });
+  const { vector, modelId } = await embedQuery(query, {
+    workspaceId: opts.workspaceId,
+  });
 
   const topK = opts.topK ?? 6;
   const minSim = opts.minSimilarity ?? 0.4;
@@ -41,6 +43,9 @@ export async function searchKnowledge(
   const conditions = [
     eq(kbChunks.workspaceId, opts.workspaceId),
     eq(kbSources.status, "ready"),
+    // Only search chunks indexed with the same model — comparing across
+    // embedding spaces produces meaningless similarity scores.
+    eq(kbSources.embeddingModel, modelId),
     gt(similarity, minSim),
   ];
   if (opts.sourceIds && opts.sourceIds.length > 0) {

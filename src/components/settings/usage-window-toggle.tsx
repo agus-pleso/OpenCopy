@@ -21,7 +21,7 @@ export function UsageWindowToggle({ current }: { current: number }) {
   };
 
   return (
-    <div className="inline-flex rounded-md border border-[--color-border] p-0.5">
+    <div className="inline-flex rounded-md border border-[var(--color-border)] p-0.5">
       {WINDOWS.map((w) => (
         <button
           key={w.value}
@@ -30,8 +30,8 @@ export function UsageWindowToggle({ current }: { current: number }) {
           className={cn(
             "px-3 py-1 text-xs font-medium tracking-tight transition rounded",
             current === w.value
-              ? "bg-[--color-primary] text-[--color-primary-foreground]"
-              : "text-[--color-muted-foreground] hover:bg-[--color-accent]",
+              ? "bg-[var(--color-primary)] text-[var(--color-primary-foreground)]"
+              : "text-[var(--color-muted-foreground)] hover:bg-[var(--color-accent)]",
           )}
         >
           {w.label}

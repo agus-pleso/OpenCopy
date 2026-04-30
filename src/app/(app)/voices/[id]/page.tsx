@@ -51,7 +51,7 @@ export default async function VoiceDetailPage({
     <div className="mx-auto w-full max-w-5xl px-6 py-10 md:px-10 md:py-14">
       <Link
         href="/voices"
-        className="inline-flex items-center gap-1 text-xs uppercase tracking-wider text-[--color-muted-foreground] hover:text-[--color-foreground] transition"
+        className="inline-flex items-center gap-1 text-xs uppercase tracking-wider text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)] transition"
       >
         <ChevronLeft className="h-3 w-3" /> All voices
       </Link>
@@ -59,8 +59,8 @@ export default async function VoiceDetailPage({
       <div className="mt-3 flex items-start justify-between gap-4">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <ScanText className="h-4 w-4 text-[--color-primary]" />
-            <p className="text-xs uppercase tracking-[0.18em] text-[--color-muted-foreground]">
+            <ScanText className="h-4 w-4 text-[var(--color-primary)]" />
+            <p className="text-xs uppercase tracking-[0.18em] text-[var(--color-muted-foreground)]">
               Brand voice
             </p>
             <Badge
@@ -74,7 +74,7 @@ export default async function VoiceDetailPage({
             {voice.name}
           </h1>
           {voice.description && (
-            <p className="mt-2 max-w-2xl text-pretty text-[--color-muted-foreground]">
+            <p className="mt-2 max-w-2xl text-pretty text-[var(--color-muted-foreground)]">
               {voice.description}
             </p>
           )}
@@ -91,19 +91,19 @@ export default async function VoiceDetailPage({
           <TabsTrigger value="card">
             Voice card
             {!isAnalyzed && (
-              <span className="ml-2 inline-flex h-1.5 w-1.5 rounded-full bg-[--color-warning]" />
+              <span className="ml-2 inline-flex h-1.5 w-1.5 rounded-full bg-[var(--color-warning)]" />
             )}
           </TabsTrigger>
           <TabsTrigger value="samples">
             Samples
-            <span className="ml-2 text-[10px] tabular-nums text-[--color-muted-foreground]">
+            <span className="ml-2 text-[10px] tabular-nums text-[var(--color-muted-foreground)]">
               {samples.length}
             </span>
           </TabsTrigger>
           <TabsTrigger value="audit" disabled={!isAnalyzed}>
             Audit playground
             {!isAnalyzed && (
-              <span className="ml-2 text-[10px] uppercase tracking-wider text-[--color-muted-foreground]">
+              <span className="ml-2 text-[10px] uppercase tracking-wider text-[var(--color-muted-foreground)]">
                 analyze first
               </span>
             )}
@@ -114,8 +114,8 @@ export default async function VoiceDetailPage({
           <VoiceCardSection voice={voice} hasSamples={hasSamples} />
 
           {isAnalyzed && (
-            <div className="mt-6 flex items-center gap-3 rounded-lg border border-dashed border-[--color-border] bg-[--color-muted]/40 px-4 py-3 text-sm text-[--color-muted-foreground]">
-              <Bot className="h-4 w-4 text-[--color-primary]" />
+            <div className="mt-6 flex items-center gap-3 rounded-lg border border-dashed border-[var(--color-border)] bg-[var(--color-muted)]/40 px-4 py-3 text-sm text-[var(--color-muted-foreground)]">
+              <Bot className="h-4 w-4 text-[var(--color-primary)]" />
               <span>
                 This voice will plug into Copywriter and Localizer agents in
                 V1.0. Activate it once the card reads true.
@@ -135,7 +135,7 @@ export default async function VoiceDetailPage({
               defaultLocale={voice.defaultLocale}
             />
           ) : (
-            <div className="rounded-lg border border-dashed border-[--color-border] bg-[--color-muted]/40 p-8 text-center text-sm text-[--color-muted-foreground]">
+            <div className="rounded-lg border border-dashed border-[var(--color-border)] bg-[var(--color-muted)]/40 p-8 text-center text-sm text-[var(--color-muted-foreground)]">
               Run the Voice Analyzer first — the auditor needs a voice card to
               audit against.
             </div>

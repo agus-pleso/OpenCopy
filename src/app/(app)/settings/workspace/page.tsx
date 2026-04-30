@@ -20,7 +20,7 @@ export default async function WorkspaceSettingsPage() {
                 Your role: <span className="capitalize">{role}</span>
               </CardDescription>
             </div>
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[--color-primary]/10 text-[--color-primary]">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[var(--color-primary)]/10 text-[var(--color-primary)]">
               <Building2 className="h-4 w-4" />
             </div>
           </div>
@@ -40,7 +40,7 @@ export default async function WorkspaceSettingsPage() {
             <Label>Default locale</Label>
             <div className="flex items-center gap-2">
               <Badge variant="outline" className="capitalize">{workspace.defaultLocale}</Badge>
-              <p className="text-xs text-[--color-muted-foreground]">
+              <p className="text-xs text-[var(--color-muted-foreground)]">
                 Edit landing in V1.6.
               </p>
             </div>
@@ -62,7 +62,7 @@ export default async function WorkspaceSettingsPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center justify-between rounded-md border border-[--color-border] bg-[--color-muted]/40 px-4 py-3 text-sm">
+          <div className="flex items-center justify-between rounded-md border border-[var(--color-border)] bg-[var(--color-muted)]/40 px-4 py-3 text-sm">
             <span>Multi-user invitations · roles · permissions</span>
             <Badge variant="muted">V1.6</Badge>
           </div>

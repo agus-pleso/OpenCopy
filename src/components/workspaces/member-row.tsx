@@ -93,20 +93,20 @@ export function MemberRow({ member, actorRole }: Props) {
 
   return (
     <>
-      <li className="grid grid-cols-[auto,1fr,auto,auto] items-center gap-4 px-4 py-3">
-        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[--color-muted] text-xs font-semibold">
+      <li className="grid grid-cols-[auto_1fr_auto_auto] items-center gap-4 px-4 py-3">
+        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--color-muted)] text-xs font-semibold">
           {initials || "·"}
         </span>
         <div className="min-w-0">
           <p className="font-medium tracking-tight truncate">
             {member.name || member.email.split("@")[0]}
             {isSelf && (
-              <span className="ml-2 text-xs text-[--color-muted-foreground]">
+              <span className="ml-2 text-xs text-[var(--color-muted-foreground)]">
                 (you)
               </span>
             )}
           </p>
-          <p className="text-xs text-[--color-muted-foreground] truncate">
+          <p className="text-xs text-[var(--color-muted-foreground)] truncate">
             {member.email}
           </p>
         </div>
@@ -162,7 +162,7 @@ export function MemberRow({ member, actorRole }: Props) {
               <DropdownMenuContent align="end">
                 <DropdownMenuItem
                   onClick={() => setConfirmRemove(true)}
-                  className="text-[--color-destructive] focus:text-[--color-destructive]"
+                  className="text-[var(--color-destructive)] focus:text-[var(--color-destructive)]"
                 >
                   <Trash2 className="h-4 w-4" /> Remove from workspace
                 </DropdownMenuItem>

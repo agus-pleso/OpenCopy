@@ -30,7 +30,7 @@ export default async function KnowledgeDetailPage({ params }: PageProps) {
     <div className="mx-auto w-full max-w-5xl px-6 py-10 md:px-10 md:py-14">
       <Link
         href="/knowledge"
-        className="inline-flex items-center gap-1 text-xs uppercase tracking-wider text-[--color-muted-foreground] hover:text-[--color-foreground] transition"
+        className="inline-flex items-center gap-1 text-xs uppercase tracking-wider text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)] transition"
       >
         <ChevronLeft className="h-3 w-3" /> Knowledge
       </Link>
@@ -38,8 +38,8 @@ export default async function KnowledgeDetailPage({ params }: PageProps) {
       <div className="mt-3 flex items-start justify-between gap-4">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <BookOpen className="h-4 w-4 text-[--color-primary]" />
-            <p className="text-xs uppercase tracking-[0.18em] text-[--color-muted-foreground]">
+            <BookOpen className="h-4 w-4 text-[var(--color-primary)]" />
+            <p className="text-xs uppercase tracking-[0.18em] text-[var(--color-muted-foreground)]">
               Knowledge source
             </p>
             <Badge
@@ -53,11 +53,11 @@ export default async function KnowledgeDetailPage({ params }: PageProps) {
             {source.name}
           </h1>
           {source.description && (
-            <p className="mt-2 max-w-2xl text-pretty text-[--color-muted-foreground]">
+            <p className="mt-2 max-w-2xl text-pretty text-[var(--color-muted-foreground)]">
               {source.description}
             </p>
           )}
-          <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-[--color-muted-foreground]">
+          <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-[var(--color-muted-foreground)]">
             <span className="tabular-nums">
               <FileText className="mr-1 inline h-3 w-3" />
               {source.chunkCount} chunk{source.chunkCount === 1 ? "" : "s"}
@@ -83,7 +83,7 @@ export default async function KnowledgeDetailPage({ params }: PageProps) {
               {source.tags.map((t) => (
                 <span
                   key={t}
-                  className="inline-flex items-center rounded-full border border-[--color-border] bg-[--color-muted] px-2 py-0.5 text-[11px] font-medium tracking-tight"
+                  className="inline-flex items-center rounded-full border border-[var(--color-border)] bg-[var(--color-muted)] px-2 py-0.5 text-[11px] font-medium tracking-tight"
                 >
                   {t}
                 </span>
@@ -95,7 +95,7 @@ export default async function KnowledgeDetailPage({ params }: PageProps) {
       </div>
 
       {source.status === "failed" && source.error && (
-        <div className="mt-6 flex items-start gap-2 rounded-md border border-[--color-destructive]/30 bg-[--color-destructive]/5 px-4 py-3 text-sm text-[--color-destructive]">
+        <div className="mt-6 flex items-start gap-2 rounded-md border border-[var(--color-destructive)]/30 bg-[var(--color-destructive)]/5 px-4 py-3 text-sm text-[var(--color-destructive)]">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
           <div>
             <p className="font-medium">Indexing failed</p>
@@ -109,7 +109,7 @@ export default async function KnowledgeDetailPage({ params }: PageProps) {
           <TabsTrigger value="content">Content</TabsTrigger>
           <TabsTrigger value="chunks">
             Chunks
-            <span className="ml-2 text-[10px] tabular-nums text-[--color-muted-foreground]">
+            <span className="ml-2 text-[10px] tabular-nums text-[var(--color-muted-foreground)]">
               {source.chunkCount}
             </span>
           </TabsTrigger>
@@ -124,7 +124,7 @@ export default async function KnowledgeDetailPage({ params }: PageProps) {
 
         <TabsContent value="chunks" className="mt-6">
           {chunks.length === 0 ? (
-            <p className="rounded-md border border-dashed border-[--color-border] bg-[--color-muted]/30 p-6 text-center text-sm text-[--color-muted-foreground]">
+            <p className="rounded-md border border-dashed border-[var(--color-border)] bg-[var(--color-muted)]/30 p-6 text-center text-sm text-[var(--color-muted-foreground)]">
               {source.status === "indexing"
                 ? "Chunks are being generated. Refresh in a moment."
                 : "No chunks yet."}
@@ -134,9 +134,9 @@ export default async function KnowledgeDetailPage({ params }: PageProps) {
               {chunks.map((c) => (
                 <li
                   key={c.id}
-                  className="rounded-lg border border-[--color-border] bg-[--color-card] p-4"
+                  className="rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] p-4"
                 >
-                  <div className="mb-2 flex items-center gap-2 text-xs text-[--color-muted-foreground]">
+                  <div className="mb-2 flex items-center gap-2 text-xs text-[var(--color-muted-foreground)]">
                     <span className="font-mono">
                       {String(c.seq + 1).padStart(2, "0")}
                     </span>
@@ -154,7 +154,7 @@ export default async function KnowledgeDetailPage({ params }: PageProps) {
                 </li>
               ))}
               {source.chunkCount > chunks.length && (
-                <p className="text-center text-xs text-[--color-muted-foreground]">
+                <p className="text-center text-xs text-[var(--color-muted-foreground)]">
                   Showing first {chunks.length} of {source.chunkCount} chunks.
                 </p>
               )}

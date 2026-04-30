@@ -35,7 +35,7 @@ export function SourceContentEditor({ sourceId, initialContent }: Props) {
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2 text-xs text-[--color-muted-foreground]">
+        <div className="flex items-center gap-2 text-xs text-[var(--color-muted-foreground)]">
           <span className="tabular-nums">
             {content.length.toLocaleString()} chars
           </span>
@@ -68,7 +68,7 @@ export function SourceContentEditor({ sourceId, initialContent }: Props) {
         style={{ fontFamily: "ui-serif, Georgia, serif" }}
         maxLength={500_000}
       />
-      <p className="text-[11px] text-[--color-muted-foreground]">
+      <p className="text-[11px] text-[var(--color-muted-foreground)]">
         Saving re-chunks and re-embeds the entire source. Existing chunks are
         replaced atomically.
       </p>

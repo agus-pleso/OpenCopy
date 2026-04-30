@@ -1,7 +1,15 @@
 "use client";
 
 import * as React from "react";
-import { Copy, User, Sparkles, Check } from "lucide-react";
+import {
+  Copy,
+  User,
+  Sparkles,
+  Check,
+  Loader2,
+  Wrench,
+  AlertCircle,
+} from "lucide-react";
 import { motion } from "framer-motion";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -11,6 +19,13 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { LogoMark } from "@/components/marketing/logo";
 
+export interface ChatToolInvocation {
+  toolCallId: string;
+  toolName: string;
+  state: "partial-call" | "call" | "result";
+  result?: unknown;
+}
+
 export interface ChatMessageView {
   id: string;
   role: "user" | "assistant" | "system";
@@ -18,7 +33,17 @@ export interface ChatMessageView {
   modelId?: string | null;
   durationMs?: number | null;
   retrievedSourceIds?: string[] | null;
+  toolInvocations?: ChatToolInvocation[];
 }
+
+const TOOL_LABELS: Record<string, string> = {
+  list_brand_voices: "Listing voices",
+  get_brand_voice: "Reading voice",
+  update_brand_voice: "Updating voice",
+  list_recent_variants: "Listing variants",
+  rewrite_copy_variant: "Rewriting variant",
+  localize_text: "Localizing copy",
+};
 
 interface Props {
   message: ChatMessageView;
@@ -51,7 +76,7 @@ export function ChatMessage({ message, isStreaming }: Props) {
     >
       <div className="shrink-0">
         {isUser ? (
-          <span className="flex h-8 w-8 items-center justify-center rounded-full border border-[--color-border] bg-[--color-muted] text-[--color-foreground]">
+          <span className="flex h-8 w-8 items-center justify-center rounded-full border border-[var(--color-border)] bg-[var(--color-muted)] text-[var(--color-foreground)]">
             <User className="h-4 w-4" />
           </span>
         ) : (
@@ -62,11 +87,19 @@ export function ChatMessage({ message, isStreaming }: Props) {
       </div>
 
       <div className={cn("min-w-0 flex-1", isUser && "flex flex-col items-end")}>
+        {!isUser && message.toolInvocations && message.toolInvocations.length > 0 && (
+          <div className="mb-2 flex flex-col gap-1">
+            {message.toolInvocations.map((inv) => (
+              <ToolInvocationPill key={inv.toolCallId} invocation={inv} />
+            ))}
+          </div>
+        )}
+
         <div
           className={cn(
             "inline-block max-w-[88ch] text-pretty",
             isUser
-              ? "rounded-2xl rounded-tr-sm bg-[--color-muted] px-4 py-2.5 text-[15px] leading-relaxed text-left"
+              ? "rounded-2xl rounded-tr-sm bg-[var(--color-muted)] px-4 py-2.5 text-[15px] leading-relaxed text-left"
               : "text-[15px] leading-relaxed",
           )}
           style={{
@@ -76,19 +109,19 @@ export function ChatMessage({ message, isStreaming }: Props) {
           {isUser ? (
             <p className="whitespace-pre-wrap">{message.content}</p>
           ) : (
-            <article className="prose prose-neutral max-w-none prose-headings:font-display prose-headings:tracking-tight prose-p:my-3 prose-ul:my-3 prose-li:my-1 prose-strong:text-[--color-foreground] prose-code:bg-[--color-muted] prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-[13px] prose-pre:bg-[--color-muted]/50 prose-pre:rounded-lg prose-blockquote:border-l-2 prose-blockquote:border-[--color-primary] prose-blockquote:bg-[--color-muted]/30 prose-blockquote:not-italic prose-blockquote:py-1 prose-a:text-[--color-primary] prose-a:underline-offset-2">
+            <article className="prose prose-neutral max-w-none prose-headings:font-display prose-headings:tracking-tight prose-p:my-3 prose-ul:my-3 prose-li:my-1 prose-strong:text-[var(--color-foreground)] prose-code:bg-[var(--color-muted)] prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-[13px] prose-pre:bg-[var(--color-muted)]/50 prose-pre:rounded-lg prose-blockquote:border-l-2 prose-blockquote:border-[var(--color-primary)] prose-blockquote:bg-[var(--color-muted)]/30 prose-blockquote:not-italic prose-blockquote:py-1 prose-a:text-[var(--color-primary)] prose-a:underline-offset-2">
               <ReactMarkdown remarkPlugins={[remarkGfm]}>
                 {message.content}
               </ReactMarkdown>
               {isStreaming && (
-                <span className="inline-block h-4 w-1.5 translate-y-0.5 animate-pulse bg-[--color-primary]/70 ml-0.5" />
+                <span className="inline-block h-4 w-1.5 translate-y-0.5 animate-pulse bg-[var(--color-primary)]/70 ml-0.5" />
               )}
             </article>
           )}
         </div>
 
         {!isUser && !isStreaming && message.content.length > 0 && (
-          <div className="mt-2 flex items-center gap-2 text-[11px] text-[--color-muted-foreground] opacity-0 transition-opacity group-hover:opacity-100">
+          <div className="mt-2 flex items-center gap-2 text-[11px] text-[var(--color-muted-foreground)] opacity-0 transition-opacity group-hover:opacity-100">
             <Button
               variant="ghost"
               size="sm"
@@ -112,7 +145,7 @@ export function ChatMessage({ message, isStreaming }: Props) {
             )}
             {message.retrievedSourceIds &&
               message.retrievedSourceIds.length > 0 && (
-                <span className="inline-flex items-center gap-1 text-[--color-primary]">
+                <span className="inline-flex items-center gap-1 text-[var(--color-primary)]">
                   <Sparkles className="h-3 w-3" />
                   {message.retrievedSourceIds.length} source
                   {message.retrievedSourceIds.length === 1 ? "" : "s"}
@@ -122,5 +155,46 @@ export function ChatMessage({ message, isStreaming }: Props) {
         )}
       </div>
     </motion.div>
+  );
+}
+
+function ToolInvocationPill({ invocation }: { invocation: ChatToolInvocation }) {
+  const label = TOOL_LABELS[invocation.toolName] ?? invocation.toolName;
+  const isPending = invocation.state !== "result";
+  const result = invocation.result as { error?: string; ok?: boolean; message?: string } | undefined;
+  const hasError = !!result?.error;
+
+  return (
+    <div
+      className={cn(
+        "inline-flex w-fit items-center gap-2 rounded-md border px-2.5 py-1 text-[12px]",
+        hasError
+          ? "border-[var(--color-destructive)]/30 bg-[var(--color-destructive)]/5 text-[var(--color-destructive)]"
+          : isPending
+          ? "border-[var(--color-border)] bg-[var(--color-muted)] text-[var(--color-muted-foreground)]"
+          : "border-[var(--color-success)]/30 bg-[var(--color-success)]/5 text-[var(--color-success)]",
+      )}
+    >
+      {hasError ? (
+        <AlertCircle className="h-3.5 w-3.5" />
+      ) : isPending ? (
+        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+      ) : (
+        <Wrench className="h-3.5 w-3.5" />
+      )}
+      <span className="font-medium tracking-tight">{label}</span>
+      {!isPending && result?.message && (
+        <span className="text-[var(--color-muted-foreground)]">
+          {" · "}
+          {result.message}
+        </span>
+      )}
+      {hasError && (
+        <span className="text-[var(--color-destructive)]/80">
+          {" · "}
+          {result?.error}
+        </span>
+      )}
+    </div>
   );
 }

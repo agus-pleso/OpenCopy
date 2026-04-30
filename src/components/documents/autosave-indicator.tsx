@@ -29,7 +29,7 @@ export function AutosaveIndicator({ state, lastSavedAt, className }: Props) {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="inline-flex items-center gap-1.5 text-[--color-muted-foreground]"
+            className="inline-flex items-center gap-1.5 text-[var(--color-muted-foreground)]"
           >
             <CloudUpload className="h-3 w-3" />
             Saving…
@@ -41,7 +41,7 @@ export function AutosaveIndicator({ state, lastSavedAt, className }: Props) {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="inline-flex items-center gap-1.5 text-[--color-success]"
+            className="inline-flex items-center gap-1.5 text-[var(--color-success)]"
           >
             <Check className="h-3 w-3" />
             Saved {lastSavedAt && relativeTime(lastSavedAt)}
@@ -53,7 +53,7 @@ export function AutosaveIndicator({ state, lastSavedAt, className }: Props) {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="inline-flex items-center gap-1.5 text-[--color-destructive]"
+            className="inline-flex items-center gap-1.5 text-[var(--color-destructive)]"
           >
             <AlertCircle className="h-3 w-3" />
             Save failed

@@ -20,10 +20,9 @@ import {
   requireRole,
   requireUserId,
 } from "@/lib/auth/workspace";
-import { runAgent } from "@/lib/agents/core";
 import {
-  voiceAnalyzer,
-  voiceAuditor,
+  runVoiceAnalyzer,
+  runVoiceAuditor,
   type VoiceAudit,
   type VoiceCard,
   type VoiceCardForPrompt,
@@ -267,6 +266,46 @@ export async function replaceSamples(input: unknown): Promise<{ count: number }>
 /* Voice Analyzer agent                                                       */
 /* -------------------------------------------------------------------------- */
 
+/**
+ * Turn an opaque agent error (often a bare "Not Found" from a 404 response or
+ * an AI SDK message) into something the user can act on. Detects the common
+ * misconfigurations and points the user at the settings screen.
+ */
+function humanizeAgentError(err: unknown, role: string): string {
+  const raw = err instanceof Error ? err.message : String(err);
+  const lower = raw.toLowerCase();
+
+  if (lower.includes("no model resolved")) {
+    return `No model is set for the "${role}" role. Open Settings → AI Providers and pick one.`;
+  }
+  if (lower.includes("no api key")) {
+    return raw;
+  }
+  if (
+    lower.includes("no object generated") ||
+    lower.includes("response did not match schema") ||
+    lower.includes("response format didn't match") ||
+    lower.includes("could not parse the response")
+  ) {
+    return `The model returned a response that didn't match the voice-card schema. This usually means the model is too small or the samples were too short. Try a stronger model in Settings → AI Providers, or paste longer samples.`;
+  }
+  if (
+    lower === "not found" ||
+    lower === "404 not found" ||
+    lower.includes("not found") ||
+    lower.includes("404")
+  ) {
+    return `The provider returned 404 — the model id for the "${role}" role isn't available with your API key. Open Settings → AI Providers and pick a different model.`;
+  }
+  if (lower.includes("401") || lower.includes("unauthorized")) {
+    return `The provider rejected the API key. Re-check it in Settings → AI Providers.`;
+  }
+  if (lower.includes("429") || lower.includes("rate limit")) {
+    return `The provider is rate-limiting requests. Try again in a moment, or switch providers in Settings → AI Providers.`;
+  }
+  return raw;
+}
+
 const AnalyzeInputSchema = z.object({
   voiceId: z.string().uuid(),
 });
@@ -303,8 +342,7 @@ export async function analyzeVoice(input: unknown): Promise<AnalyzeResult> {
   }
 
   try {
-    const result = await runAgent(
-      voiceAnalyzer,
+    const result = await runVoiceAnalyzer(
       {
         name: voice.name,
         description: voice.description ?? undefined,
@@ -345,7 +383,7 @@ export async function analyzeVoice(input: unknown): Promise<AnalyzeResult> {
       modelId: result.modelId,
     };
   } catch (err) {
-    return { ok: false, message: (err as Error).message };
+    return { ok: false, message: humanizeAgentError(err, "planning") };
   }
 }
 
@@ -397,8 +435,7 @@ export async function runVoiceAudit(input: unknown): Promise<AuditResult> {
   };
 
   try {
-    const result = await runAgent(
-      voiceAuditor,
+    const result = await runVoiceAuditor(
       {
         voice: cardForPrompt,
         draft: parsed.draft,

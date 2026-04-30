@@ -122,6 +122,10 @@ export const workspaces = pgTable("workspace", {
   name: text("name").notNull(),
   slug: text("slug").notNull().unique(),
   defaultLocale: localeEnum("default_locale").notNull().default("en"),
+  /** Embedding provider for the knowledge base. NULL => "openai" (legacy default). */
+  embeddingProvider: text("embedding_provider"),
+  /** Model id to pass to the chosen embedding provider. */
+  embeddingModel: text("embedding_model"),
   createdByUserId: text("created_by_user_id")
     .notNull()
     .references(() => users.id),
@@ -534,7 +538,14 @@ export interface CopywriterBrief {
 export interface LocalizerBrief {
   voiceId?: string;
   sourceLocale: (typeof localeEnum.enumValues)[number];
-  targetLocale: (typeof localeEnum.enumValues)[number];
+  /**
+   * One or more target locales. Legacy runs (V1.x and earlier) stored a
+   * single `targetLocale` string instead — both shapes are accepted at read
+   * time so existing rows keep rendering correctly.
+   */
+  targetLocales?: Array<(typeof localeEnum.enumValues)[number]>;
+  /** @deprecated Kept for compatibility with single-target runs. */
+  targetLocale?: (typeof localeEnum.enumValues)[number];
   sourceText: string;
   /** Optional original-context hint (channel, audience). */
   contextHint?: string;

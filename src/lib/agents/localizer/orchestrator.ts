@@ -1,10 +1,10 @@
 import "server-only";
-import { runAgent, type AgentContext } from "../core";
-import { voiceAuditor, type VoiceAudit } from "../voice-auditor";
+import { type AgentContext } from "../core";
+import { runVoiceAuditor, type VoiceAudit } from "../voice-auditor";
 import type { VoiceCardForPrompt, Locale } from "../voice-card";
-import { culturalAdapter, type CulturalAdapterOutput } from "./cultural-adapter";
-import { localizer, type LocalizerOutput } from "./localizer";
-import { backTranslator, type BackTranslatorOutput } from "./back-translator";
+import { runCulturalAdapter, type CulturalAdapterOutput } from "./cultural-adapter";
+import { runLocalizerTranscreator, type LocalizerOutput } from "./localizer";
+import { runBackTranslator, type BackTranslatorOutput } from "./back-translator";
 
 export interface LocalizerOrchestratorInput {
   voice?: VoiceCardForPrompt & { id: string };
@@ -41,10 +41,10 @@ export async function runLocalizer(
   ctx: AgentContext,
 ): Promise<LocalizerRunResult> {
   const start = Date.now();
+  const subCtx = { workspaceId: ctx.workspaceId, userId: ctx.userId };
 
   // Step 1 — cultural adapter
-  const adapterResult = await runAgent(
-    culturalAdapter,
+  const adapterResult = await runCulturalAdapter(
     {
       voice: input.voice,
       sourceText: input.sourceText,
@@ -52,12 +52,11 @@ export async function runLocalizer(
       targetLocale: input.targetLocale,
       contextHint: input.contextHint,
     },
-    ctx,
+    subCtx,
   );
 
   // Step 2 — localizer (transcreate)
-  const localizerResult = await runAgent(
-    localizer,
+  const localizerResult = await runLocalizerTranscreator(
     {
       voice: input.voice,
       sourceText: input.sourceText,
@@ -66,31 +65,29 @@ export async function runLocalizer(
       contextHint: input.contextHint,
       adapterNotes: adapterResult.output,
     },
-    ctx,
+    subCtx,
   );
 
   // Steps 3 + 4 — back-translation + audit can run in parallel.
   const targetText = localizerResult.output.target_text;
-  const backPromise = runAgent(
-    backTranslator,
+  const backPromise = runBackTranslator(
     {
       targetText,
       sourceLocale: input.sourceLocale,
       targetLocale: input.targetLocale,
       originalSource: input.sourceText,
     },
-    ctx,
+    subCtx,
   );
 
   const auditPromise = input.voice
-    ? runAgent(
-        voiceAuditor,
+    ? runVoiceAuditor(
         {
           voice: input.voice,
           draft: targetText,
           locale: input.targetLocale,
         },
-        ctx,
+        subCtx,
       )
     : null;
 

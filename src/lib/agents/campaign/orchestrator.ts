@@ -1,7 +1,7 @@
 import "server-only";
 import { runAgent, type AgentContext } from "../core";
-import { copywriterDrafter } from "../copywriter/drafter";
-import { voiceAuditor, type VoiceAudit } from "../voice-auditor";
+import { runCopywriterDrafter } from "../copywriter/drafter";
+import { runVoiceAuditor, type VoiceAudit } from "../voice-auditor";
 import type { VoiceCardForPrompt, Locale } from "../voice-card";
 import {
   campaignPlanner,
@@ -83,8 +83,7 @@ export async function runCampaign(
 
   // Step 2 — draft each asset in parallel.
   const draftPromises = planned.map((asset) =>
-    runAgent(
-      copywriterDrafter,
+    runCopywriterDrafter(
       {
         voice: input.voice ?? {
           name: "(no voice)",
@@ -113,7 +112,7 @@ export async function runCampaign(
         },
         knowledge: input.knowledge,
       },
-      ctx,
+      { workspaceId: ctx.workspaceId, userId: ctx.userId },
     ),
   );
 
@@ -122,14 +121,13 @@ export async function runCampaign(
   // Step 3 — audit (only if a voice is attached).
   const auditPromises = input.voice
     ? drafts.map((draft) =>
-        runAgent(
-          voiceAuditor,
+        runVoiceAuditor(
           {
             voice: input.voice!,
             draft: draft.output.content,
             locale: input.locale,
           },
-          ctx,
+          { workspaceId: ctx.workspaceId, userId: ctx.userId },
         ),
       )
     : null;

@@ -12,6 +12,7 @@ import {
   Languages,
 } from "lucide-react";
 import { toast } from "sonner";
+import { isRedirectError } from "@/lib/utils";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -94,6 +95,7 @@ export function DocumentShell({ document, voices }: Props) {
         try {
           await updateDocument({ documentId: document.id, title: next });
         } catch (err) {
+          if (isRedirectError(err)) throw err;
           toast.error((err as Error).message);
         }
       });
@@ -110,6 +112,7 @@ export function DocumentShell({ document, voices }: Props) {
         });
         toast.success("Voice updated.");
       } catch (err) {
+        if (isRedirectError(err)) throw err;
         toast.error((err as Error).message);
       }
     });
@@ -121,6 +124,7 @@ export function DocumentShell({ document, voices }: Props) {
       try {
         await updateDocument({ documentId: document.id, locale: next });
       } catch (err) {
+        if (isRedirectError(err)) throw err;
         toast.error((err as Error).message);
       }
     });
@@ -131,6 +135,7 @@ export function DocumentShell({ document, voices }: Props) {
       try {
         await deleteDocument(document.id);
       } catch (err) {
+        if (isRedirectError(err)) throw err;
         toast.error((err as Error).message);
       }
     });
@@ -144,7 +149,7 @@ export function DocumentShell({ document, voices }: Props) {
       <div className="flex items-center justify-between">
         <Link
           href="/documents"
-          className="inline-flex items-center gap-1 text-xs uppercase tracking-wider text-[--color-muted-foreground] hover:text-[--color-foreground] transition"
+          className="inline-flex items-center gap-1 text-xs uppercase tracking-wider text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)] transition"
         >
           <ChevronLeft className="h-3 w-3" /> Documents
         </Link>
@@ -160,7 +165,7 @@ export function DocumentShell({ document, voices }: Props) {
             <DropdownMenuContent align="end">
               <DropdownMenuItem
                 onClick={() => setConfirmDelete(true)}
-                className="text-[--color-destructive] focus:text-[--color-destructive]"
+                className="text-[var(--color-destructive)] focus:text-[var(--color-destructive)]"
               >
                 <Trash2 className="h-4 w-4" /> Delete document
               </DropdownMenuItem>
@@ -179,7 +184,7 @@ export function DocumentShell({ document, voices }: Props) {
           maxLength={220}
         />
         <div className="mt-3 flex flex-wrap items-center gap-3 text-sm">
-          <div className="inline-flex items-center gap-1.5 text-[--color-muted-foreground]">
+          <div className="inline-flex items-center gap-1.5 text-[var(--color-muted-foreground)]">
             <ScanText className="h-3.5 w-3.5" />
             <Select value={voiceId} onValueChange={onVoiceChange}>
               <SelectTrigger className="h-7 w-[180px] border-none bg-transparent px-1 text-xs shadow-none">
@@ -195,7 +200,7 @@ export function DocumentShell({ document, voices }: Props) {
               </SelectContent>
             </Select>
           </div>
-          <div className="inline-flex items-center gap-1.5 text-[--color-muted-foreground]">
+          <div className="inline-flex items-center gap-1.5 text-[var(--color-muted-foreground)]">
             <Languages className="h-3.5 w-3.5" />
             <Select value={locale} onValueChange={(v) => onLocaleChange(v as Locale)}>
               <SelectTrigger className="h-7 w-[120px] border-none bg-transparent px-1 text-xs shadow-none">
@@ -228,8 +233,8 @@ export function DocumentShell({ document, voices }: Props) {
         />
       </div>
 
-      <p className="mt-12 text-xs text-[--color-muted-foreground]">
-        Type <kbd className="rounded border border-[--color-border] bg-[--color-muted] px-1 py-0.5 font-mono text-[10px]">/</kbd>{" "}
+      <p className="mt-12 text-xs text-[var(--color-muted-foreground)]">
+        Type <kbd className="rounded border border-[var(--color-border)] bg-[var(--color-muted)] px-1 py-0.5 font-mono text-[10px]">/</kbd>{" "}
         to invoke an inline AI command. Highlight text to see the bubble menu.
       </p>
 

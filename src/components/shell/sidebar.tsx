@@ -60,7 +60,7 @@ export function Sidebar({
   };
 
   return (
-    <aside className="hidden md:flex w-60 shrink-0 flex-col border-r border-[--color-sidebar-border] bg-[--color-sidebar] text-[--color-sidebar-foreground]">
+    <aside className="hidden md:flex w-60 shrink-0 flex-col border-r border-[var(--color-sidebar-border)] bg-[var(--color-sidebar)] text-[var(--color-sidebar-foreground)]">
       <div className="flex h-14 items-center px-5">
         <Link href="/" className="block">
           <Logo />
@@ -83,19 +83,19 @@ export function Sidebar({
                   className={cn(
                     "group relative flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm transition",
                     active
-                      ? "bg-[--color-sidebar-accent] text-[--color-sidebar-accent-foreground] font-medium"
-                      : "text-[--color-sidebar-foreground]/80 hover:bg-[--color-sidebar-accent] hover:text-[--color-sidebar-accent-foreground]",
+                      ? "bg-[var(--color-sidebar-accent)] text-[var(--color-sidebar-accent-foreground)] font-medium"
+                      : "text-[var(--color-sidebar-foreground)]/80 hover:bg-[var(--color-sidebar-accent)] hover:text-[var(--color-sidebar-accent-foreground)]",
                   )}
                 >
                   <Icon className="h-4 w-4 shrink-0" />
                   <span className="flex-1">{item.label}</span>
                   {item.hint && (
-                    <span className="text-[10px] uppercase tracking-wider text-[--color-muted-foreground]/80">
+                    <span className="text-[10px] uppercase tracking-wider text-[var(--color-muted-foreground)]/80">
                       {item.hint}
                     </span>
                   )}
                   {active && (
-                    <span className="absolute inset-y-1 left-0 w-0.5 rounded-r-sm bg-[--color-primary]" />
+                    <span className="absolute inset-y-1 left-0 w-0.5 rounded-r-sm bg-[var(--color-primary)]" />
                   )}
                 </Link>
               </li>
@@ -104,7 +104,7 @@ export function Sidebar({
         </ul>
       </nav>
 
-      <div className="border-t border-[--color-sidebar-border] px-2 py-2">
+      <div className="border-t border-[var(--color-sidebar-border)] px-2 py-2">
         <ul className="flex flex-col gap-0.5">
           {FOOTER_NAV.map((item) => {
             const Icon = item.icon;
@@ -116,8 +116,8 @@ export function Sidebar({
                   className={cn(
                     "flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm transition",
                     active
-                      ? "bg-[--color-sidebar-accent] text-[--color-sidebar-accent-foreground] font-medium"
-                      : "text-[--color-sidebar-foreground]/80 hover:bg-[--color-sidebar-accent] hover:text-[--color-sidebar-accent-foreground]",
+                      ? "bg-[var(--color-sidebar-accent)] text-[var(--color-sidebar-accent-foreground)] font-medium"
+                      : "text-[var(--color-sidebar-foreground)]/80 hover:bg-[var(--color-sidebar-accent)] hover:text-[var(--color-sidebar-accent-foreground)]",
                   )}
                 >
                   <Icon className="h-4 w-4 shrink-0" />

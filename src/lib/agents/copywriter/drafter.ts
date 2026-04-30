@@ -1,27 +1,28 @@
 import "server-only";
-import { z } from "zod";
-import { defineAgent } from "../core";
+import { generateText } from "ai";
+
+import { resolveModel } from "@/lib/ai/providers";
 import { renderVoiceCard, type VoiceCardForPrompt } from "../voice-card";
+import {
+  parseDrafterOutput,
+  type DrafterOutput,
+} from "./drafter-parser";
 
-export const DrafterOutputSchema = z.object({
-  content: z
-    .string()
-    .min(5)
-    .max(8000)
-    .describe(
-      "The actual copy. No preamble, no 'Here is your copy:', no markdown code fences. Just the copy.",
-    ),
-  rationale: z
-    .string()
-    .min(15)
-    .max(400)
-    .describe(
-      "1–3 sentences explaining the most consequential choices made (the lead, the structural move, \
-a specific word). Avoid restating the angle verbatim.",
-    ),
-});
+export { parseDrafterOutput, type DrafterOutput } from "./drafter-parser";
 
-export type DrafterOutput = z.infer<typeof DrafterOutputSchema>;
+/**
+ * Drafter.
+ *
+ * Earlier versions used `generateObject` with a `{ content, rationale }` Zod
+ * schema. Smaller models would intermittently return objects with the
+ * `content` field missing or wrap the copy in extra prose, blowing the run.
+ *
+ * Drafting is fundamentally a prose task — we now use `generateText` and ask
+ * the model to write the copy followed by a `---` separator and a short
+ * rationale. If the separator is missing (some models won't comply on
+ * complex copy), the whole response becomes the copy and the rationale falls
+ * back to a stock note. We never lose the actual copy.
+ */
 
 export interface DrafterInput {
   voice: VoiceCardForPrompt;
@@ -45,25 +46,36 @@ export interface DrafterInput {
   knowledge?: string;
 }
 
-const SYSTEM = `You are a copywriter drafting one variant from a planned angle. \
-Stay inside the brand voice and the angle's strategy.
+const SYSTEM = `You are a copywriter drafting one variant from a planned angle. Stay inside the
+brand voice and the angle's strategy.
 
 Quality bar:
-- Output PURE COPY — no preamble, no labels, no markdown code fences, no "Here's the copy". \
-Whatever you output gets pasted directly into the marketing team's tool.
-- Match the channel and length. An ad headline is not a paragraph. A landing-page hero is not a \
-blog post.
-- Honor every "Do" rule. Avoid every "Don't" rule. Use required vocabulary when natural; never use \
-forbidden vocabulary.
-- Don't be generic-AI. Avoid: "delve into", "tapestry of", "in today's fast-paced world", \
-unmotivated triplets, em-dash addiction (unless the voice signals it), and "It's not just X — it's Y" \
-clichés. The voice card overrides these defaults if it explicitly embraces them.
-- Honor the angle's hook unless the brand voice contradicts it; in that case, find a hook in the \
-spirit of the angle.
+- The copy itself is PURE COPY — no preamble, no labels, no markdown code fences, no "Here's the
+  copy". Whatever you put before the separator gets pasted directly into the marketing team's tool.
+- Match the channel and length. An ad headline is not a paragraph. A landing-page hero is not a
+  blog post.
+- Honor every "Do" rule. Avoid every "Don't" rule. Use required vocabulary when natural; never
+  use forbidden vocabulary.
+- Don't be generic-AI. Avoid: "delve into", "tapestry of", "in today's fast-paced world",
+  unmotivated triplets, em-dash addiction (unless the voice signals it), and "It's not just X —
+  it's Y" clichés. The voice card overrides these defaults if it explicitly embraces them.
+- Honor the angle's hook unless the brand voice contradicts it; in that case, find a hook in the
+  spirit of the angle.
 
-Rationale: 1-3 sentences naming the most consequential choices you made. No platitudes.
+OUTPUT FORMAT — VERY IMPORTANT.
+Output the copy first. Then a line containing exactly three dashes: ---
+Then 1-3 sentences of rationale naming the most consequential choices you made.
 
-Output strictly conforms to the provided schema.`;
+Example shape:
+
+Stop guessing what's blocking activation.
+
+The clearest signal isn't a number — it's the support thread you've been ignoring.
+
+Try Honeycomb free for 14 days.
+---
+Lead reframes "activation metric" as "support thread you've already seen", which the voice card
+flags as the brand's signature move (samples 1 and 3). Closes with a pragmatic CTA, no triplet.`;
 
 function buildPrompt(input: DrafterInput): string {
   const lines: string[] = [];
@@ -75,7 +87,8 @@ function buildPrompt(input: DrafterInput): string {
   lines.push(`Channel: ${input.channel}`);
   lines.push(`Locale: ${input.locale}`);
   if (input.length) lines.push(`Length target: ${input.length}`);
-  if (input.audienceOverride) lines.push(`Audience override: ${input.audienceOverride}`);
+  if (input.audienceOverride)
+    lines.push(`Audience override: ${input.audienceOverride}`);
   lines.push(`\nObjective: ${input.objective.trim()}`);
   if (input.productInfo) {
     lines.push(`\nProduct / service: ${input.productInfo.trim()}`);
@@ -112,18 +125,45 @@ function buildPrompt(input: DrafterInput): string {
   }
 
   lines.push(
-    "\nDraft the copy now. Output the copy itself plus a brief rationale. Match the channel + length. Stay in the voice.",
+    "\nDraft the copy now. Output the copy itself, then '---' on its own line, then a brief rationale.",
   );
   return lines.join("\n");
 }
 
-export const copywriterDrafter = defineAgent<DrafterInput, DrafterOutput>({
-  name: "copywriter-drafter",
-  description: "Drafts one copy variant from a chosen angle. Many of these run in parallel.",
-  modelRole: "drafting",
-  systemPrompt: SYSTEM,
-  buildPrompt,
-  outputSchema: DrafterOutputSchema,
-  temperature: 0.85,
-  maxTokens: 3000,
-});
+export interface DrafterRunResult {
+  output: DrafterOutput;
+  modelId: string;
+  provider: string;
+  durationMs: number;
+  usage?: { inputTokens?: number; outputTokens?: number };
+}
+
+export async function runCopywriterDrafter(
+  input: DrafterInput,
+  ctx: { workspaceId: string; userId: string },
+): Promise<DrafterRunResult> {
+  const start = Date.now();
+  const { model, modelId, provider } = await resolveModel({
+    workspaceId: ctx.workspaceId,
+    role: "drafting",
+  });
+
+  const result = await generateText({
+    model,
+    system: SYSTEM,
+    prompt: buildPrompt(input),
+    temperature: 0.85,
+    maxTokens: 3000,
+  });
+
+  return {
+    output: parseDrafterOutput(result.text),
+    modelId,
+    provider,
+    durationMs: Date.now() - start,
+    usage: {
+      inputTokens: result.usage?.promptTokens,
+      outputTokens: result.usage?.completionTokens,
+    },
+  };
+}

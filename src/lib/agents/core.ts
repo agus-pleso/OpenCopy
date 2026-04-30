@@ -1,9 +1,10 @@
 import "server-only";
-import { generateObject, generateText } from "ai";
+import { generateObject, generateText, NoObjectGeneratedError } from "ai";
 import { z } from "zod";
 
 import { resolveModel } from "@/lib/ai/providers";
 import type { ModelRole } from "@/db/schema";
+import { repairJsonText, tryParseAndValidate } from "./json-repair";
 
 /**
  * Agent core — the primitive every OpenCopy agent is built on.
@@ -92,19 +93,23 @@ export async function runAgent<TInput, TOutput>(
     at: start,
   });
 
-  const system =
+  const baseSystem =
     typeof def.systemPrompt === "function"
       ? def.systemPrompt(input)
       : def.systemPrompt;
+  const system = `${baseSystem}\n\nReturn ONLY a single JSON object that conforms to the requested schema. No markdown fences, no prose before or after the JSON.`;
+  const userPrompt = def.buildPrompt(input);
 
   try {
     const result = await generateObject({
       model,
       schema: def.outputSchema,
       system,
-      prompt: def.buildPrompt(input),
+      prompt: userPrompt,
       temperature: def.temperature ?? 0.7,
       maxTokens: def.maxTokens,
+      mode: "json",
+      experimental_repairText: async ({ text }) => repairJsonText(text),
     });
 
     const durationMs = Date.now() - start;
@@ -122,11 +127,84 @@ export async function runAgent<TInput, TOutput>(
 
     return { output: result.object, modelId, provider, durationMs, usage };
   } catch (err) {
+    // Last-ditch fallback: ask the model again with `generateText`, repair the
+    // raw output, and validate manually with Zod's safeParse. This rescues the
+    // common case where a smaller model returns *almost* valid JSON.
+    if (NoObjectGeneratedError.isInstance(err)) {
+      console.warn(
+        `[agent:${def.name}] structured generation failed, attempting text fallback. raw=`,
+        err.text?.slice(0, 500),
+      );
+      try {
+        const recovered = await rescueViaTextFallback(
+          def,
+          system,
+          userPrompt,
+          model,
+          err.text,
+        );
+        const durationMs = Date.now() - start;
+        ctx.onEvent?.({
+          type: "finished",
+          agent: def.name,
+          modelId,
+          durationMs,
+          usage: undefined,
+        });
+        return {
+          output: recovered,
+          modelId,
+          provider,
+          durationMs,
+          usage: undefined,
+        };
+      } catch (fallbackErr) {
+        const message = (fallbackErr as Error).message;
+        ctx.onEvent?.({ type: "error", agent: def.name, message });
+        throw fallbackErr;
+      }
+    }
     const message = (err as Error).message;
     ctx.onEvent?.({ type: "error", agent: def.name, message });
     throw err;
   }
 }
+
+async function rescueViaTextFallback<TInput, TOutput>(
+  def: AgentDef<TInput, TOutput>,
+  system: string,
+  userPrompt: string,
+  model: Parameters<typeof generateObject>[0]["model"],
+  prevText: string | undefined,
+): Promise<TOutput> {
+  // First, try parsing what we already got — `generateObject` may have
+  // surfaced an error mid-validation while the text itself is recoverable.
+  if (prevText) {
+    const parsed = tryParseAndValidate(def.outputSchema, prevText);
+    if (parsed.ok) return parsed.value;
+  }
+
+  // Re-issue as plain text with an even more explicit system prompt.
+  const stricterSystem = `${system}
+
+CRITICAL: Output ONLY valid JSON. No \`\`\` fences. No commentary. The output must parse with JSON.parse() on the first try.`;
+  const result = await generateText({
+    model,
+    system: stricterSystem,
+    prompt: userPrompt,
+    temperature: 0.2,
+    maxTokens: def.maxTokens,
+  });
+
+  const parsed = tryParseAndValidate(def.outputSchema, result.text);
+  if (parsed.ok) return parsed.value;
+
+  throw new Error(
+    `Model output didn't match the ${def.name} schema even after a text retry. ` +
+      `First validation issue: ${parsed.issue}`,
+  );
+}
+
 
 /* ----------------------------------------------------------------------------
  * Text agents — for surfaces that need PROSE output (editor commands).

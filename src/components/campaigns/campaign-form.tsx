@@ -229,12 +229,12 @@ export function CampaignForm({ voices, sources }: Props) {
                     className={cn(
                       "inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-medium transition",
                       selected
-                        ? "border-[--color-primary]/40 bg-[--color-primary]/10 text-[--color-primary]"
-                        : "border-[--color-border] bg-[--color-background] text-[--color-foreground] hover:bg-[--color-accent]",
+                        ? "border-[var(--color-primary)]/40 bg-[var(--color-primary)]/10 text-[var(--color-primary)]"
+                        : "border-[var(--color-border)] bg-[var(--color-background)] text-[var(--color-foreground)] hover:bg-[var(--color-accent)]",
                     )}
                   >
                     <span>{c.label}</span>
-                    <span className="text-[10px] text-[--color-muted-foreground]">
+                    <span className="text-[10px] text-[var(--color-muted-foreground)]">
                       {c.hint}
                     </span>
                   </button>
@@ -245,11 +245,11 @@ export function CampaignForm({ voices, sources }: Props) {
         </div>
 
         {usableSources.length > 0 && (
-          <div className="md:col-span-2 rounded-lg border border-[--color-border] bg-[--color-card] p-4">
+          <div className="md:col-span-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] p-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <BookOpen className="h-4 w-4 text-[--color-primary]" />
-                <Label className="text-xs uppercase tracking-[0.14em] text-[--color-muted-foreground]">
+                <BookOpen className="h-4 w-4 text-[var(--color-primary)]" />
+                <Label className="text-xs uppercase tracking-[0.14em] text-[var(--color-muted-foreground)]">
                   Knowledge sources
                 </Label>
                 {selectedSourceIds.length > 0 && (
@@ -260,12 +260,12 @@ export function CampaignForm({ voices, sources }: Props) {
               </div>
               <Link
                 href="/knowledge"
-                className="text-[11px] uppercase tracking-wider text-[--color-muted-foreground] hover:text-[--color-foreground] transition"
+                className="text-[11px] uppercase tracking-wider text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)] transition"
               >
                 Manage
               </Link>
             </div>
-            <p className="mt-2 text-[11px] text-[--color-muted-foreground]">
+            <p className="mt-2 text-[11px] text-[var(--color-muted-foreground)]">
               Retrieved chunks are shared across the campaign planner and every
               asset drafter — top 10 most relevant per run.
             </p>
@@ -280,12 +280,12 @@ export function CampaignForm({ voices, sources }: Props) {
                     className={cn(
                       "inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-medium transition",
                       selected
-                        ? "border-[--color-primary]/40 bg-[--color-primary]/10 text-[--color-primary]"
-                        : "border-[--color-border] bg-[--color-background] text-[--color-foreground] hover:bg-[--color-accent]",
+                        ? "border-[var(--color-primary)]/40 bg-[var(--color-primary)]/10 text-[var(--color-primary)]"
+                        : "border-[var(--color-border)] bg-[var(--color-background)] text-[var(--color-foreground)] hover:bg-[var(--color-accent)]",
                     )}
                   >
                     <span>{s.name}</span>
-                    <span className="text-[10px] tabular-nums text-[--color-muted-foreground]">
+                    <span className="text-[10px] tabular-nums text-[var(--color-muted-foreground)]">
                       {s.chunkCount}c
                     </span>
                   </button>
@@ -296,7 +296,7 @@ export function CampaignForm({ voices, sources }: Props) {
         )}
 
         {voiceId === "__none" && (
-          <div className="md:col-span-2 inline-flex items-center gap-2 rounded-md border border-dashed border-[--color-warning]/40 bg-[--color-warning]/10 px-3 py-2 text-xs text-[--color-warning]">
+          <div className="md:col-span-2 inline-flex items-center gap-2 rounded-md border border-dashed border-[var(--color-warning)]/40 bg-[var(--color-warning)]/10 px-3 py-2 text-xs text-[var(--color-warning)]">
             <ScanText className="h-3.5 w-3.5" />
             <span>
               Without a voice, assets will be drafted but not voice-audited.
@@ -342,12 +342,12 @@ function Field({
 }) {
   return (
     <div className="flex flex-col gap-1.5">
-      <Label className="text-xs uppercase tracking-[0.14em] text-[--color-muted-foreground]">
+      <Label className="text-xs uppercase tracking-[0.14em] text-[var(--color-muted-foreground)]">
         {label}
       </Label>
       {children}
       {hint && (
-        <p className="text-[11px] text-[--color-muted-foreground] text-pretty">
+        <p className="text-[11px] text-[var(--color-muted-foreground)] text-pretty">
           {hint}
         </p>
       )}

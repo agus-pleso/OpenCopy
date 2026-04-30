@@ -47,9 +47,9 @@ const CHANNEL_META: Record<
 };
 
 const SEV_COLOR: Record<VoiceAuditIssue["severity"], string> = {
-  high: "text-[--color-destructive]",
-  medium: "text-[--color-warning]",
-  low: "text-[--color-muted-foreground]",
+  high: "text-[var(--color-destructive)]",
+  medium: "text-[var(--color-warning)]",
+  low: "text-[var(--color-muted-foreground)]",
 };
 
 interface Props {
@@ -77,11 +77,11 @@ export function AssetCard({ asset: initial }: Props) {
 
   const tintBg =
     tier?.tint === "success"
-      ? "bg-[--color-success]/12 text-[--color-success]"
+      ? "bg-[var(--color-success)]/12 text-[var(--color-success)]"
       : tier?.tint === "warning"
-      ? "bg-[--color-warning]/12 text-[--color-warning]"
+      ? "bg-[var(--color-warning)]/12 text-[var(--color-warning)]"
       : tier?.tint === "destructive"
-      ? "bg-[--color-destructive]/12 text-[--color-destructive]"
+      ? "bg-[var(--color-destructive)]/12 text-[var(--color-destructive)]"
       : "";
 
   const onCopy = () => {
@@ -107,7 +107,7 @@ export function AssetCard({ asset: initial }: Props) {
 
   if (asset.status === "discarded") {
     return (
-      <div className="flex items-center gap-3 rounded-lg border border-dashed border-[--color-border] bg-[--color-muted]/30 px-4 py-3 text-sm text-[--color-muted-foreground]">
+      <div className="flex items-center gap-3 rounded-lg border border-dashed border-[var(--color-border)] bg-[var(--color-muted)]/30 px-4 py-3 text-sm text-[var(--color-muted-foreground)]">
         <Trash2 className="h-4 w-4" />
         <span>
           Discarded · {meta.label} — {asset.label}
@@ -122,13 +122,13 @@ export function AssetCard({ asset: initial }: Props) {
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3, ease: "easeOut" }}
-      className="overflow-hidden rounded-2xl border border-[--color-border] bg-[--color-card]"
+      className="overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)]"
     >
-      <div className="flex items-center gap-3 border-b border-[--color-border] px-5 py-3">
-        <span className="flex h-7 w-7 items-center justify-center rounded-md bg-[--color-primary]/10 text-[--color-primary]">
+      <div className="flex items-center gap-3 border-b border-[var(--color-border)] px-5 py-3">
+        <span className="flex h-7 w-7 items-center justify-center rounded-md bg-[var(--color-primary)]/10 text-[var(--color-primary)]">
           <Icon className="h-3.5 w-3.5" />
         </span>
-        <span className="text-xs uppercase tracking-[0.14em] text-[--color-muted-foreground]">
+        <span className="text-xs uppercase tracking-[0.14em] text-[var(--color-muted-foreground)]">
           {meta.label}
         </span>
         <h3 className="font-display text-base tracking-tight line-clamp-1">
@@ -156,9 +156,9 @@ export function AssetCard({ asset: initial }: Props) {
       </div>
 
       {asset.strategy && (
-        <p className="border-b border-[--color-border]/60 bg-[--color-muted]/30 px-5 py-2 text-xs uppercase tracking-[0.12em] text-[--color-muted-foreground]">
+        <p className="border-b border-[var(--color-border)]/60 bg-[var(--color-muted)]/30 px-5 py-2 text-xs uppercase tracking-[0.12em] text-[var(--color-muted-foreground)]">
           Angle ·{" "}
-          <span className="normal-case tracking-normal text-[--color-foreground]">
+          <span className="normal-case tracking-normal text-[var(--color-foreground)]">
             {asset.strategy}
           </span>
         </p>
@@ -171,7 +171,7 @@ export function AssetCard({ asset: initial }: Props) {
         {asset.content}
       </article>
 
-      <div className="flex flex-wrap items-center gap-2 border-t border-[--color-border] px-5 py-3">
+      <div className="flex flex-wrap items-center gap-2 border-t border-[var(--color-border)] px-5 py-3">
         <Button variant="ghost" size="sm" onClick={onCopy}>
           <Copy className="h-3.5 w-3.5" /> Copy
         </Button>
@@ -200,7 +200,7 @@ export function AssetCard({ asset: initial }: Props) {
               size="sm"
               onClick={onDiscard}
               disabled={pendingDiscard}
-              className="text-[--color-muted-foreground]"
+              className="text-[var(--color-muted-foreground)]"
             >
               <Trash2 className="h-3.5 w-3.5" /> Discard
             </Button>
@@ -216,7 +216,7 @@ export function AssetCard({ asset: initial }: Props) {
             </Button>
           )}
           {asset.status === "saved" && (
-            <span className="inline-flex items-center gap-1.5 text-xs text-[--color-success]">
+            <span className="inline-flex items-center gap-1.5 text-xs text-[var(--color-success)]">
               <Check className="h-3.5 w-3.5" /> Saved
             </span>
           )}
@@ -230,10 +230,10 @@ export function AssetCard({ asset: initial }: Props) {
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.25 }}
-            className="overflow-hidden border-t border-[--color-border]"
+            className="overflow-hidden border-t border-[var(--color-border)]"
           >
-            <div className="bg-[--color-muted]/30 px-5 py-4">
-              <p className="text-xs uppercase tracking-[0.14em] text-[--color-muted-foreground]">
+            <div className="bg-[var(--color-muted)]/30 px-5 py-4">
+              <p className="text-xs uppercase tracking-[0.14em] text-[var(--color-muted-foreground)]">
                 Audit · {asset.auditSummary}
               </p>
               <ul className="mt-3 flex flex-col gap-2.5">
@@ -243,7 +243,7 @@ export function AssetCard({ asset: initial }: Props) {
                   .map((issue, i) => (
                     <li
                       key={i}
-                      className="rounded-md border border-[--color-border] bg-[--color-background] p-3 text-sm"
+                      className="rounded-md border border-[var(--color-border)] bg-[var(--color-background)] p-3 text-sm"
                     >
                       <div className="flex items-center gap-2">
                         <Badge variant="outline" className="text-[10px] tracking-wider">
@@ -258,13 +258,13 @@ export function AssetCard({ asset: initial }: Props) {
                           {issue.severity}
                         </span>
                       </div>
-                      <blockquote className="mt-1.5 border-l-2 border-[--color-primary] bg-[--color-muted]/40 px-2.5 py-1 text-sm italic">
+                      <blockquote className="mt-1.5 border-l-2 border-[var(--color-primary)] bg-[var(--color-muted)]/40 px-2.5 py-1 text-sm italic">
                         &ldquo;{issue.excerpt}&rdquo;
                       </blockquote>
                       <p className="mt-1.5 text-pretty">{issue.explanation}</p>
                       {issue.suggestion && (
-                        <p className="mt-1.5 rounded border border-[--color-success]/30 bg-[--color-success]/8 px-2 py-1 text-pretty">
-                          <span className="text-[10px] uppercase tracking-wider text-[--color-success]">
+                        <p className="mt-1.5 rounded border border-[var(--color-success)]/30 bg-[var(--color-success)]/8 px-2 py-1 text-pretty">
+                          <span className="text-[10px] uppercase tracking-wider text-[var(--color-success)]">
                             Suggestion ·
                           </span>{" "}
                           {issue.suggestion}

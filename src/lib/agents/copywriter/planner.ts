@@ -1,56 +1,19 @@
 import "server-only";
-import { z } from "zod";
-import { defineAgent } from "../core";
+import { generateText } from "ai";
+
+import { resolveModel } from "@/lib/ai/providers";
 import { renderVoiceCard, type VoiceCardForPrompt } from "../voice-card";
+import {
+  parsePlannerMarkdown,
+  type PlannerAngle,
+  type PlannerOutput,
+} from "./planner-parser";
 
-export const PlannerOutputSchema = z.object({
-  insight: z
-    .string()
-    .min(15)
-    .max(400)
-    .describe(
-      "1–2 sentences naming what makes this brief tricky, interesting, or worth a particular angle. Concrete, not generic.",
-    ),
-  angles: z
-    .array(
-      z.object({
-        label: z
-          .string()
-          .min(2)
-          .max(60)
-          .describe(
-            "Short, evocative angle name (e.g. 'Problem-first', 'Anti-jargon', 'Specific-number'). Not 'Variant 1'.",
-          ),
-        strategy: z
-          .string()
-          .min(20)
-          .max(400)
-          .describe("1–3 sentences. The angle's premise and why it fits the brief + voice."),
-        hook: z
-          .string()
-          .min(5)
-          .max(220)
-          .describe("Candidate opening line or hook the drafter should consider."),
-        must_include: z
-          .array(z.string())
-          .max(6)
-          .describe(
-            "Concrete things the drafter should weave in. Empty array if none.",
-          ),
-        avoid: z
-          .array(z.string())
-          .max(6)
-          .describe(
-            "Specific traps for THIS angle (in addition to brand-level don'ts). Empty array if none.",
-          ),
-      }),
-    )
-    .min(1)
-    .max(5)
-    .describe("One angle per requested variant. Each angle must be MEANINGFULLY different from the others."),
-});
-
-export type PlannerOutput = z.infer<typeof PlannerOutputSchema>;
+export {
+  parsePlannerMarkdown,
+  type PlannerAngle,
+  type PlannerOutput,
+} from "./planner-parser";
 
 export interface PlannerInput {
   voice: VoiceCardForPrompt;
@@ -64,27 +27,54 @@ export interface PlannerInput {
   keywords?: string[];
   forbiddenTerms?: string[];
   examples?: string;
-  /** Pre-formatted knowledge-base excerpts (output of formatKnowledgeForPrompt). */
+  /** Pre-formatted knowledge-base excerpts. */
   knowledge?: string;
 }
 
-const SYSTEM = `You are a senior creative director planning a copywriting brief. \
-Your job is to read the brief and the brand voice, then produce N MEANINGFULLY different angles \
-the drafters should each take.
+export interface PlannerRunResult {
+  output: PlannerOutput;
+  modelId: string;
+  provider: string;
+  durationMs: number;
+  usage?: { inputTokens?: number; outputTokens?: number };
+}
+
+const SYSTEM = `You are a senior creative director planning a copywriting brief. Your job is to read
+the brief and the brand voice, then produce N MEANINGFULLY different angles the drafters should
+each take.
 
 Quality bar:
-- Each angle is genuinely different — different lead, different rhetorical move, different structural \
-choice. "Variant A is shorter" is not an angle.
-- Angle labels are evocative and specific ("Anti-jargon", "Specific-number", "Founder-confession") — \
-not generic ("Direct", "Friendly").
+- Each angle is genuinely different — different lead, different rhetorical move, different
+  structural choice. "Variant A is shorter" is not an angle.
+- Angle labels are evocative and specific ("Anti-jargon", "Specific-number", "Founder-confession") —
+  not generic ("Direct", "Friendly").
 - Strategy explains the WHY in a way a junior copywriter could follow.
-- Hooks are candidate opening lines, not full drafts. They should feel like they could survive into \
-the final copy.
-- Respect the voice. If the brand voice forbids exclamation marks, don't suggest hooks with \
-exclamation marks. If it requires a specific persona, every angle keeps that persona.
+- Hooks are candidate opening lines, not full drafts. They should feel like they could survive
+  into the final copy.
+- Respect the voice. If the brand voice forbids exclamation marks, don't suggest hooks with
+  exclamation marks. If it requires a specific persona, every angle keeps that persona.
 - Insight is grounded — name a real tension or constraint in this specific brief, not a platitude.
 
-Output strictly conforms to the provided schema.`;
+OUTPUT FORMAT — VERY IMPORTANT.
+Output as MARKDOWN with the exact structure below. No code fences, no preamble.
+
+## Insight
+1-2 sentences naming what makes this brief tricky, interesting, or worth a particular angle.
+Concrete, not generic.
+
+## Angle 1: [evocative label]
+**Strategy:** 1-3 sentences. The angle's premise and why it fits the brief and voice.
+**Hook:** Candidate opening line.
+**Must include:** comma-separated list (or "—" if none)
+**Avoid:** comma-separated list (or "—" if none)
+
+## Angle 2: [evocative label]
+**Strategy:** ...
+**Hook:** ...
+**Must include:** ...
+**Avoid:** ...
+
+(Continue for as many angles as requested.)`;
 
 function buildPrompt(input: PlannerInput): string {
   const lines: string[] = [];
@@ -124,18 +114,56 @@ function buildPrompt(input: PlannerInput): string {
     );
   }
   lines.push(
-    `\nProduce exactly ${input.variantCount} meaningfully different angles for the drafters.`,
+    `\nProduce exactly ${input.variantCount} meaningfully different angles for the drafters. Use the markdown format described in the system prompt.`,
   );
   return lines.join("\n");
 }
 
-export const copywriterPlanner = defineAgent<PlannerInput, PlannerOutput>({
-  name: "copywriter-planner",
-  description: "Produces a set of meaningfully different angles for parallel drafters to pursue.",
-  modelRole: "planning",
-  systemPrompt: SYSTEM,
-  buildPrompt,
-  outputSchema: PlannerOutputSchema,
-  temperature: 0.7,
-  maxTokens: 2500,
-});
+export async function runCopywriterPlanner(
+  input: PlannerInput,
+  ctx: { workspaceId: string; userId: string },
+): Promise<PlannerRunResult> {
+  const start = Date.now();
+  const { model, modelId, provider } = await resolveModel({
+    workspaceId: ctx.workspaceId,
+    role: "planning",
+  });
+
+  const result = await generateText({
+    model,
+    system: SYSTEM,
+    prompt: buildPrompt(input),
+    temperature: 0.7,
+    maxTokens: 2500,
+  });
+
+  const parsed = parsePlannerMarkdown(result.text);
+
+  // Defensive — guarantee at least one angle survives so the orchestrator can
+  // proceed instead of throwing. If the model only produced one usable angle
+  // when N were requested, drafters will run for what we have.
+  const angles: PlannerAngle[] =
+    parsed.angles.length > 0
+      ? parsed.angles
+      : [
+          {
+            label: "Default angle",
+            strategy:
+              "The planner couldn't produce structured angles. Drafter falls back to a single straightforward variant grounded in the brief.",
+            hook: input.objective.split(/[.!?]/)[0] ?? input.objective,
+            must_include: input.keywords ?? [],
+            avoid: input.forbiddenTerms ?? [],
+          },
+        ];
+
+  return {
+    output: { insight: parsed.insight, angles },
+    modelId,
+    provider,
+    durationMs: Date.now() - start,
+    usage: {
+      inputTokens: result.usage?.promptTokens,
+      outputTokens: result.usage?.completionTokens,
+    },
+  };
+}

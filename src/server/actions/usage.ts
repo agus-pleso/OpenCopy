@@ -133,8 +133,13 @@ export async function getUsageSummary(opts?: {
     .where(
       and(
         eq(agentRuns.workspaceId, workspace.id),
-        gte(agentRunSteps.startedAt ?? agentRunSteps.finishedAt, since),
-        // status filter — only count succeeded steps (failed don't bill).
+        // Filter on the run's createdAt — agentRunSteps.startedAt is currently
+        // not populated by any code path, and the previous `?? finishedAt`
+        // fallback was a JS expression (column objects are always truthy), so
+        // this had silently been filtering on a NULL column and excluding
+        // every row.
+        gte(agentRuns.createdAt, since),
+        // Only count succeeded steps (failed don't bill).
         eq(agentRunSteps.status, "succeeded"),
       ),
     )

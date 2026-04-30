@@ -113,7 +113,7 @@ export const SlashMenu = React.forwardRef<SlashMenuRef, SlashMenuProps>(
     return (
       <div
         style={style}
-        className="w-[320px] overflow-hidden rounded-lg border border-[--color-border] bg-[--color-popover] text-[--color-popover-foreground] shadow-2xl"
+        className="w-[320px] overflow-hidden rounded-lg border border-[var(--color-border)] bg-[var(--color-popover)] text-[var(--color-popover-foreground)] shadow-2xl"
       >
         {promptFor ? (
           <form
@@ -123,9 +123,9 @@ export const SlashMenu = React.forwardRef<SlashMenuRef, SlashMenuProps>(
             }}
             className="flex flex-col"
           >
-            <div className="flex items-center gap-2 border-b border-[--color-border] px-3 py-2">
-              <Wand2 className="h-3.5 w-3.5 text-[--color-primary]" />
-              <p className="text-xs uppercase tracking-wider text-[--color-muted-foreground]">
+            <div className="flex items-center gap-2 border-b border-[var(--color-border)] px-3 py-2">
+              <Wand2 className="h-3.5 w-3.5 text-[var(--color-primary)]" />
+              <p className="text-xs uppercase tracking-wider text-[var(--color-muted-foreground)]">
                 {promptFor.label}
               </p>
             </div>
@@ -146,12 +146,12 @@ export const SlashMenu = React.forwardRef<SlashMenuRef, SlashMenuProps>(
                   ? "e.g. wittier, more direct, warmer"
                   : "What should it do?"
               }
-              className="bg-transparent px-3 py-2.5 text-sm outline-none placeholder:text-[--color-muted-foreground]"
+              className="bg-transparent px-3 py-2.5 text-sm outline-none placeholder:text-[var(--color-muted-foreground)]"
             />
-            <div className="flex items-center justify-between border-t border-[--color-border] px-3 py-1.5 text-[10px] uppercase tracking-wider text-[--color-muted-foreground]">
+            <div className="flex items-center justify-between border-t border-[var(--color-border)] px-3 py-1.5 text-[10px] uppercase tracking-wider text-[var(--color-muted-foreground)]">
               <span>Enter to run · Esc to cancel</span>
               {running && (
-                <span className="inline-flex items-center gap-1 text-[--color-primary]">
+                <span className="inline-flex items-center gap-1 text-[var(--color-primary)]">
                   <Loader2 className="h-3 w-3 animate-spin" /> Running
                 </span>
               )}
@@ -159,9 +159,9 @@ export const SlashMenu = React.forwardRef<SlashMenuRef, SlashMenuProps>(
           </form>
         ) : (
           <>
-            <div className="border-b border-[--color-border] px-3 py-1.5 text-[10px] uppercase tracking-wider text-[--color-muted-foreground]">
+            <div className="border-b border-[var(--color-border)] px-3 py-1.5 text-[10px] uppercase tracking-wider text-[var(--color-muted-foreground)]">
               {running ? (
-                <span className="inline-flex items-center gap-1.5 text-[--color-primary]">
+                <span className="inline-flex items-center gap-1.5 text-[var(--color-primary)]">
                   <Loader2 className="h-3 w-3 animate-spin" /> Running command…
                 </span>
               ) : items.length > 0 ? (
@@ -182,15 +182,15 @@ export const SlashMenu = React.forwardRef<SlashMenuRef, SlashMenuProps>(
                       onClick={() => onSelect(item)}
                       className={cn(
                         "flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left text-sm transition",
-                        active && "bg-[--color-accent] text-[--color-accent-foreground]",
+                        active && "bg-[var(--color-accent)] text-[var(--color-accent-foreground)]",
                       )}
                     >
                       <span
                         className={cn(
                           "flex h-7 w-7 shrink-0 items-center justify-center rounded-md",
                           active
-                            ? "bg-[--color-primary] text-[--color-primary-foreground]"
-                            : "bg-[--color-muted] text-[--color-muted-foreground]",
+                            ? "bg-[var(--color-primary)] text-[var(--color-primary-foreground)]"
+                            : "bg-[var(--color-muted)] text-[var(--color-muted-foreground)]",
                         )}
                       >
                         <Icon className="h-3.5 w-3.5" />
@@ -199,12 +199,12 @@ export const SlashMenu = React.forwardRef<SlashMenuRef, SlashMenuProps>(
                         <span className="block font-medium tracking-tight">
                           {item.label}
                         </span>
-                        <span className="block text-xs text-[--color-muted-foreground] truncate">
+                        <span className="block text-xs text-[var(--color-muted-foreground)] truncate">
                           {item.hint}
                         </span>
                       </span>
                       {item.needsSelection && (
-                        <span className="shrink-0 text-[9px] uppercase tracking-wider text-[--color-muted-foreground]">
+                        <span className="shrink-0 text-[9px] uppercase tracking-wider text-[var(--color-muted-foreground)]">
                           select
                         </span>
                       )}

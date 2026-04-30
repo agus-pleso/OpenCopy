@@ -10,8 +10,8 @@ export function Logo({ className, showWordmark = true }: LogoProps) {
     <div className={cn("flex items-center gap-2", className)}>
       <LogoMark className="h-7 w-7" />
       {showWordmark && (
-        <span className="font-display text-[1.05rem] tracking-tight text-[--color-foreground]">
-          Open<span className="text-[--color-primary]">Copy</span>
+        <span className="font-display text-[1.05rem] tracking-tight text-[var(--color-foreground)]">
+          Open<span className="text-[var(--color-primary)]">Copy</span>
         </span>
       )}
     </div>

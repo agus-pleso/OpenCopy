@@ -38,27 +38,27 @@ export function VoiceCardDisplay({ voice, locale, className }: VoiceCardDisplayP
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, ease: "easeOut" }}
       className={cn(
-        "relative overflow-hidden rounded-2xl border border-[--color-border] bg-[--color-card]",
+        "relative overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)]",
         "shadow-[0_1px_0_0_rgba(0,0,0,0.02),0_8px_24px_-12px_rgba(0,0,0,0.06)]",
         className,
       )}
     >
       {/* Decorative top band */}
-      <div className="h-1 bg-gradient-to-r from-[--color-primary] via-[--color-primary]/60 to-transparent" />
+      <div className="h-1 bg-gradient-to-r from-[var(--color-primary)] via-[var(--color-primary)]/60 to-transparent" />
 
       <div className="px-7 py-7 md:px-9 md:py-8">
         {/* Header: Persona + Audience as the spine */}
         <div className="grid gap-6 md:grid-cols-2">
           {voice.voicePersona && (
             <Section label="Persona" icon={Quote}>
-              <p className="text-pretty text-[15px] leading-relaxed text-[--color-foreground]">
+              <p className="text-pretty text-[15px] leading-relaxed text-[var(--color-foreground)]">
                 {voice.voicePersona}
               </p>
             </Section>
           )}
           {voice.audience && (
             <Section label="Audience" icon={Users}>
-              <p className="text-pretty text-[15px] leading-relaxed text-[--color-foreground]">
+              <p className="text-pretty text-[15px] leading-relaxed text-[var(--color-foreground)]">
                 {voice.audience}
               </p>
             </Section>
@@ -66,23 +66,23 @@ export function VoiceCardDisplay({ voice, locale, className }: VoiceCardDisplayP
         </div>
 
         {/* Metadata strip */}
-        <div className="mt-7 flex flex-wrap items-center gap-x-6 gap-y-2 border-y border-[--color-border]/60 py-3 text-xs uppercase tracking-[0.14em] text-[--color-muted-foreground]">
+        <div className="mt-7 flex flex-wrap items-center gap-x-6 gap-y-2 border-y border-[var(--color-border)]/60 py-3 text-xs uppercase tracking-[0.14em] text-[var(--color-muted-foreground)]">
           {voice.readingLevel && (
             <span className="inline-flex items-center gap-1.5">
               <GraduationCap className="h-3.5 w-3.5" />
-              <span className="normal-case tracking-normal text-[13px] text-[--color-foreground]">
+              <span className="normal-case tracking-normal text-[13px] text-[var(--color-foreground)]">
                 {voice.readingLevel}
               </span>
             </span>
           )}
           <span className="inline-flex items-center gap-1.5">
             <BookOpen className="h-3.5 w-3.5" />
-            <span className="normal-case tracking-normal text-[13px] text-[--color-foreground]">
+            <span className="normal-case tracking-normal text-[13px] text-[var(--color-foreground)]">
               {LOCALE_LABELS[voice.defaultLocale]}
             </span>
           </span>
           {voice.analyzedAt && (
-            <span className="ml-auto normal-case tracking-normal text-[12px] text-[--color-muted-foreground]">
+            <span className="ml-auto normal-case tracking-normal text-[12px] text-[var(--color-muted-foreground)]">
               Analyzed{" "}
               {new Date(voice.analyzedAt).toLocaleDateString(undefined, {
                 month: "short",
@@ -104,7 +104,7 @@ export function VoiceCardDisplay({ voice, locale, className }: VoiceCardDisplayP
                   initial={{ opacity: 0, scale: 0.9 }}
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ delay: i * 0.04 }}
-                  className="inline-flex items-center rounded-full border border-[--color-border] bg-[--color-muted] px-3 py-1 text-sm font-medium tracking-tight"
+                  className="inline-flex items-center rounded-full border border-[var(--color-border)] bg-[var(--color-muted)] px-3 py-1 text-sm font-medium tracking-tight"
                 >
                   {t}
                 </motion.span>
@@ -145,7 +145,7 @@ export function VoiceCardDisplay({ voice, locale, className }: VoiceCardDisplayP
                   {voice.requiredWords.map((w, i) => (
                     <span
                       key={w + i}
-                      className="inline-flex items-center rounded-md border border-[--color-success]/30 bg-[--color-success]/10 px-2 py-0.5 text-xs font-mono text-[--color-success]"
+                      className="inline-flex items-center rounded-md border border-[var(--color-success)]/30 bg-[var(--color-success)]/10 px-2 py-0.5 text-xs font-mono text-[var(--color-success)]"
                     >
                       {w}
                     </span>
@@ -160,7 +160,7 @@ export function VoiceCardDisplay({ voice, locale, className }: VoiceCardDisplayP
                   {voice.forbiddenWords.map((w, i) => (
                     <span
                       key={w + i}
-                      className="inline-flex items-center rounded-md border border-[--color-destructive]/30 bg-[--color-destructive]/10 px-2 py-0.5 text-xs font-mono text-[--color-destructive] line-through decoration-1"
+                      className="inline-flex items-center rounded-md border border-[var(--color-destructive)]/30 bg-[var(--color-destructive)]/10 px-2 py-0.5 text-xs font-mono text-[var(--color-destructive)] line-through decoration-1"
                     >
                       {w}
                     </span>
@@ -173,8 +173,8 @@ export function VoiceCardDisplay({ voice, locale, className }: VoiceCardDisplayP
 
         {/* Locale notes */}
         {locale && voice.localeNotes?.[locale] && (
-          <div className="mt-7 rounded-md border-l-2 border-[--color-primary] bg-[--color-primary]/5 px-4 py-3">
-            <p className="text-xs uppercase tracking-[0.14em] text-[--color-primary]">
+          <div className="mt-7 rounded-md border-l-2 border-[var(--color-primary)] bg-[var(--color-primary)]/5 px-4 py-3">
+            <p className="text-xs uppercase tracking-[0.14em] text-[var(--color-primary)]">
               Locale notes · {LOCALE_LABELS[locale]}
             </p>
             <p className="mt-1.5 text-sm text-pretty">{voice.localeNotes[locale]}</p>
@@ -183,16 +183,16 @@ export function VoiceCardDisplay({ voice, locale, className }: VoiceCardDisplayP
 
         {/* Rationale */}
         {voice.rationale && (
-          <div className="mt-8 border-t border-[--color-border]/60 pt-5">
+          <div className="mt-8 border-t border-[var(--color-border)]/60 pt-5">
             <Label>Rationale</Label>
-            <p className="mt-2 max-w-2xl text-pretty text-sm italic leading-relaxed text-[--color-muted-foreground]">
+            <p className="mt-2 max-w-2xl text-pretty text-sm italic leading-relaxed text-[var(--color-muted-foreground)]">
               {voice.rationale}
             </p>
           </div>
         )}
 
         {!isAnalyzed && (
-          <div className="mt-6 rounded-md border border-dashed border-[--color-border] bg-[--color-muted]/40 px-4 py-3 text-sm text-[--color-muted-foreground]">
+          <div className="mt-6 rounded-md border border-dashed border-[var(--color-border)] bg-[var(--color-muted)]/40 px-4 py-3 text-sm text-[var(--color-muted-foreground)]">
             This voice hasn&apos;t been analyzed yet. Add samples and run the
             analyzer to populate the profile.
           </div>
@@ -213,7 +213,7 @@ function Section({
 }) {
   return (
     <div>
-      <div className="flex items-center gap-1.5 text-xs uppercase tracking-[0.14em] text-[--color-muted-foreground]">
+      <div className="flex items-center gap-1.5 text-xs uppercase tracking-[0.14em] text-[var(--color-muted-foreground)]">
         <Icon className="h-3.5 w-3.5" />
         {label}
       </div>
@@ -224,7 +224,7 @@ function Section({
 
 function Label({ children }: { children: React.ReactNode }) {
   return (
-    <p className="text-xs uppercase tracking-[0.14em] text-[--color-muted-foreground]">
+    <p className="text-xs uppercase tracking-[0.14em] text-[var(--color-muted-foreground)]">
       {children}
     </p>
   );
@@ -243,8 +243,8 @@ function RuleColumn({
 }) {
   const tintClasses =
     tint === "success"
-      ? "bg-[--color-success]/12 text-[--color-success]"
-      : "bg-[--color-destructive]/12 text-[--color-destructive]";
+      ? "bg-[var(--color-success)]/12 text-[var(--color-success)]"
+      : "bg-[var(--color-destructive)]/12 text-[var(--color-destructive)]";
   return (
     <div>
       <div className="flex items-center gap-2">
@@ -262,13 +262,13 @@ function RuleColumn({
             transition={{ delay: 0.05 * i }}
             className="flex gap-3 text-[14px] leading-snug text-pretty"
           >
-            <span className="select-none pt-[2px] text-xs font-mono text-[--color-muted-foreground]">
+            <span className="select-none pt-[2px] text-xs font-mono text-[var(--color-muted-foreground)]">
               {String(i + 1).padStart(2, "0")}
             </span>
             <span>
               <span>{r.rule}</span>
               {r.why && (
-                <span className="text-[--color-muted-foreground]">
+                <span className="text-[var(--color-muted-foreground)]">
                   {" "}
                   — {r.why}
                 </span>

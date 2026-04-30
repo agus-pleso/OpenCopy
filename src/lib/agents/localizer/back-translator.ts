@@ -1,65 +1,69 @@
 import "server-only";
-import { z } from "zod";
-import { defineAgent } from "../core";
+import { generateText } from "ai";
 
-export const BackTranslatorOutputSchema = z.object({
-  back_translation: z
-    .string()
-    .min(1)
-    .max(8000)
-    .describe(
-      "Faithful, literal-leaning translation of the target copy back into the source locale. PURE text.",
-    ),
-  divergences: z
-    .array(
-      z.object({
-        target_excerpt: z.string().min(1).max(400),
-        back_translated: z.string().min(1).max(400),
-        nature: z.enum([
-          "transcreation_intent",
-          "literal_loss",
-          "cultural_swap",
-          "register_shift",
-          "lengthening_or_compression",
-          "other",
-        ]),
-        note: z.string().min(5).max(300).describe(
-          "Brief explanation of how the back-translation diverges from a hypothetical literal source.",
-        ),
-      }),
-    )
-    .max(10)
-    .describe(
-      "Up to 10 places where the back-translation visibly differs from a literal source — usually intentional transcreation choices. Empty if it round-trips cleanly.",
-    ),
-});
+import { resolveModel } from "@/lib/ai/providers";
+import {
+  parseBackTranslatorMarkdown,
+  type BackTranslatorOutput,
+  type Divergence,
+  type DivergenceNature,
+} from "./back-translator-parser";
 
-export type BackTranslatorOutput = z.infer<typeof BackTranslatorOutputSchema>;
+export {
+  parseBackTranslatorMarkdown,
+  type BackTranslatorOutput,
+  type Divergence,
+  type DivergenceNature,
+} from "./back-translator-parser";
 
 export interface BackTranslatorInput {
   targetText: string;
   targetLocale: string;
   sourceLocale: string;
-  /** The original source text is passed for divergence comparison only — the
-   *  back-translation must be derived from the target text, not by repeating
-   *  the source. */
+  /** The original source text — provided so the model can identify divergences. */
   originalSource: string;
 }
 
-const SYSTEM = `You are a back-translation specialist. Your job is to translate target-locale copy \
-BACK into the source locale, faithfully and slightly literally — so a reviewer who doesn't speak the \
-target language can sanity-check what the transcreation actually says.
+export interface BackTranslatorRunResult {
+  output: BackTranslatorOutput;
+  modelId: string;
+  provider: string;
+  durationMs: number;
+  usage?: { inputTokens?: number; outputTokens?: number };
+}
+
+const SYSTEM = `You are a back-translation specialist. Your job is to translate target-locale copy
+BACK into the source locale, faithfully and slightly literally — so a reviewer who doesn't speak
+the target language can sanity-check what the transcreation actually says.
 
 Quality bar:
-- Translate THE TARGET TEXT, not the original source. The original is provided only so you can \
-identify where the transcreation diverged.
-- Lean literal. Don't smooth over choices the localizer made — that's the auditor's job, not yours.
-- Identify 0–10 places where the back-translation visibly differs from a literal version of the \
-source. These are usually intentional transcreation calls and that's fine; we just want to surface \
-them for the reviewer.
+- Translate THE TARGET TEXT, not the original source. The original is provided only so you can
+  identify where the transcreation diverged.
+- Lean literal. Don't smooth over choices the localizer made.
+- Identify 0–10 places where the back-translation visibly differs from a literal version of the
+  source. These are usually intentional transcreation calls.
 - Output the back-translation as plain prose, no preamble.
 
-Output strictly conforms to the provided schema.`;
+OUTPUT FORMAT — VERY IMPORTANT.
+Output as MARKDOWN. No code fences, no preamble. Use these exact section headings:
+
+## Back-translation
+The full back-translation as plain prose.
+
+## Divergences
+Zero or more divergence notes, each as a level-3 heading naming the nature, then fields.
+Empty if the back-translation round-trips cleanly. Natures: transcreation_intent, literal_loss,
+cultural_swap, register_shift, lengthening_or_compression, other.
+
+### transcreation_intent
+**Target:** "the target excerpt"
+**Back-translated:** "what it back-translates to"
+**Note:** brief explanation of how this diverges from a literal source
+
+### register_shift
+**Target:** "..."
+**Back-translated:** "..."
+**Note:** ...`;
 
 function buildPrompt(input: BackTranslatorInput): string {
   const lines: string[] = [];
@@ -70,18 +74,37 @@ function buildPrompt(input: BackTranslatorInput): string {
   lines.push("\n# Target copy to back-translate");
   lines.push(input.targetText.trim());
   lines.push(
-    `\nBack-translate the target copy into ${input.sourceLocale}. Stay literal. Note up to 10 divergences from the original source.`,
+    `\nBack-translate the target copy into ${input.sourceLocale} using the markdown format from the system prompt. Stay literal.`,
   );
   return lines.join("\n");
 }
 
-export const backTranslator = defineAgent<BackTranslatorInput, BackTranslatorOutput>({
-  name: "localizer-back-translator",
-  description: "Faithful literal back-translation for sanity-checking transcreation.",
-  modelRole: "drafting",
-  systemPrompt: SYSTEM,
-  buildPrompt,
-  outputSchema: BackTranslatorOutputSchema,
-  temperature: 0.2,
-  maxTokens: 3500,
-});
+export async function runBackTranslator(
+  input: BackTranslatorInput,
+  ctx: { workspaceId: string; userId: string },
+): Promise<BackTranslatorRunResult> {
+  const start = Date.now();
+  const { model, modelId, provider } = await resolveModel({
+    workspaceId: ctx.workspaceId,
+    role: "drafting",
+  });
+
+  const result = await generateText({
+    model,
+    system: SYSTEM,
+    prompt: buildPrompt(input),
+    temperature: 0.2,
+    maxTokens: 3500,
+  });
+
+  return {
+    output: parseBackTranslatorMarkdown(result.text),
+    modelId,
+    provider,
+    durationMs: Date.now() - start,
+    usage: {
+      inputTokens: result.usage?.promptTokens,
+      outputTokens: result.usage?.completionTokens,
+    },
+  };
+}

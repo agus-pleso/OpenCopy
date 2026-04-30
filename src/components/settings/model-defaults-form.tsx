@@ -15,7 +15,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-  modelDisplayName,
   modelPricingLabel,
   type OpenRouterModel,
   SUGGESTED_DEFAULTS,
@@ -25,6 +24,7 @@ import {
   PROVIDER_LABELS,
 } from "@/lib/ai/model-pricing";
 import { setModelDefault } from "@/server/actions/model-defaults";
+import { ModelPicker } from "./model-picker";
 import type { ApiKeyProvider, ModelRole } from "@/db/schema";
 
 const ROLES: Array<{
@@ -116,14 +116,14 @@ export function ModelDefaultsForm({
   return (
     <div className="flex flex-col gap-3">
       {!hasKey && (
-        <p className="rounded-md border border-dashed border-[--color-border] bg-[--color-muted]/50 px-4 py-3 text-sm text-[--color-muted-foreground]">
+        <p className="rounded-md border border-dashed border-[var(--color-border)] bg-[var(--color-muted)]/50 px-4 py-3 text-sm text-[var(--color-muted-foreground)]">
           Add your OpenRouter key first — the model picker uses it to fetch live
           pricing. Direct providers can still be used by selecting them per-role
           and entering a model id.
         </p>
       )}
       {err && (
-        <p className="rounded-md border border-[--color-destructive]/30 bg-[--color-destructive]/5 px-4 py-3 text-sm text-[--color-destructive]">
+        <p className="rounded-md border border-[var(--color-destructive)]/30 bg-[var(--color-destructive)]/5 px-4 py-3 text-sm text-[var(--color-destructive)]">
           Couldn&apos;t load OpenRouter models: {err}
         </p>
       )}
@@ -241,19 +241,19 @@ function RolePicker({
       : null;
 
   return (
-    <div className="flex flex-col gap-3 rounded-lg border border-[--color-border] bg-[--color-card] p-4 md:flex-row md:items-start">
+    <div className="flex flex-col gap-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] p-4 md:flex-row md:items-start">
       <div className="flex flex-1 items-center gap-3">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-[--color-primary]/10 text-[--color-primary]">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-[var(--color-primary)]/10 text-[var(--color-primary)]">
           <Icon className="h-4 w-4" />
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <p className="font-medium tracking-tight">{title}</p>
             {pending && (
-              <Loader2 className="h-3 w-3 animate-spin text-[--color-muted-foreground]" />
+              <Loader2 className="h-3 w-3 animate-spin text-[var(--color-muted-foreground)]" />
             )}
           </div>
-          <p className="text-xs text-[--color-muted-foreground] line-clamp-1">
+          <p className="text-xs text-[var(--color-muted-foreground)] line-clamp-1">
             {description}
           </p>
         </div>
@@ -268,7 +268,7 @@ function RolePicker({
               <SelectItem key={p} value={p}>
                 {PROVIDER_LABELS[p]}
                 {p === "ollama" && (
-                  <Server className="ml-2 inline h-3 w-3 text-[--color-muted-foreground]" />
+                  <Server className="ml-2 inline h-3 w-3 text-[var(--color-muted-foreground)]" />
                 )}
               </SelectItem>
             ))}
@@ -281,31 +281,15 @@ function RolePicker({
             {loading && !models ? (
               <Skeleton className="h-9 w-full" />
             ) : (
-              <Select
+              <ModelPicker
+                models={models ?? []}
                 value={modelId}
-                onValueChange={onOpenRouterModel}
+                onChange={onOpenRouterModel}
                 disabled={!models}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Pick a model" />
-                </SelectTrigger>
-                <SelectContent className="max-h-72">
-                  {models?.map((m) => (
-                    <SelectItem key={m.id} value={m.id}>
-                      <div className="flex flex-col">
-                        <span className="text-sm">{modelDisplayName(m)}</span>
-                        <span className="text-[10px] font-mono text-[--color-muted-foreground]">
-                          {m.id}
-                          {modelPricingLabel(m) ? ` · ${modelPricingLabel(m)}` : ""}
-                        </span>
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              />
             )}
             {selectedOR && modelPricingLabel(selectedOR) && (
-              <p className="text-right text-[10px] font-mono text-[--color-muted-foreground]">
+              <p className="text-right text-[10px] font-mono text-[var(--color-muted-foreground)]">
                 {modelPricingLabel(selectedOR)}
               </p>
             )}
@@ -333,7 +317,7 @@ function RolePicker({
                       setModelId(h.id);
                       persist(provider, h.id);
                     }}
-                    className="inline-flex items-center rounded-full border border-[--color-border] bg-[--color-muted] px-2 py-0.5 text-[10px] font-mono hover:bg-[--color-accent]"
+                    className="inline-flex items-center rounded-full border border-[var(--color-border)] bg-[var(--color-muted)] px-2 py-0.5 text-[10px] font-mono hover:bg-[var(--color-accent)]"
                   >
                     {h.id}
                   </button>

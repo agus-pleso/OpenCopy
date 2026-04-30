@@ -1,7 +1,7 @@
 "use client";
 
 import { signOut } from "next-auth/react";
-import { LogOut, Settings, User as UserIcon } from "lucide-react";
+import { LogOut, Settings, KeyRound, Users, Activity, Building2 } from "lucide-react";
 import Link from "next/link";
 import {
   DropdownMenu,
@@ -38,7 +38,7 @@ export function UserMenu({
           variant="ghost"
           className="h-8 gap-2 px-2 text-sm font-medium"
         >
-          <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[--color-primary] text-[--color-primary-foreground] text-xs font-semibold">
+          <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--color-primary)] text-[var(--color-primary-foreground)] text-xs font-semibold">
             {initials || "·"}
           </span>
           <span className="hidden sm:inline truncate max-w-[180px]">
@@ -51,7 +51,7 @@ export function UserMenu({
           <div className="text-sm font-medium leading-tight">
             {name || email.split("@")[0]}
           </div>
-          <div className="text-xs text-[--color-muted-foreground] truncate">
+          <div className="text-xs text-[var(--color-muted-foreground)] truncate">
             {email}
           </div>
         </div>
@@ -59,25 +59,41 @@ export function UserMenu({
         <DropdownMenuLabel>Workspace</DropdownMenuLabel>
         <div className="px-3 pb-2">
           <div className="text-sm font-medium">{workspaceName}</div>
-          <div className="text-xs text-[--color-muted-foreground]">
+          <div className="text-xs text-[var(--color-muted-foreground)]">
             Role: <span className="capitalize">{role}</span>
           </div>
         </div>
         <DropdownMenuSeparator />
+        <DropdownMenuLabel>Settings</DropdownMenuLabel>
         <DropdownMenuItem asChild>
           <Link href="/settings/workspace">
-            <UserIcon className="h-4 w-4" /> Workspace
+            <Building2 className="h-4 w-4" /> Workspace
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link href="/settings/members">
+            <Users className="h-4 w-4" /> Members
           </Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
           <Link href="/settings/ai">
-            <Settings className="h-4 w-4" /> AI providers
+            <KeyRound className="h-4 w-4" /> AI providers
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link href="/settings/usage">
+            <Activity className="h-4 w-4" /> Usage
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link href="/settings">
+            <Settings className="h-4 w-4" /> All settings
           </Link>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem
           onClick={() => signOut({ callbackUrl: "/login" })}
-          className="text-[--color-destructive] focus:text-[--color-destructive]"
+          className="text-[var(--color-destructive)] focus:text-[var(--color-destructive)]"
         >
           <LogOut className="h-4 w-4" /> Sign out
         </DropdownMenuItem>

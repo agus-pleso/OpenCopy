@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, ScanText, Bot, Library, KeyRound, Languages, Sparkles } from "lucide-react";
+import { ArrowRight, ScanText, Bot, Library, KeyRound, Languages, Sparkles, Check } from "lucide-react";
 import { eq, and } from "drizzle-orm";
 
 import { db } from "@/db/client";
@@ -116,13 +116,13 @@ export default async function DashboardPage() {
     <div className="mx-auto w-full max-w-5xl px-6 py-10 md:px-10 md:py-14">
       <div className="flex items-baseline justify-between">
         <div>
-          <p className="text-sm uppercase tracking-[0.18em] text-[--color-muted-foreground]">
+          <p className="text-sm uppercase tracking-[0.18em] text-[var(--color-muted-foreground)]">
             {workspace.name}
           </p>
           <h1 className="mt-2 font-display text-4xl tracking-tight md:text-5xl text-balance">
             Welcome to OpenCopy.
           </h1>
-          <p className="mt-3 max-w-xl text-pretty text-[--color-muted-foreground]">
+          <p className="mt-3 max-w-xl text-pretty text-[var(--color-muted-foreground)]">
             Agentic AI copywriters and localizers, trained on your brand voice.
             Five quick steps to get you generating on-brand copy.
           </p>
@@ -132,47 +132,72 @@ export default async function DashboardPage() {
         </Badge>
       </div>
 
-      <div className="mt-10 rounded-xl border border-[--color-border] bg-[--color-card] p-2">
+      <div className="mt-10 rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-2">
         <div className="flex items-center justify-between px-4 pb-2 pt-3">
-          <p className="text-xs uppercase tracking-wider text-[--color-muted-foreground]">
+          <p className="text-xs uppercase tracking-wider text-[var(--color-muted-foreground)]">
             Get started · {completed}/{total}
           </p>
-          <div className="flex h-1.5 w-32 overflow-hidden rounded-full bg-[--color-muted]">
+          <div className="flex h-1.5 w-32 overflow-hidden rounded-full bg-[var(--color-muted)]">
             <div
-              className="bg-[--color-primary] transition-all"
+              className="bg-[var(--color-primary)] transition-all"
               style={{ width: `${(completed / total) * 100}%` }}
             />
           </div>
         </div>
-        <ol className="divide-y divide-[--color-border]/60">
+        <ol className="divide-y divide-[var(--color-border)]/60">
           {checklist.map((item, i) => {
             const Icon = item.icon;
             return (
-              <li key={i} className="grid grid-cols-[auto,1fr,auto] items-center gap-4 px-4 py-4">
+              <li
+                key={i}
+                className={
+                  item.done
+                    ? "grid grid-cols-[auto_1fr_auto] items-center gap-4 px-4 py-4 bg-[var(--color-success)]/5"
+                    : "grid grid-cols-[auto_1fr_auto] items-center gap-4 px-4 py-4"
+                }
+              >
                 <div
                   className={
                     item.done
-                      ? "flex h-9 w-9 items-center justify-center rounded-full bg-[--color-primary] text-[--color-primary-foreground]"
-                      : "flex h-9 w-9 items-center justify-center rounded-full border border-dashed border-[--color-border] text-[--color-muted-foreground]"
+                      ? "relative flex h-10 w-10 items-center justify-center rounded-full bg-[var(--color-success)] text-white shadow-sm ring-2 ring-[var(--color-success)]/20"
+                      : "flex h-10 w-10 items-center justify-center rounded-full border border-dashed border-[var(--color-border)] text-[var(--color-muted-foreground)]"
                   }
                 >
-                  <Icon className="h-4 w-4" />
+                  {item.done ? (
+                    <Check className="h-5 w-5 stroke-[3]" />
+                  ) : (
+                    <Icon className="h-4 w-4" />
+                  )}
                 </div>
                 <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-medium tracking-tight">{item.title}</h3>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h3
+                      className={
+                        item.done
+                          ? "font-medium tracking-tight text-[var(--color-muted-foreground)] line-through decoration-[var(--color-success)]/40 decoration-2"
+                          : "font-medium tracking-tight"
+                      }
+                    >
+                      {item.title}
+                    </h3>
                     {item.version && (
                       <Badge variant="muted" className="text-[10px] tracking-wider">
                         {item.version}
                       </Badge>
                     )}
                     {item.done && (
-                      <Badge variant="success" className="text-[10px] tracking-wider">
-                        Done
-                      </Badge>
+                      <span className="inline-flex items-center gap-1 rounded-full bg-[var(--color-success)] px-2.5 py-0.5 text-xs font-semibold tracking-wide text-white shadow-sm">
+                        <Check className="h-3 w-3 stroke-[3]" /> Completed
+                      </span>
                     )}
                   </div>
-                  <p className="text-sm text-[--color-muted-foreground] text-pretty">
+                  <p
+                    className={
+                      item.done
+                        ? "text-sm text-[var(--color-muted-foreground)]/70 text-pretty"
+                        : "text-sm text-[var(--color-muted-foreground)] text-pretty"
+                    }
+                  >
                     {item.description}
                   </p>
                 </div>
@@ -227,10 +252,10 @@ function Pillar({
   body: string;
 }) {
   return (
-    <div className="rounded-lg border border-[--color-border] bg-[--color-card] p-5">
-      <Icon className="h-5 w-5 text-[--color-primary]" />
+    <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] p-5">
+      <Icon className="h-5 w-5 text-[var(--color-primary)]" />
       <h3 className="mt-3 font-display text-base tracking-tight">{title}</h3>
-      <p className="mt-1.5 text-sm text-[--color-muted-foreground] text-pretty">
+      <p className="mt-1.5 text-sm text-[var(--color-muted-foreground)] text-pretty">
         {body}
       </p>
     </div>

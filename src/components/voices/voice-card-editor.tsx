@@ -60,7 +60,7 @@ export function VoiceCardEditor({ voice, onCancel, onSaved }: Props) {
   };
 
   return (
-    <div className="rounded-2xl border border-[--color-border] bg-[--color-card] px-7 py-7 md:px-9 md:py-8">
+    <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] px-7 py-7 md:px-9 md:py-8">
       <div className="grid gap-6 md:grid-cols-2">
         <Field label="Persona">
           <Textarea
@@ -153,7 +153,7 @@ export function VoiceCardEditor({ voice, onCancel, onSaved }: Props) {
           <div className="grid gap-2 md:grid-cols-2">
             {(["en", "pl", "ro", "uk"] as const).map((loc) => (
               <div key={loc} className="flex flex-col gap-1.5">
-                <span className="text-xs uppercase tracking-wider text-[--color-muted-foreground]">
+                <span className="text-xs uppercase tracking-wider text-[var(--color-muted-foreground)]">
                   {loc.toUpperCase()}
                 </span>
                 <Textarea
@@ -186,7 +186,7 @@ export function VoiceCardEditor({ voice, onCancel, onSaved }: Props) {
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex flex-col gap-1.5">
-      <Label className="text-xs uppercase tracking-[0.14em] text-[--color-muted-foreground]">
+      <Label className="text-xs uppercase tracking-[0.14em] text-[var(--color-muted-foreground)]">
         {label}
       </Label>
       {children}
@@ -210,10 +210,10 @@ function ChipsInput({
   const [draft, setDraft] = React.useState("");
   const tint =
     tone === "success"
-      ? "border-[--color-success]/30 bg-[--color-success]/10 text-[--color-success]"
+      ? "border-[var(--color-success)]/30 bg-[var(--color-success)]/10 text-[var(--color-success)]"
       : tone === "destructive"
-      ? "border-[--color-destructive]/30 bg-[--color-destructive]/10 text-[--color-destructive] line-through decoration-1"
-      : "border-[--color-border] bg-[--color-muted]";
+      ? "border-[var(--color-destructive)]/30 bg-[var(--color-destructive)]/10 text-[var(--color-destructive)] line-through decoration-1"
+      : "border-[var(--color-border)] bg-[var(--color-muted)]";
 
   const commit = () => {
     const v = draft.trim();
@@ -227,7 +227,7 @@ function ChipsInput({
 
   return (
     <div className="flex flex-col gap-2">
-      <div className="flex flex-wrap gap-1.5 rounded-md border border-[--color-input] bg-[--color-background] p-2 min-h-[44px]">
+      <div className="flex flex-wrap gap-1.5 rounded-md border border-[var(--color-input)] bg-[var(--color-background)] p-2 min-h-[44px]">
         {values.map((v, i) => (
           <span
             key={v + i}
@@ -257,10 +257,10 @@ function ChipsInput({
           }}
           onBlur={commit}
           placeholder={values.length === 0 ? placeholder : ""}
-          className="min-w-[120px] flex-1 bg-transparent text-sm outline-none placeholder:text-[--color-muted-foreground]"
+          className="min-w-[120px] flex-1 bg-transparent text-sm outline-none placeholder:text-[var(--color-muted-foreground)]"
         />
       </div>
-      <p className="text-[11px] text-[--color-muted-foreground]">
+      <p className="text-[11px] text-[var(--color-muted-foreground)]">
         Press Enter or comma to add. {values.length}/{max}
       </p>
     </div>
@@ -287,7 +287,7 @@ function RuleListEditor({
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-center justify-between">
-        <Label className="text-xs uppercase tracking-[0.14em] text-[--color-muted-foreground]">
+        <Label className="text-xs uppercase tracking-[0.14em] text-[var(--color-muted-foreground)]">
           {label} ({rules.length})
         </Label>
         <Button variant="ghost" size="sm" onClick={add} className="h-7">
@@ -298,9 +298,9 @@ function RuleListEditor({
         {rules.map((r, i) => (
           <div
             key={i}
-            className="flex items-start gap-2 rounded-md border border-[--color-border] bg-[--color-background] p-2"
+            className="flex items-start gap-2 rounded-md border border-[var(--color-border)] bg-[var(--color-background)] p-2"
           >
-            <span className="select-none pt-1.5 px-1 text-xs font-mono text-[--color-muted-foreground]">
+            <span className="select-none pt-1.5 px-1 text-xs font-mono text-[var(--color-muted-foreground)]">
               {String(i + 1).padStart(2, "0")}
             </span>
             <div className="flex-1 flex flex-col gap-1">
@@ -308,19 +308,19 @@ function RuleListEditor({
                 value={r.rule}
                 onChange={(e) => update(i, { rule: e.target.value })}
                 placeholder={placeholder}
-                className="h-8 border-none bg-transparent shadow-none focus-visible:bg-[--color-muted]"
+                className="h-8 border-none bg-transparent shadow-none focus-visible:bg-[var(--color-muted)]"
               />
               <Input
                 value={r.why ?? ""}
                 onChange={(e) => update(i, { why: e.target.value })}
                 placeholder="Why (optional, helps the auditor)"
-                className="h-7 border-none bg-transparent text-xs text-[--color-muted-foreground] shadow-none focus-visible:bg-[--color-muted]"
+                className="h-7 border-none bg-transparent text-xs text-[var(--color-muted-foreground)] shadow-none focus-visible:bg-[var(--color-muted)]"
               />
             </div>
             <Button
               variant="ghost"
               size="icon"
-              className="h-7 w-7 text-[--color-muted-foreground] hover:text-[--color-destructive]"
+              className="h-7 w-7 text-[var(--color-muted-foreground)] hover:text-[var(--color-destructive)]"
               onClick={() => remove(i)}
               aria-label="Remove rule"
             >
@@ -329,7 +329,7 @@ function RuleListEditor({
           </div>
         ))}
         {rules.length === 0 && (
-          <p className="rounded-md border border-dashed border-[--color-border] px-3 py-4 text-center text-xs text-[--color-muted-foreground]">
+          <p className="rounded-md border border-dashed border-[var(--color-border)] px-3 py-4 text-center text-xs text-[var(--color-muted-foreground)]">
             No rules yet. The analyzer will populate this — or click Add.
           </p>
         )}

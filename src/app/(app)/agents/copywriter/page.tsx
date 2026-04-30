@@ -50,21 +50,21 @@ export default async function CopywriterPage() {
     <div className="mx-auto w-full max-w-4xl px-6 py-10 md:px-10 md:py-14">
       <Link
         href="/agents"
-        className="inline-flex items-center gap-1 text-xs uppercase tracking-wider text-[--color-muted-foreground] hover:text-[--color-foreground] transition"
+        className="inline-flex items-center gap-1 text-xs uppercase tracking-wider text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)] transition"
       >
         <ChevronLeft className="h-3 w-3" /> Agents
       </Link>
 
       <div className="mt-3 flex items-center gap-3">
-        <Bot className="h-5 w-5 text-[--color-primary]" />
-        <p className="text-xs uppercase tracking-[0.18em] text-[--color-muted-foreground]">
+        <Bot className="h-5 w-5 text-[var(--color-primary)]" />
+        <p className="text-xs uppercase tracking-[0.18em] text-[var(--color-muted-foreground)]">
           Copywriter agent
         </p>
       </div>
       <h1 className="mt-2 font-display text-3xl tracking-tight md:text-4xl text-balance">
         New copywriter run.
       </h1>
-      <p className="mt-2 max-w-2xl text-pretty text-[--color-muted-foreground]">
+      <p className="mt-2 max-w-2xl text-pretty text-[var(--color-muted-foreground)]">
         The Planner picks N differentiated angles. Drafters chase each angle in
         parallel. The Voice Auditor scores them against your brand voice. You
         decide which to keep.

@@ -77,7 +77,7 @@ export function NewDocumentDialog({ voices, variant = "default" }: Props) {
       <DialogContent>
         <form onSubmit={onSubmit} className="flex flex-col gap-4">
           <DialogHeader>
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[--color-primary]/10 text-[--color-primary]">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[var(--color-primary)]/10 text-[var(--color-primary)]">
               <FileText className="h-5 w-5" />
             </div>
             <DialogTitle>New document</DialogTitle>

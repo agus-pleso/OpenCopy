@@ -23,13 +23,13 @@ export default async function LibraryPage() {
     <div className="mx-auto w-full max-w-6xl px-6 py-10 md:px-10 md:py-14">
       <div className="flex items-baseline justify-between">
         <div>
-          <p className="text-sm uppercase tracking-[0.18em] text-[--color-muted-foreground]">
+          <p className="text-sm uppercase tracking-[0.18em] text-[var(--color-muted-foreground)]">
             Library
           </p>
           <h1 className="mt-2 font-display text-4xl tracking-tight md:text-5xl text-balance">
             Approved copy, organized.
           </h1>
-          <p className="mt-3 max-w-2xl text-pretty text-[--color-muted-foreground]">
+          <p className="mt-3 max-w-2xl text-pretty text-[var(--color-muted-foreground)]">
             Every variant you saved from a Copywriter or Localizer run lands
             here — searchable, copyable, traceable back to its run and brand voice.
           </p>
@@ -59,15 +59,15 @@ export default async function LibraryPage() {
             return (
               <article
                 key={v.id}
-                className="rounded-xl border border-[--color-border] bg-[--color-card] p-5"
+                className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-5"
               >
                 <header className="flex items-center gap-3">
                   {isLocalizer ? (
-                    <Languages className="h-4 w-4 text-[--color-primary]" />
+                    <Languages className="h-4 w-4 text-[var(--color-primary)]" />
                   ) : (
-                    <Bot className="h-4 w-4 text-[--color-primary]" />
+                    <Bot className="h-4 w-4 text-[var(--color-primary)]" />
                   )}
-                  <span className="text-xs uppercase tracking-wider text-[--color-muted-foreground]">
+                  <span className="text-xs uppercase tracking-wider text-[var(--color-muted-foreground)]">
                     {isLocalizer ? "Localizer" : "Copywriter"}
                   </span>
                   <h3 className="font-display text-base tracking-tight line-clamp-1">
@@ -83,7 +83,7 @@ export default async function LibraryPage() {
                       {LOCALE_LABEL[v.locale] ?? v.locale.toUpperCase()}
                     </Badge>
                     {v.auditScore != null && (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-[--color-success]/12 px-2 py-0.5 text-[11px] font-medium tabular-nums text-[--color-success]">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-[var(--color-success)]/12 px-2 py-0.5 text-[11px] font-medium tabular-nums text-[var(--color-success)]">
                         <span className="font-mono">{v.auditScore}</span>
                       </span>
                     )}
@@ -95,17 +95,17 @@ export default async function LibraryPage() {
                 >
                   {v.refinedContent ?? v.content}
                 </p>
-                <footer className="mt-3 flex items-center gap-3 text-xs text-[--color-muted-foreground]">
+                <footer className="mt-3 flex items-center gap-3 text-xs text-[var(--color-muted-foreground)]">
                   <span>Saved {formatDistanceShort(v.savedAt ?? v.createdAt)}</span>
                   <Link
                     href={`/agents/runs/${v.runId}`}
-                    className="hover:text-[--color-foreground] underline-offset-2 hover:underline"
+                    className="hover:text-[var(--color-foreground)] underline-offset-2 hover:underline"
                   >
                     View run
                   </Link>
                   <button
                     type="button"
-                    className="ml-auto inline-flex items-center gap-1 hover:text-[--color-foreground]"
+                    className="ml-auto inline-flex items-center gap-1 hover:text-[var(--color-foreground)]"
                     // Server components can't have onClick — render an anchor or use a client component.
                     // For V1.0 we keep this as a static 'Copy' badge; library polish lands in V1.1.
                   >
@@ -123,14 +123,14 @@ export default async function LibraryPage() {
 
 function EmptyState() {
   return (
-    <div className="mt-12 flex flex-col items-center justify-center rounded-xl border border-dashed border-[--color-border] bg-[--color-muted]/30 px-8 py-20 text-center">
-      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[--color-primary]/10 text-[--color-primary]">
+    <div className="mt-12 flex flex-col items-center justify-center rounded-xl border border-dashed border-[var(--color-border)] bg-[var(--color-muted)]/30 px-8 py-20 text-center">
+      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[var(--color-primary)]/10 text-[var(--color-primary)]">
         <Library className="h-5 w-5" />
       </div>
       <h2 className="mt-5 font-display text-xl tracking-tight">
         Nothing saved yet
       </h2>
-      <p className="mt-2 max-w-sm text-sm text-[--color-muted-foreground] text-pretty">
+      <p className="mt-2 max-w-sm text-sm text-[var(--color-muted-foreground)] text-pretty">
         Run a Copywriter or Localizer agent and click <em>Save to library</em>{" "}
         on the variants you like.
       </p>

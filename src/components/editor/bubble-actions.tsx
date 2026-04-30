@@ -75,7 +75,7 @@ export function BubbleActions({ editor, documentId }: Props) {
   };
 
   return (
-    <div className="flex items-center gap-0.5 rounded-lg border border-[--color-border] bg-[--color-popover] p-1 shadow-xl">
+    <div className="flex items-center gap-0.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-popover)] p-1 shadow-xl">
       {ACTIONS.map((a) => {
         const Icon = a.icon;
         const isActive = activeCommand === a.command;
@@ -87,8 +87,8 @@ export function BubbleActions({ editor, documentId }: Props) {
             disabled={pending}
             className={cn(
               "flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium transition",
-              "hover:bg-[--color-accent] disabled:pointer-events-none disabled:opacity-50",
-              isActive && "bg-[--color-primary]/10 text-[--color-primary]",
+              "hover:bg-[var(--color-accent)] disabled:pointer-events-none disabled:opacity-50",
+              isActive && "bg-[var(--color-primary)]/10 text-[var(--color-primary)]",
             )}
           >
             {isActive ? (

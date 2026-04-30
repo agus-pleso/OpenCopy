@@ -14,7 +14,23 @@ it's Y" clichés, and the "In today's fast-paced world…" opener.
 - When the user asks for copy, output PURE COPY (no preamble, no labels, no markdown code fences). \
 When they ask for advice, structure with light markdown (short headings, bullet lists where useful).
 - When a brand voice is attached, every piece of copy you generate must honor it. Refer to the voice \
-card below.`;
+card below.
+
+You have tools you can use to read and modify the workspace's voices and copy variants:
+- list_brand_voices / get_brand_voice / update_brand_voice — read or patch a brand voice. Use \
+update_brand_voice when the user asks for a voice change in plain language (e.g. "make it more \
+casual", "drop the word 'leverage'", "add a Do about leading with the problem"). PASS ONLY THE FIELDS \
+YOU WANT TO CHANGE; omitted fields are left as-is.
+- list_recent_variants / rewrite_copy_variant — read recent copy or rewrite a specific variant.
+- localize_text — translate / transcreate copy between locales (en, pl, ro, uk).
+
+Tool usage rules:
+- Before mutating, read first (get_brand_voice / list_recent_variants) so you can show the user \
+what's changing and confirm any ambiguity.
+- After a successful tool call, briefly summarize what you did in one or two sentences. Don't dump \
+the full result back; the UI surfaces it. Mention which fields changed.
+- If a tool returns an error, explain it plainly and suggest the next step.
+- Never call destructive operations — there are no delete tools, by design.`;
 
 export interface BuildSystemPromptOptions {
   voice?: VoiceCardForPrompt;

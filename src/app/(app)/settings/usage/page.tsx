@@ -51,7 +51,7 @@ export default async function UsagePage({ searchParams }: PageProps) {
       <div className="flex items-baseline justify-between">
         <div>
           <h1 className="font-display text-2xl tracking-tight">Usage</h1>
-          <p className="mt-1 text-sm text-[--color-muted-foreground]">
+          <p className="mt-1 text-sm text-[var(--color-muted-foreground)]">
             Token consumption + estimated cost across agent runs and chat.
             Last {summary.windowDays} days.
           </p>
@@ -87,7 +87,7 @@ export default async function UsagePage({ searchParams }: PageProps) {
       </div>
 
       {!summary.openRouterPricingLoaded && (
-        <div className="flex items-start gap-2 rounded-md border border-[--color-warning]/40 bg-[--color-warning]/10 px-4 py-3 text-sm text-[--color-warning]">
+        <div className="flex items-start gap-2 rounded-md border border-[var(--color-warning)]/40 bg-[var(--color-warning)]/10 px-4 py-3 text-sm text-[var(--color-warning)]">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
           <div>
             <p className="font-medium">OpenRouter pricing unavailable</p>
@@ -109,11 +109,11 @@ export default async function UsagePage({ searchParams }: PageProps) {
         </CardHeader>
         <CardContent>
           {summary.byFeature.length === 0 ? (
-            <p className="text-sm text-[--color-muted-foreground]">
+            <p className="text-sm text-[var(--color-muted-foreground)]">
               No usage in the last {summary.windowDays} days.
             </p>
           ) : (
-            <ul className="flex flex-col divide-y divide-[--color-border]">
+            <ul className="flex flex-col divide-y divide-[var(--color-border)]">
               {summary.byFeature.map((f) => {
                 const pctOfTotal = summary.totalCostUsd
                   ? (f.costUsd / summary.totalCostUsd) * 100
@@ -121,23 +121,23 @@ export default async function UsagePage({ searchParams }: PageProps) {
                 return (
                   <li
                     key={f.feature}
-                    className="grid grid-cols-[1fr,auto,auto,auto] items-center gap-4 py-3 text-sm"
+                    className="grid grid-cols-[1fr_auto_auto_auto] items-center gap-4 py-3 text-sm"
                   >
                     <div className="min-w-0">
                       <p className="font-medium tracking-tight">
                         {FEATURE_LABEL[f.feature] ?? f.feature}
                       </p>
-                      <div className="relative mt-1.5 h-1 w-full overflow-hidden rounded-full bg-[--color-muted]">
+                      <div className="relative mt-1.5 h-1 w-full overflow-hidden rounded-full bg-[var(--color-muted)]">
                         <div
-                          className="absolute inset-y-0 left-0 bg-[--color-primary] transition-all"
+                          className="absolute inset-y-0 left-0 bg-[var(--color-primary)] transition-all"
                           style={{ width: `${Math.min(100, pctOfTotal)}%` }}
                         />
                       </div>
                     </div>
-                    <span className="tabular-nums text-[--color-muted-foreground]">
+                    <span className="tabular-nums text-[var(--color-muted-foreground)]">
                       {f.calls.toLocaleString()} calls
                     </span>
-                    <span className="tabular-nums text-[--color-muted-foreground]">
+                    <span className="tabular-nums text-[var(--color-muted-foreground)]">
                       {fmtTok(f.inputTokens + f.outputTokens)} tok
                     </span>
                     <span className="tabular-nums font-mono">
@@ -160,14 +160,14 @@ export default async function UsagePage({ searchParams }: PageProps) {
         </CardHeader>
         <CardContent>
           {summary.byModel.length === 0 ? (
-            <p className="text-sm text-[--color-muted-foreground]">
+            <p className="text-sm text-[var(--color-muted-foreground)]">
               No model calls in this window.
             </p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="text-left text-xs uppercase tracking-[0.14em] text-[--color-muted-foreground]">
+                  <tr className="text-left text-xs uppercase tracking-[0.14em] text-[var(--color-muted-foreground)]">
                     <th className="py-2 pr-3">Model</th>
                     <th className="py-2 pr-3">Provider</th>
                     <th className="py-2 pr-3">Feature</th>
@@ -177,7 +177,7 @@ export default async function UsagePage({ searchParams }: PageProps) {
                     <th className="py-2 pr-3 text-right">Cost</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[--color-border]">
+                <tbody className="divide-y divide-[var(--color-border)]">
                   {summary.byModel.map((m, i) => (
                     <tr key={`${m.modelId}-${m.feature}-${i}`}>
                       <td className="py-2 pr-3 font-mono text-xs">{m.modelId}</td>
@@ -186,7 +186,7 @@ export default async function UsagePage({ searchParams }: PageProps) {
                           variant={m.provider === "unknown" ? "muted" : "outline"}
                           className={cn(
                             "text-[10px] tracking-wider",
-                            m.provider === "ollama" && "text-[--color-success]",
+                            m.provider === "ollama" && "text-[var(--color-success)]",
                           )}
                         >
                           {m.provider === "unknown"
@@ -200,10 +200,10 @@ export default async function UsagePage({ searchParams }: PageProps) {
                       <td className="py-2 pr-3 text-right tabular-nums">
                         {m.calls.toLocaleString()}
                       </td>
-                      <td className="py-2 pr-3 text-right tabular-nums text-[--color-muted-foreground]">
+                      <td className="py-2 pr-3 text-right tabular-nums text-[var(--color-muted-foreground)]">
                         {fmtTok(m.inputTokens)}
                       </td>
-                      <td className="py-2 pr-3 text-right tabular-nums text-[--color-muted-foreground]">
+                      <td className="py-2 pr-3 text-right tabular-nums text-[var(--color-muted-foreground)]">
                         {fmtTok(m.outputTokens)}
                       </td>
                       <td className="py-2 pr-3 text-right font-mono tabular-nums">
@@ -218,7 +218,7 @@ export default async function UsagePage({ searchParams }: PageProps) {
         </CardContent>
       </Card>
 
-      <p className="text-xs text-[--color-muted-foreground] text-pretty">
+      <p className="text-xs text-[var(--color-muted-foreground)] text-pretty">
         Cost is an estimate, not a bill. OpenRouter pricing is live; direct
         provider rates are from a hardcoded table refreshed periodically.
         Embeddings, editor commands, and campaign asset drafting aren&apos;t
@@ -240,15 +240,15 @@ function SummaryCard({
   hint: string;
 }) {
   return (
-    <div className="rounded-xl border border-[--color-border] bg-[--color-card] p-4">
-      <div className="flex items-center gap-2 text-xs uppercase tracking-[0.14em] text-[--color-muted-foreground]">
-        <Icon className="h-3 w-3 text-[--color-primary]" />
+    <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-4">
+      <div className="flex items-center gap-2 text-xs uppercase tracking-[0.14em] text-[var(--color-muted-foreground)]">
+        <Icon className="h-3 w-3 text-[var(--color-primary)]" />
         {label}
       </div>
       <p className="mt-2 font-display text-2xl tracking-tight tabular-nums">
         {value}
       </p>
-      <p className="mt-1 text-[11px] text-[--color-muted-foreground]">{hint}</p>
+      <p className="mt-1 text-[11px] text-[var(--color-muted-foreground)]">{hint}</p>
     </div>
   );
 }

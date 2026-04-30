@@ -44,7 +44,7 @@ export function AgentRunningOverlay({ kind }: { kind: "copywriter" | "localizer"
   const active = phases[activeIdx];
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-[--color-background]/80 backdrop-blur-md">
+    <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-[var(--color-background)]/80 backdrop-blur-md">
       <motion.div
         initial={{ scale: 0.96, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
@@ -64,7 +64,7 @@ export function AgentRunningOverlay({ kind }: { kind: "copywriter" | "localizer"
         >
           <LogoMark className="h-14 w-14" />
         </motion.div>
-        <p className="mt-8 text-xs uppercase tracking-[0.18em] text-[--color-muted-foreground]">
+        <p className="mt-8 text-xs uppercase tracking-[0.18em] text-[var(--color-muted-foreground)]">
           OpenCopy is working
         </p>
 
@@ -78,7 +78,7 @@ export function AgentRunningOverlay({ kind }: { kind: "copywriter" | "localizer"
             className="mt-3 text-center"
           >
             <p className="font-display text-2xl tracking-tight">{active.label}</p>
-            <p className="mt-1 text-sm text-[--color-muted-foreground]">
+            <p className="mt-1 text-sm text-[var(--color-muted-foreground)]">
               {active.detail}
             </p>
           </motion.div>
@@ -96,10 +96,10 @@ export function AgentRunningOverlay({ kind }: { kind: "copywriter" | "localizer"
                 <span
                   className={
                     done
-                      ? "flex h-5 w-5 items-center justify-center rounded-full bg-[--color-primary] text-[--color-primary-foreground]"
+                      ? "flex h-5 w-5 items-center justify-center rounded-full bg-[var(--color-primary)] text-[var(--color-primary-foreground)]"
                       : current
-                      ? "flex h-5 w-5 items-center justify-center rounded-full border-2 border-[--color-primary]"
-                      : "flex h-5 w-5 items-center justify-center rounded-full border border-[--color-border]"
+                      ? "flex h-5 w-5 items-center justify-center rounded-full border-2 border-[var(--color-primary)]"
+                      : "flex h-5 w-5 items-center justify-center rounded-full border border-[var(--color-border)]"
                   }
                 >
                   {done ? (
@@ -110,17 +110,17 @@ export function AgentRunningOverlay({ kind }: { kind: "copywriter" | "localizer"
                     <motion.span
                       animate={{ scale: [1, 1.2, 1] }}
                       transition={{ duration: 1, repeat: Infinity, ease: "easeInOut" }}
-                      className="block h-2 w-2 rounded-full bg-[--color-primary]"
+                      className="block h-2 w-2 rounded-full bg-[var(--color-primary)]"
                     />
                   ) : null}
                 </span>
                 <span
                   className={
                     done
-                      ? "text-[--color-foreground]"
+                      ? "text-[var(--color-foreground)]"
                       : current
-                      ? "font-medium text-[--color-foreground]"
-                      : "text-[--color-muted-foreground]"
+                      ? "font-medium text-[var(--color-foreground)]"
+                      : "text-[var(--color-muted-foreground)]"
                   }
                 >
                   {p.label}
@@ -130,7 +130,7 @@ export function AgentRunningOverlay({ kind }: { kind: "copywriter" | "localizer"
           })}
         </ol>
 
-        <p className="mt-6 text-xs tabular-nums text-[--color-muted-foreground]">
+        <p className="mt-6 text-xs tabular-nums text-[var(--color-muted-foreground)]">
           Elapsed: {elapsed}s
         </p>
       </motion.div>

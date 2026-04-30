@@ -1,36 +1,20 @@
 import "server-only";
-import { z } from "zod";
-import { defineAgent } from "../core";
+import { generateText } from "ai";
+
+import { resolveModel } from "@/lib/ai/providers";
 import { renderVoiceCard, type VoiceCardForPrompt } from "../voice-card";
-import type { CulturalAdapterOutput } from "./cultural-adapter";
+import {
+  parseLocalizerMarkdown,
+  type LocalizerOutput,
+  type TranscreationDecision,
+} from "./transcreator-parser";
+import type { CulturalAdapterOutput } from "./cultural-adapter-parser";
 
-export const LocalizerOutputSchema = z.object({
-  target_text: z
-    .string()
-    .min(1)
-    .max(8000)
-    .describe(
-      "The transcreated copy in the target locale. PURE copy — no preamble, no 'Here's the translation:', no markdown fences.",
-    ),
-  decisions: z
-    .array(
-      z.object({
-        source_excerpt: z.string().min(1).max(400),
-        target_excerpt: z.string().min(1).max(400),
-        rationale: z
-          .string()
-          .min(10)
-          .max(300)
-          .describe("Why this transcreation choice — what the literal would have been and why it was rejected."),
-      }),
-    )
-    .max(15)
-    .describe(
-      "Notable transcreation calls (idioms, cultural swaps, formality decisions). Empty array if everything was straightforward.",
-    ),
-});
-
-export type LocalizerOutput = z.infer<typeof LocalizerOutputSchema>;
+export {
+  parseLocalizerMarkdown,
+  type LocalizerOutput,
+  type TranscreationDecision,
+} from "./transcreator-parser";
 
 export interface LocalizerInput {
   voice?: VoiceCardForPrompt;
@@ -41,32 +25,59 @@ export interface LocalizerInput {
   adapterNotes: CulturalAdapterOutput;
 }
 
-const SYSTEM = `You are a transcreation specialist — not a translator. Your job is to render copy into \
-a target locale so that it lands the same way emotionally and rhetorically as the original, even when \
-that requires changing literal words.
+export interface LocalizerRunResult {
+  output: LocalizerOutput;
+  modelId: string;
+  provider: string;
+  durationMs: number;
+  usage?: { inputTokens?: number; outputTokens?: number };
+}
+
+const SYSTEM = `You are a transcreation specialist — not a translator. Your job is to render copy
+into a target locale so that it lands the same way emotionally and rhetorically as the original,
+even when that requires changing literal words.
 
 Quality bar:
-- Honor the brand voice in the TARGET locale. If the voice card has locale-specific notes for the \
-target, follow them. Otherwise apply the voice's universal rules.
-- Use the cultural adapter's notes — they identified idioms, cultural references, formality choices, \
-and length expectations. Don't ignore them; don't slavishly follow them either when your judgment \
-disagrees, but justify any departures in 'decisions'.
-- Match the formality recommendation precisely. If the adapter said "informal ty" for PL, do not \
-slip into formal Pan/Pani. The wrong register kills the copy.
-- Output PURE target copy — no preamble, no labels, no markdown fences.
-- Translate well-known proper nouns natively where appropriate (brand names usually stay; product \
-features sometimes localize).
-- Length: lean into the adapter's expectation. PL/UA can run longer; don't pad to match EN, but \
-don't compress so hard the rhythm breaks.
+- Honor the brand voice in the TARGET locale. If the voice card has locale-specific notes for the
+  target, follow them. Otherwise apply the voice's universal rules.
+- Use the cultural adapter's notes — they identified idioms, cultural references, formality
+  choices, and length expectations.
+- Match the formality recommendation precisely. The wrong register kills the copy.
+- Translate well-known proper nouns natively where appropriate.
+- Length: lean into the adapter's expectation. Don't pad to match source length.
 
 Locales: en (English), pl (Polish), ro (Romanian), uk (Ukrainian).
 
-Output strictly conforms to the provided schema.`;
+OUTPUT FORMAT — VERY IMPORTANT.
+Output as MARKDOWN. No code fences, no preamble. Use these exact section headings:
+
+## Target text
+The transcreated copy in the target locale. PURE copy — no labels, no preamble. This is what gets
+pasted into the marketing tool, so be careful to keep it clean.
+
+## Decisions
+Zero or more notable transcreation decisions, each as a level-3 heading. Empty if everything was
+straightforward.
+
+### Decision 1
+**Source:** "exact phrase from the source"
+**Target:** "the chosen target rendering"
+**Why:** brief rationale — what the literal would have been and why it was rejected
+
+### Decision 2
+**Source:** "..."
+**Target:** "..."
+**Why:** ...`;
 
 function buildPrompt(input: LocalizerInput): string {
   const lines: string[] = [];
   if (input.voice) {
-    lines.push(renderVoiceCard(input.voice, input.targetLocale as "en" | "pl" | "ro" | "uk"));
+    lines.push(
+      renderVoiceCard(
+        input.voice,
+        input.targetLocale as "en" | "pl" | "ro" | "uk",
+      ),
+    );
     lines.push("");
     lines.push("---");
     lines.push("");
@@ -94,18 +105,37 @@ function buildPrompt(input: LocalizerInput): string {
   lines.push("# Source text");
   lines.push(input.sourceText.trim());
   lines.push(
-    `\nProduce the transcreation in ${input.targetLocale}. Output the target copy plus your notable transcreation decisions.`,
+    `\nProduce the transcreation in ${input.targetLocale} using the markdown format from the system prompt.`,
   );
   return lines.join("\n");
 }
 
-export const localizer = defineAgent<LocalizerInput, LocalizerOutput>({
-  name: "localizer-transcreator",
-  description: "Transcreates copy to the target locale, honoring brand voice and cultural adapter notes.",
-  modelRole: "drafting",
-  systemPrompt: SYSTEM,
-  buildPrompt,
-  outputSchema: LocalizerOutputSchema,
-  temperature: 0.6,
-  maxTokens: 4000,
-});
+export async function runLocalizerTranscreator(
+  input: LocalizerInput,
+  ctx: { workspaceId: string; userId: string },
+): Promise<LocalizerRunResult> {
+  const start = Date.now();
+  const { model, modelId, provider } = await resolveModel({
+    workspaceId: ctx.workspaceId,
+    role: "drafting",
+  });
+
+  const result = await generateText({
+    model,
+    system: SYSTEM,
+    prompt: buildPrompt(input),
+    temperature: 0.6,
+    maxTokens: 4000,
+  });
+
+  return {
+    output: parseLocalizerMarkdown(result.text),
+    modelId,
+    provider,
+    durationMs: Date.now() - start,
+    usage: {
+      inputTokens: result.usage?.promptTokens,
+      outputTokens: result.usage?.completionTokens,
+    },
+  };
+}

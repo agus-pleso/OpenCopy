@@ -4,7 +4,7 @@ import * as React from "react";
 import { useChat, type Message } from "@ai-sdk/react";
 import { toast } from "sonner";
 
-import { ChatMessage, type ChatMessageView } from "./message";
+import { ChatMessage, type ChatMessageView, type ChatToolInvocation } from "./message";
 import { ChatComposer } from "./composer";
 import {
   ThreadContextBar,
@@ -92,12 +92,13 @@ export function ChatShell({
       modelId: dbMeta?.modelId ?? null,
       durationMs: dbMeta?.durationMs ?? null,
       retrievedSourceIds: dbMeta?.retrievedSourceIds ?? null,
+      toolInvocations: extractToolInvocations(m),
     };
   });
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <header className="border-b border-[--color-border] px-6 py-4 md:px-10">
+      <header className="border-b border-[var(--color-border)] px-6 py-4 md:px-10">
         <ThreadContextBar
           threadId={threadId}
           title={title}
@@ -125,7 +126,7 @@ export function ChatShell({
                 <p className="font-display text-2xl tracking-tight">
                   How can I help with your copy?
                 </p>
-                <p className="mt-2 text-sm text-[--color-muted-foreground] text-pretty max-w-md mx-auto">
+                <p className="mt-2 text-sm text-[var(--color-muted-foreground)] text-pretty max-w-md mx-auto">
                   Ask for angles, draft a section, refine a paragraph, translate
                   to PL · RO · UA. With a brand voice attached, every reply
                   honors it.
@@ -148,7 +149,7 @@ export function ChatShell({
         </div>
       </div>
 
-      <div className="border-t border-[--color-border] px-6 pb-6 pt-4 md:px-10">
+      <div className="border-t border-[var(--color-border)] px-6 pb-6 pt-4 md:px-10">
         <div className="mx-auto w-full max-w-3xl">
           <ChatComposer
             value={input}
@@ -163,4 +164,37 @@ export function ChatShell({
       </div>
     </div>
   );
+}
+
+/**
+ * Pull tool-invocation entries out of an AI SDK UI message. The streaming
+ * client populates `parts` with mixed text/tool entries; we keep only the
+ * tool ones so the view can render small status pills.
+ */
+function extractToolInvocations(m: Message): ChatToolInvocation[] | undefined {
+  const parts = (m as { parts?: unknown[] }).parts;
+  if (!Array.isArray(parts)) return undefined;
+  const out: ChatToolInvocation[] = [];
+  for (const p of parts) {
+    if (
+      p &&
+      typeof p === "object" &&
+      "type" in p &&
+      (p as { type: unknown }).type === "tool-invocation"
+    ) {
+      const inv = (p as unknown as { toolInvocation: unknown }).toolInvocation as {
+        toolCallId: string;
+        toolName: string;
+        state: "partial-call" | "call" | "result";
+        result?: unknown;
+      };
+      out.push({
+        toolCallId: inv.toolCallId,
+        toolName: inv.toolName,
+        state: inv.state,
+        result: inv.result,
+      });
+    }
+  }
+  return out.length > 0 ? out : undefined;
 }

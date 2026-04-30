@@ -82,7 +82,7 @@ export function AnalyzeButton({ voiceId, hasSamples, alreadyAnalyzed }: Props) {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -4 }}
             transition={{ duration: 0.25 }}
-            className="text-sm text-[--color-muted-foreground]"
+            className="text-sm text-[var(--color-muted-foreground)]"
           >
             {PHASES[phaseIdx]}
           </motion.span>

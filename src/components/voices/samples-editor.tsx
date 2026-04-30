@@ -107,11 +107,11 @@ export function SamplesEditor({ voiceId, initial, onSaved }: Props) {
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2 text-sm text-[--color-muted-foreground]">
+        <div className="flex items-center gap-2 text-sm text-[var(--color-muted-foreground)]">
           <FileText className="h-4 w-4" />
           <span>
             {usable.length} usable{" "}
-            <span className="text-[--color-foreground]">·</span>{" "}
+            <span className="text-[var(--color-foreground)]">·</span>{" "}
             {totalWords.toLocaleString()} words total
           </span>
           {dirty && (
@@ -146,14 +146,14 @@ export function SamplesEditor({ voiceId, initial, onSaved }: Props) {
           return (
             <div
               key={s.id}
-              className="rounded-lg border border-[--color-border] bg-[--color-card]"
+              className="rounded-lg border border-[var(--color-border)] bg-[var(--color-card)]"
             >
-              <div className="flex items-center gap-2 border-b border-[--color-border] px-4 py-2">
-                <span className="text-xs font-mono text-[--color-muted-foreground]">
+              <div className="flex items-center gap-2 border-b border-[var(--color-border)] px-4 py-2">
+                <span className="text-xs font-mono text-[var(--color-muted-foreground)]">
                   Sample {String(i + 1).padStart(2, "0")}
                 </span>
                 <Input
-                  className="h-7 max-w-[280px] border-none bg-transparent px-2 text-sm shadow-none focus-visible:bg-[--color-muted]"
+                  className="h-7 max-w-[280px] border-none bg-transparent px-2 text-sm shadow-none focus-visible:bg-[var(--color-muted)]"
                   placeholder="Source label (optional, e.g. 'Homepage Q3')"
                   value={s.sourceLabel ?? ""}
                   onChange={(e) =>
@@ -176,13 +176,13 @@ export function SamplesEditor({ voiceId, initial, onSaved }: Props) {
                       ))}
                     </SelectContent>
                   </Select>
-                  <span className="text-xs text-[--color-muted-foreground] tabular-nums">
+                  <span className="text-xs text-[var(--color-muted-foreground)] tabular-nums">
                     {sampleWords} w
                   </span>
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-7 w-7 text-[--color-muted-foreground] hover:text-[--color-destructive]"
+                    className="h-7 w-7 text-[var(--color-muted-foreground)] hover:text-[var(--color-destructive)]"
                     onClick={() => removeSample(s.id)}
                     aria-label="Remove sample"
                     disabled={samples.length === 1}
@@ -199,7 +199,7 @@ export function SamplesEditor({ voiceId, initial, onSaved }: Props) {
                 style={{ fontFamily: "ui-serif, Georgia, serif" }}
               />
               {tooShort && (
-                <div className="border-t border-[--color-warning]/30 bg-[--color-warning]/10 px-4 py-1.5 text-xs text-[--color-warning]">
+                <div className="border-t border-[var(--color-warning)]/30 bg-[var(--color-warning)]/10 px-4 py-1.5 text-xs text-[var(--color-warning)]">
                   Too short — at least 40 characters needed.
                 </div>
               )}
@@ -208,7 +208,7 @@ export function SamplesEditor({ voiceId, initial, onSaved }: Props) {
         })}
       </div>
 
-      <p className="text-xs text-[--color-muted-foreground] text-pretty">
+      <p className="text-xs text-[var(--color-muted-foreground)] text-pretty">
         Tip: 3–5 representative samples produce the most accurate voice profile.
         Mix channels (homepage, ad copy, email) for a fuller picture.
       </p>

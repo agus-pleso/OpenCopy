@@ -39,19 +39,19 @@ export function LocalizerResult({ variant, sourceText, sourceLocale }: Props) {
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
-      className="overflow-hidden rounded-2xl border border-[--color-border] bg-[--color-card]"
+      className="overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)]"
     >
-      <div className="flex items-center gap-3 border-b border-[--color-border] px-5 py-3">
-        <Languages className="h-4 w-4 text-[--color-primary]" />
+      <div className="flex items-center gap-3 border-b border-[var(--color-border)] px-5 py-3">
+        <Languages className="h-4 w-4 text-[var(--color-primary)]" />
         <Badge variant="outline" className="text-[10px] tracking-wider">
           {LOCALE_LABEL[sourceLocale]}
         </Badge>
-        <ArrowLeftRight className="h-3 w-3 text-[--color-muted-foreground]" />
+        <ArrowLeftRight className="h-3 w-3 text-[var(--color-muted-foreground)]" />
         <Badge variant="default" className="text-[10px] tracking-wider">
           {LOCALE_LABEL[variant.locale]}
         </Badge>
         {variant.auditScore != null && (
-          <span className="ml-auto inline-flex items-center gap-1.5 rounded-full bg-[--color-success]/12 px-2 py-0.5 text-xs font-medium tabular-nums text-[--color-success]">
+          <span className="ml-auto inline-flex items-center gap-1.5 rounded-full bg-[var(--color-success)]/12 px-2 py-0.5 text-xs font-medium tabular-nums text-[var(--color-success)]">
             <span className="font-mono">{variant.auditScore}</span>
             <span className="opacity-70">·</span>
             <span>voice score</span>
@@ -59,10 +59,10 @@ export function LocalizerResult({ variant, sourceText, sourceLocale }: Props) {
         )}
       </div>
 
-      <div className="grid divide-y divide-[--color-border] md:grid-cols-2 md:divide-x md:divide-y-0">
+      <div className="grid divide-y divide-[var(--color-border)] md:grid-cols-2 md:divide-x md:divide-y-0">
         <section className="px-5 py-5">
           <div className="flex items-center gap-2">
-            <p className="text-xs uppercase tracking-[0.14em] text-[--color-muted-foreground]">
+            <p className="text-xs uppercase tracking-[0.14em] text-[var(--color-muted-foreground)]">
               Source · {LOCALE_LABEL[sourceLocale]}
             </p>
             <Button
@@ -84,7 +84,7 @@ export function LocalizerResult({ variant, sourceText, sourceLocale }: Props) {
         </section>
         <section className="px-5 py-5">
           <div className="flex items-center gap-2">
-            <p className="text-xs uppercase tracking-[0.14em] text-[--color-primary]">
+            <p className="text-xs uppercase tracking-[0.14em] text-[var(--color-primary)]">
               Target · {LOCALE_LABEL[variant.locale]}
             </p>
             <Button
@@ -107,7 +107,7 @@ export function LocalizerResult({ variant, sourceText, sourceLocale }: Props) {
       </div>
 
       {(variant.backTranslation || culturalNotes.length > 0) && (
-        <div className="border-t border-[--color-border] bg-[--color-muted]/30 px-5 py-4">
+        <div className="border-t border-[var(--color-border)] bg-[var(--color-muted)]/30 px-5 py-4">
           <Tabs
             defaultValue={culturalNotes.length > 0 ? "cultural" : "back"}
           >
@@ -123,7 +123,7 @@ export function LocalizerResult({ variant, sourceText, sourceLocale }: Props) {
             </TabsList>
             <TabsContent value="cultural" className="mt-4">
               {culturalNotes.length === 0 ? (
-                <p className="text-sm text-[--color-muted-foreground]">
+                <p className="text-sm text-[var(--color-muted-foreground)]">
                   Source translated cleanly — no cultural landmines flagged.
                 </p>
               ) : (
@@ -131,9 +131,9 @@ export function LocalizerResult({ variant, sourceText, sourceLocale }: Props) {
                   {culturalNotes.map((n, i) => (
                     <li
                       key={i}
-                      className="rounded-md border border-[--color-border] bg-[--color-card] p-3"
+                      className="rounded-md border border-[var(--color-border)] bg-[var(--color-card)] p-3"
                     >
-                      <blockquote className="border-l-2 border-[--color-primary] bg-[--color-muted]/50 px-3 py-1 text-sm italic">
+                      <blockquote className="border-l-2 border-[var(--color-primary)] bg-[var(--color-muted)]/50 px-3 py-1 text-sm italic">
                         &ldquo;{n.excerpt}&rdquo;
                       </blockquote>
                       <p className="mt-1.5 text-sm text-pretty">{n.note}</p>
@@ -145,12 +145,12 @@ export function LocalizerResult({ variant, sourceText, sourceLocale }: Props) {
             {variant.backTranslation && (
               <TabsContent value="back" className="mt-4">
                 <p
-                  className="whitespace-pre-wrap rounded-md border border-[--color-border] bg-[--color-card] p-4 text-[14px] leading-relaxed text-pretty"
+                  className="whitespace-pre-wrap rounded-md border border-[var(--color-border)] bg-[var(--color-card)] p-4 text-[14px] leading-relaxed text-pretty"
                   style={{ fontFamily: "ui-serif, Georgia, serif" }}
                 >
                   {variant.backTranslation}
                 </p>
-                <p className="mt-2 text-xs text-[--color-muted-foreground]">
+                <p className="mt-2 text-xs text-[var(--color-muted-foreground)]">
                   Literal-leaning back-translation into {LOCALE_LABEL[sourceLocale]}.
                   Use this to sanity-check what the transcreation actually says.
                 </p>

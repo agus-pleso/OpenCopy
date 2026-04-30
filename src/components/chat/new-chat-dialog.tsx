@@ -96,7 +96,7 @@ export function NewChatDialog({
       <DialogContent>
         <form onSubmit={onSubmit} className="flex flex-col gap-4">
           <DialogHeader>
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[--color-primary]/10 text-[--color-primary]">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[var(--color-primary)]/10 text-[var(--color-primary)]">
               <MessageSquare className="h-5 w-5" />
             </div>
             <DialogTitle>New chat</DialogTitle>
@@ -153,8 +153,8 @@ export function NewChatDialog({
                       className={cn(
                         "inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-medium transition",
                         selected
-                          ? "border-[--color-primary]/40 bg-[--color-primary]/10 text-[--color-primary]"
-                          : "border-[--color-border] bg-[--color-background] text-[--color-foreground] hover:bg-[--color-accent]",
+                          ? "border-[var(--color-primary)]/40 bg-[var(--color-primary)]/10 text-[var(--color-primary)]"
+                          : "border-[var(--color-border)] bg-[var(--color-background)] text-[var(--color-foreground)] hover:bg-[var(--color-accent)]",
                       )}
                     >
                       {s.name}

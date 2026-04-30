@@ -98,7 +98,7 @@ export function InviteMemberDialog() {
         {!generatedUrl ? (
           <form onSubmit={onSubmit} className="flex flex-col gap-4">
             <DialogHeader>
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[--color-primary]/10 text-[--color-primary]">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[var(--color-primary)]/10 text-[var(--color-primary)]">
                 <UserPlus className="h-5 w-5" />
               </div>
               <DialogTitle>Invite a member</DialogTitle>
@@ -134,7 +134,7 @@ export function InviteMemberDialog() {
                   <SelectItem value="viewer">Viewer</SelectItem>
                 </SelectContent>
               </Select>
-              <p className="text-[11px] text-[--color-muted-foreground]">
+              <p className="text-[11px] text-[var(--color-muted-foreground)]">
                 {ROLE_HINTS[role]}
               </p>
             </div>
@@ -156,7 +156,7 @@ export function InviteMemberDialog() {
         ) : (
           <div className="flex flex-col gap-4">
             <DialogHeader>
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[--color-success]/10 text-[--color-success]">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[var(--color-success)]/10 text-[var(--color-success)]">
                 <Check className="h-5 w-5" />
               </div>
               <DialogTitle>
@@ -177,7 +177,7 @@ export function InviteMemberDialog() {
                 )}
               </DialogDescription>
             </DialogHeader>
-            <div className="flex items-center gap-2 rounded-md border border-[--color-border] bg-[--color-muted]/40 p-3">
+            <div className="flex items-center gap-2 rounded-md border border-[var(--color-border)] bg-[var(--color-muted)]/40 p-3">
               <code className="flex-1 truncate font-mono text-xs">
                 {generatedUrl}
               </code>
@@ -190,7 +190,7 @@ export function InviteMemberDialog() {
                 {copied ? "Copied" : "Copy"}
               </Button>
             </div>
-            <p className="text-[11px] text-[--color-muted-foreground] text-pretty">
+            <p className="text-[11px] text-[var(--color-muted-foreground)] text-pretty">
               {emailDelivered
                 ? "Resend delivered the email. If it doesn't show up, share the link directly."
                 : "AUTH_RESEND_KEY isn't configured — copy + paste the link into your existing email / Slack / wherever."}

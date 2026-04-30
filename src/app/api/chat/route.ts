@@ -17,6 +17,7 @@ import {
   buildChatSystemPrompt,
   deriveTitleFromMessage,
 } from "@/lib/agents/chat/system-prompt";
+import { buildChatTools } from "@/lib/agents/chat/tools";
 import type { VoiceCardForPrompt } from "@/lib/agents/voice-card";
 
 export const runtime = "nodejs";
@@ -184,11 +185,22 @@ export async function POST(req: Request) {
 
   const start = Date.now();
 
+  const tools = buildChatTools({
+    workspaceId,
+    userId,
+    attachedVoiceId: thread.voiceId,
+    defaultLocale: thread.locale,
+  });
+
   try {
     const result = streamText({
       model,
       system,
       messages: coreMessages,
+      tools,
+      // Allow up to a few sequential tool calls per turn so the model can
+      // read-then-write (e.g. get_brand_voice → update_brand_voice).
+      maxSteps: 5,
       temperature: 0.7,
       onFinish: async ({ text, usage, finishReason }) => {
         if (finishReason === "error") return;

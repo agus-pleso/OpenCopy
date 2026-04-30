@@ -83,7 +83,7 @@ export function NewSourceDialog({ variant = "default" }: Props) {
       <DialogContent className="sm:max-w-2xl">
         <form onSubmit={onSubmit} className="flex flex-col gap-4">
           <DialogHeader>
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[--color-primary]/10 text-[--color-primary]">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[var(--color-primary)]/10 text-[var(--color-primary)]">
               <BookOpen className="h-5 w-5" />
             </div>
             <DialogTitle>New knowledge source</DialogTitle>
@@ -132,7 +132,7 @@ export function NewSourceDialog({ variant = "default" }: Props) {
           <div className="flex flex-col gap-1.5">
             <div className="flex items-center justify-between">
               <Label htmlFor="src-content">Content</Label>
-              <span className="text-[11px] text-[--color-muted-foreground] tabular-nums">
+              <span className="text-[11px] text-[var(--color-muted-foreground)] tabular-nums">
                 {content.length.toLocaleString()} chars
               </span>
             </div>
@@ -147,7 +147,7 @@ export function NewSourceDialog({ variant = "default" }: Props) {
               minLength={20}
               maxLength={500_000}
             />
-            <p className="text-[11px] text-[--color-muted-foreground]">
+            <p className="text-[11px] text-[var(--color-muted-foreground)]">
               Plain text or markdown. PDF / file uploads land in V1.5.
             </p>
           </div>

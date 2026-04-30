@@ -102,7 +102,7 @@ export function SignInForm({ devEnabled, resendEnabled, from, error }: Props) {
       {resendEnabled && devEnabled && (
         <div className="relative">
           <Separator />
-          <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-[--color-background] px-2 text-xs uppercase tracking-wider text-[--color-muted-foreground]">
+          <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-[var(--color-background)] px-2 text-xs uppercase tracking-wider text-[var(--color-muted-foreground)]">
             or
           </span>
         </div>
@@ -113,7 +113,7 @@ export function SignInForm({ devEnabled, resendEnabled, from, error }: Props) {
           <div className="flex items-center justify-between">
             <Label htmlFor="dev-email" className="flex items-center gap-2">
               Dev sign-in
-              <span className="text-[10px] uppercase tracking-wider rounded-full bg-[--color-warning]/15 text-[--color-warning] px-1.5 py-0.5">
+              <span className="text-[10px] uppercase tracking-wider rounded-full bg-[var(--color-warning)]/15 text-[var(--color-warning)] px-1.5 py-0.5">
                 local
               </span>
             </Label>
@@ -149,7 +149,7 @@ export function SignInForm({ devEnabled, resendEnabled, from, error }: Props) {
             )}
             Sign in
           </Button>
-          <p className="text-xs text-[--color-muted-foreground] text-pretty">
+          <p className="text-xs text-[var(--color-muted-foreground)] text-pretty">
             First sign-in creates the account automatically. Disable in production
             with <code className="font-mono text-[11px]">DEV_AUTH_ENABLED=false</code>.
           </p>
@@ -157,7 +157,7 @@ export function SignInForm({ devEnabled, resendEnabled, from, error }: Props) {
       )}
 
       {!resendEnabled && !devEnabled && (
-        <p className="rounded-md border border-[--color-border] bg-[--color-muted] p-4 text-sm text-[--color-muted-foreground]">
+        <p className="rounded-md border border-[var(--color-border)] bg-[var(--color-muted)] p-4 text-sm text-[var(--color-muted-foreground)]">
           No auth providers are configured. Set <code className="font-mono">AUTH_RESEND_KEY</code>{" "}
           for magic links, or <code className="font-mono">DEV_AUTH_ENABLED=true</code> for the
           local dev provider.

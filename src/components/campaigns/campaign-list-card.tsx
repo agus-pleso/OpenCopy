@@ -38,12 +38,12 @@ export function CampaignListCard({ campaign }: Props) {
     <Link
       href={`/campaigns/${campaign.id}`}
       className={cn(
-        "group flex flex-col gap-3 rounded-xl border border-[--color-border] bg-[--color-card] p-5",
-        "transition hover:border-[--color-primary]/40 hover:shadow-[0_8px_24px_-12px_rgba(0,0,0,0.08)]",
+        "group flex flex-col gap-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-5",
+        "transition hover:border-[var(--color-primary)]/40 hover:shadow-[0_8px_24px_-12px_rgba(0,0,0,0.08)]",
       )}
     >
       <div className="flex items-start justify-between gap-3">
-        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[--color-primary]/10 text-[--color-primary]">
+        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--color-primary)]/10 text-[var(--color-primary)]">
           <Megaphone className="h-4 w-4" />
         </div>
         <Badge
@@ -61,7 +61,7 @@ export function CampaignListCard({ campaign }: Props) {
         <h3 className="font-display text-lg tracking-tight line-clamp-1">
           {campaign.name}
         </h3>
-        <p className="mt-1 text-sm text-[--color-muted-foreground] line-clamp-2 text-pretty">
+        <p className="mt-1 text-sm text-[var(--color-muted-foreground)] line-clamp-2 text-pretty">
           {campaign.objective}
         </p>
       </div>
@@ -71,20 +71,20 @@ export function CampaignListCard({ campaign }: Props) {
           {campaign.requestedChannels.slice(0, 5).map((c) => (
             <span
               key={c}
-              className="inline-flex items-center rounded-full border border-[--color-border] bg-[--color-muted] px-2 py-0.5 text-[10px] font-medium tracking-tight"
+              className="inline-flex items-center rounded-full border border-[var(--color-border)] bg-[var(--color-muted)] px-2 py-0.5 text-[10px] font-medium tracking-tight"
             >
               {CHANNEL_LABEL[c]}
             </span>
           ))}
           {campaign.requestedChannels.length > 5 && (
-            <span className="text-[10px] text-[--color-muted-foreground]">
+            <span className="text-[10px] text-[var(--color-muted-foreground)]">
               +{campaign.requestedChannels.length - 5}
             </span>
           )}
         </div>
       )}
 
-      <div className="mt-auto flex items-center gap-3 border-t border-[--color-border]/60 pt-3 text-xs text-[--color-muted-foreground]">
+      <div className="mt-auto flex items-center gap-3 border-t border-[var(--color-border)]/60 pt-3 text-xs text-[var(--color-muted-foreground)]">
         <span className="inline-flex items-center gap-1.5 tabular-nums">
           <Layers className="h-3 w-3" /> {campaign.assetCount} asset
           {campaign.assetCount === 1 ? "" : "s"}

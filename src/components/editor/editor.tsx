@@ -67,7 +67,7 @@ export function DocumentEditor({ documentId, initialHtml, onSave }: EditorProps)
       }),
       Link.configure({
         openOnClick: false,
-        HTMLAttributes: { class: "text-[--color-primary] underline underline-offset-2" },
+        HTMLAttributes: { class: "text-[var(--color-primary)] underline underline-offset-2" },
       }),
       Typography,
       CharacterCount,
@@ -139,11 +139,11 @@ export function DocumentEditor({ documentId, initialHtml, onSave }: EditorProps)
           "prose-h2:text-2xl prose-h2:mt-7 prose-h2:mb-2 " +
           "prose-h3:text-xl prose-h3:mt-5 prose-h3:mb-2 " +
           "prose-p:leading-relaxed prose-p:my-3 " +
-          "prose-strong:text-[--color-foreground] " +
-          "prose-blockquote:border-l-2 prose-blockquote:border-[--color-primary] " +
-          "prose-blockquote:bg-[--color-muted]/30 prose-blockquote:not-italic " +
+          "prose-strong:text-[var(--color-foreground)] " +
+          "prose-blockquote:border-l-2 prose-blockquote:border-[var(--color-primary)] " +
+          "prose-blockquote:bg-[var(--color-muted)]/30 prose-blockquote:not-italic " +
           "prose-blockquote:py-1 prose-blockquote:pl-4 " +
-          "prose-code:bg-[--color-muted] prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-[13px] " +
+          "prose-code:bg-[var(--color-muted)] prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-[13px] " +
           "[font-family:ui-serif,Georgia,serif] [font-size:17px]",
       },
     },
@@ -270,7 +270,7 @@ export function DocumentEditor({ documentId, initialHtml, onSave }: EditorProps)
 
   if (!editor) {
     return (
-      <div className="rounded-lg border border-dashed border-[--color-border] bg-[--color-muted]/30 p-8 text-center text-sm text-[--color-muted-foreground]">
+      <div className="rounded-lg border border-dashed border-[var(--color-border)] bg-[var(--color-muted)]/30 p-8 text-center text-sm text-[var(--color-muted-foreground)]">
         Loading editor…
       </div>
     );

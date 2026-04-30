@@ -117,7 +117,7 @@ export function NewVoiceDialog() {
                 <SelectItem value="uk">Українська</SelectItem>
               </SelectContent>
             </Select>
-            <p className="text-xs text-[--color-muted-foreground]">
+            <p className="text-xs text-[var(--color-muted-foreground)]">
               You can add locale-specific notes later. Voice rules apply across all locales unless overridden.
             </p>
           </div>

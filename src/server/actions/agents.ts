@@ -15,8 +15,6 @@ import {
   type CopywriterBrief,
   type LocalizerBrief,
   type Locale,
-  type VoiceCardLocaleNotes,
-  type VoiceCardRule,
 } from "@/db/schema";
 import {
   getCurrentWorkspace,
@@ -27,7 +25,7 @@ import {
   runCopywriter,
   runLocalizer,
   copywriterRefiner,
-  voiceAuditor,
+  runVoiceAuditor,
   type VoiceAuditIssue,
   type VoiceCardForPrompt,
 } from "@/lib/agents";
@@ -244,13 +242,32 @@ const LocalizerBriefSchema = z
   .object({
     voiceId: z.string().uuid().optional(),
     sourceLocale: LocaleEnum,
-    targetLocale: LocaleEnum,
+    /**
+     * Either `targetLocales` (multi-target, V1.x+) or `targetLocale`
+     * (single-target, legacy). Normalized to an array below.
+     */
+    targetLocales: z.array(LocaleEnum).min(1).max(4).optional(),
+    targetLocale: LocaleEnum.optional(),
     sourceText: z.string().min(20).max(20000),
     contextHint: z.string().max(500).optional(),
   })
-  .refine((v) => v.sourceLocale !== v.targetLocale, {
-    message: "Source and target locale must differ.",
-    path: ["targetLocale"],
+  .refine(
+    (v) => (v.targetLocales && v.targetLocales.length > 0) || v.targetLocale,
+    { message: "Pick at least one target locale.", path: ["targetLocales"] },
+  )
+  .transform((v) => {
+    const targets = v.targetLocales ?? (v.targetLocale ? [v.targetLocale] : []);
+    return {
+      voiceId: v.voiceId,
+      sourceLocale: v.sourceLocale,
+      targetLocales: Array.from(new Set(targets)),
+      sourceText: v.sourceText,
+      contextHint: v.contextHint,
+    };
+  })
+  .refine((v) => v.targetLocales.every((t) => t !== v.sourceLocale), {
+    message: "Source and target locales must differ.",
+    path: ["targetLocales"],
   });
 
 export async function startLocalizerRun(input: unknown): Promise<{ runId: string }> {
@@ -270,6 +287,14 @@ export async function startLocalizerRun(input: unknown): Promise<{ runId: string
     if (!voice) throw new Error("VOICE_NOT_FOUND");
   }
 
+  const persistedBrief: LocalizerBrief = {
+    voiceId: brief.voiceId,
+    sourceLocale: brief.sourceLocale,
+    targetLocales: brief.targetLocales,
+    sourceText: brief.sourceText,
+    contextHint: brief.contextHint,
+  };
+
   const [run] = await db
     .insert(agentRuns)
     .values({
@@ -277,7 +302,7 @@ export async function startLocalizerRun(input: unknown): Promise<{ runId: string
       kind: "localizer",
       status: "running",
       voiceId: voice?.id ?? null,
-      brief: brief satisfies LocalizerBrief,
+      brief: persistedBrief,
       createdByUserId: userId,
     })
     .returning({ id: agentRuns.id });
@@ -299,82 +324,98 @@ export async function startLocalizerRun(input: unknown): Promise<{ runId: string
     : undefined;
 
   try {
-    const result = await runLocalizer(
-      {
-        voice: cardForPrompt,
-        sourceText: brief.sourceText,
-        sourceLocale: brief.sourceLocale,
-        targetLocale: brief.targetLocale,
-        contextHint: brief.contextHint,
-      },
-      { workspaceId: workspace.id, userId },
+    // Run one localizer per target locale in parallel. Each produces its own
+    // variant + step timeline; they all share the same run row.
+    const perTargetResults = await Promise.all(
+      brief.targetLocales.map((targetLocale) =>
+        runLocalizer(
+          {
+            voice: cardForPrompt,
+            sourceText: brief.sourceText,
+            sourceLocale: brief.sourceLocale,
+            targetLocale,
+            contextHint: brief.contextHint,
+          },
+          { workspaceId: workspace.id, userId },
+        ).then((result) => ({ targetLocale, result })),
+      ),
     );
 
-    // Persist as a single variant
-    await db.insert(copyVariants).values({
-      workspaceId: workspace.id,
-      runId: run.id,
-      voiceId: voice?.id ?? null,
-      locale: brief.targetLocale,
-      seq: 0,
-      label: `Localized → ${brief.targetLocale.toUpperCase()}`,
-      strategy: result.adapter.formality_recommendation,
-      content: result.target.target_text,
-      auditScore: result.audit?.overall_score ?? null,
-      auditSummary: result.audit?.summary ?? null,
-      auditIssues: result.audit?.issues ?? [],
-      auditStrengths: result.audit?.strengths ?? [],
-      backTranslation: result.backTranslation.back_translation,
-      culturalNotes: result.adapter.notes.map((n) => ({
-        excerpt: n.excerpt,
-        note: n.guidance,
+    // Persist one variant per target locale.
+    await db.insert(copyVariants).values(
+      perTargetResults.map(({ targetLocale, result }, i) => ({
+        workspaceId: workspace.id,
+        runId: run.id,
+        voiceId: voice?.id ?? null,
+        locale: targetLocale,
+        seq: i,
+        label: `Localized → ${targetLocale.toUpperCase()}`,
+        strategy: result.adapter.formality_recommendation,
+        content: result.target.target_text,
+        auditScore: result.audit?.overall_score ?? null,
+        auditSummary: result.audit?.summary ?? null,
+        auditIssues: result.audit?.issues ?? [],
+        auditStrengths: result.audit?.strengths ?? [],
+        backTranslation: result.backTranslation.back_translation,
+        culturalNotes: result.adapter.notes.map((n) => ({
+          excerpt: n.excerpt,
+          note: n.guidance,
+        })),
       })),
-    });
+    );
 
-    // Steps timeline
+    // Steps timeline — flatten across all targets.
     const steps: Array<typeof agentRunSteps.$inferInsert> = [];
     let seq = 0;
-    steps.push({
-      runId: run.id,
-      seq: seq++,
-      agentName: "localizer-cultural-adapter",
-      status: "succeeded",
-      modelId: result.modelIds.adapter,
-      output: result.adapter as unknown as Record<string, unknown>,
-    });
-    steps.push({
-      runId: run.id,
-      seq: seq++,
-      agentName: "localizer-transcreator",
-      status: "succeeded",
-      modelId: result.modelIds.localizer,
-      output: result.target as unknown as Record<string, unknown>,
-    });
-    steps.push({
-      runId: run.id,
-      seq: seq++,
-      agentName: "localizer-back-translator",
-      status: "succeeded",
-      modelId: result.modelIds.backTranslator,
-      output: result.backTranslation as unknown as Record<string, unknown>,
-    });
-    if (result.audit && result.modelIds.auditor) {
+    for (const { targetLocale, result } of perTargetResults) {
+      const tag = brief.targetLocales.length > 1 ? ` (${targetLocale.toUpperCase()})` : "";
       steps.push({
         runId: run.id,
         seq: seq++,
-        agentName: "voice-auditor",
+        agentName: `localizer-cultural-adapter${tag}`,
         status: "succeeded",
-        modelId: result.modelIds.auditor,
-        output: result.audit as unknown as Record<string, unknown>,
+        modelId: result.modelIds.adapter,
+        output: result.adapter as unknown as Record<string, unknown>,
       });
+      steps.push({
+        runId: run.id,
+        seq: seq++,
+        agentName: `localizer-transcreator${tag}`,
+        status: "succeeded",
+        modelId: result.modelIds.localizer,
+        output: result.target as unknown as Record<string, unknown>,
+      });
+      steps.push({
+        runId: run.id,
+        seq: seq++,
+        agentName: `localizer-back-translator${tag}`,
+        status: "succeeded",
+        modelId: result.modelIds.backTranslator,
+        output: result.backTranslation as unknown as Record<string, unknown>,
+      });
+      if (result.audit && result.modelIds.auditor) {
+        steps.push({
+          runId: run.id,
+          seq: seq++,
+          agentName: `voice-auditor${tag}`,
+          status: "succeeded",
+          modelId: result.modelIds.auditor,
+          output: result.audit as unknown as Record<string, unknown>,
+        });
+      }
     }
     await db.insert(agentRunSteps).values(steps);
+
+    const totalDurationMs = perTargetResults.reduce(
+      (sum, { result }) => sum + result.totalDurationMs,
+      0,
+    );
 
     await db
       .update(agentRuns)
       .set({
         status: "succeeded",
-        durationMs: result.totalDurationMs,
+        durationMs: totalDurationMs,
         finishedAt: new Date(),
       })
       .where(eq(agentRuns.id, run.id));
@@ -456,8 +497,7 @@ export async function refineVariant(input: unknown): Promise<{
   );
 
   // Re-audit the refined version
-  const reaudit = await runAgent(
-    voiceAuditor,
+  const reaudit = await runVoiceAuditor(
     {
       voice: cardForPrompt,
       draft: refined.output.refined_content,
@@ -609,5 +649,3 @@ export async function listLibraryVariants(filter?: {
   });
 }
 
-// Re-export types so call-sites don't need to dig into schema.
-export type { VoiceCardLocaleNotes, VoiceCardRule };

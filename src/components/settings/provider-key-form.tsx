@@ -79,9 +79,9 @@ export function ProviderKeyForm({
 
   if (existing && !editing) {
     return (
-      <div className="flex flex-col gap-3 rounded-lg border border-[--color-border] bg-[--color-card] p-4">
+      <div className="flex flex-col gap-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] p-4">
         <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-md bg-[--color-success]/15 text-[--color-success]">
+          <div className="flex h-9 w-9 items-center justify-center rounded-md bg-[var(--color-success)]/15 text-[var(--color-success)]">
             <ShieldCheck className="h-4 w-4" />
           </div>
           <div className="flex-1 min-w-0">
@@ -93,7 +93,7 @@ export function ProviderKeyForm({
                 </Badge>
               )}
             </div>
-            <p className="text-xs text-[--color-muted-foreground] font-mono">
+            <p className="text-xs text-[var(--color-muted-foreground)] font-mono">
               ••••••••{existing.last4}
             </p>
           </div>
@@ -106,7 +106,7 @@ export function ProviderKeyForm({
             onClick={onDelete}
             disabled={deleting}
             aria-label="Remove key"
-            className="text-[--color-destructive] hover:text-[--color-destructive]"
+            className="text-[var(--color-destructive)] hover:text-[var(--color-destructive)]"
           >
             {deleting ? (
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -120,12 +120,12 @@ export function ProviderKeyForm({
   }
 
   return (
-    <div className="flex flex-col gap-3 rounded-lg border border-[--color-border] bg-[--color-card] p-4">
+    <div className="flex flex-col gap-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] p-4">
       <div className="flex flex-col gap-1.5">
         <Label htmlFor={`${provider}-key`} className="flex items-center gap-2">
           <KeyRound className="h-3.5 w-3.5" /> {title} API key
         </Label>
-        <p className="text-xs text-[--color-muted-foreground] text-pretty">
+        <p className="text-xs text-[var(--color-muted-foreground)] text-pretty">
           {helper}
         </p>
       </div>
@@ -144,7 +144,7 @@ export function ProviderKeyForm({
           <button
             type="button"
             onClick={() => setShow((v) => !v)}
-            className="absolute right-2 top-1/2 -translate-y-1/2 text-[--color-muted-foreground] hover:text-[--color-foreground]"
+            className="absolute right-2 top-1/2 -translate-y-1/2 text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)]"
             aria-label={show ? "Hide key" : "Show key"}
           >
             {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}

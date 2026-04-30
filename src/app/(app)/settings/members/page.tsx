@@ -35,7 +35,7 @@ export default async function MembersPage() {
       <div className="flex items-baseline justify-between">
         <div>
           <h1 className="font-display text-2xl tracking-tight">Members</h1>
-          <p className="mt-1 text-sm text-[--color-muted-foreground]">
+          <p className="mt-1 text-sm text-[var(--color-muted-foreground)]">
             People with access to this workspace and their roles.
           </p>
         </div>
@@ -43,7 +43,7 @@ export default async function MembersPage() {
       </div>
 
       {!canManage && (
-        <div className="flex items-start gap-2 rounded-md border border-[--color-border] bg-[--color-muted]/40 px-4 py-3 text-sm text-[--color-muted-foreground]">
+        <div className="flex items-start gap-2 rounded-md border border-[var(--color-border)] bg-[var(--color-muted)]/40 px-4 py-3 text-sm text-[var(--color-muted-foreground)]">
           <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
           <span>
             You&apos;re a {role} — you can see members but not change roles or
@@ -65,7 +65,7 @@ export default async function MembersPage() {
           </div>
         </CardHeader>
         <CardContent className="px-0 pb-0">
-          <ul className="flex flex-col divide-y divide-[--color-border]">
+          <ul className="flex flex-col divide-y divide-[var(--color-border)]">
             {members.map((m) => (
               <MemberRow key={m.memberId} member={m} actorRole={role} />
             ))}
@@ -83,11 +83,11 @@ export default async function MembersPage() {
           </CardHeader>
           <CardContent className="px-0 pb-0">
             {pending.length === 0 ? (
-              <p className="px-4 pb-4 text-sm text-[--color-muted-foreground]">
+              <p className="px-4 pb-4 text-sm text-[var(--color-muted-foreground)]">
                 No pending invitations.
               </p>
             ) : (
-              <ul className="flex flex-col divide-y divide-[--color-border]">
+              <ul className="flex flex-col divide-y divide-[var(--color-border)]">
                 {pending.map((i) => (
                   <InvitationRow key={i.id} invitation={i} />
                 ))}
@@ -106,7 +106,7 @@ export default async function MembersPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="px-0 pb-0">
-            <ul className="flex flex-col divide-y divide-[--color-border]">
+            <ul className="flex flex-col divide-y divide-[var(--color-border)]">
               {past.slice(0, 20).map((i) => (
                 <InvitationRow key={i.id} invitation={i} />
               ))}

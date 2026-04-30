@@ -29,7 +29,7 @@ export default async function AcceptInvitationPage({ params }: PageProps) {
           <AlertTriangle className="h-5 w-5" />
         </Icon>
         <h1 className="font-display text-3xl tracking-tight">Invitation not found</h1>
-        <p className="text-pretty text-sm text-[--color-muted-foreground]">
+        <p className="text-pretty text-sm text-[var(--color-muted-foreground)]">
           The link may be malformed or the invitation may have been revoked.
         </p>
         <Button asChild className="mt-4">
@@ -51,7 +51,7 @@ export default async function AcceptInvitationPage({ params }: PageProps) {
           <X className="h-5 w-5" />
         </Icon>
         <h1 className="font-display text-3xl tracking-tight">Invitation revoked</h1>
-        <p className="text-pretty text-sm text-[--color-muted-foreground]">
+        <p className="text-pretty text-sm text-[var(--color-muted-foreground)]">
           This invitation was revoked by an admin. Ask them for a new link.
         </p>
         <Button asChild className="mt-4">
@@ -71,7 +71,7 @@ export default async function AcceptInvitationPage({ params }: PageProps) {
           <AlertTriangle className="h-5 w-5" />
         </Icon>
         <h1 className="font-display text-3xl tracking-tight">Invitation expired</h1>
-        <p className="text-pretty text-sm text-[--color-muted-foreground]">
+        <p className="text-pretty text-sm text-[var(--color-muted-foreground)]">
           The link to <strong>{invitation.workspace?.name}</strong> expired on{" "}
           {invitation.expiresAt.toLocaleDateString()}. Ask the admin to send a
           new one.
@@ -88,13 +88,13 @@ export default async function AcceptInvitationPage({ params }: PageProps) {
       <Icon variant="success">
         <Sparkles className="h-5 w-5" />
       </Icon>
-      <p className="text-xs uppercase tracking-[0.18em] text-[--color-muted-foreground]">
+      <p className="text-xs uppercase tracking-[0.18em] text-[var(--color-muted-foreground)]">
         You&apos;re invited
       </p>
       <h1 className="font-display text-3xl tracking-tight md:text-4xl text-balance">
         Join {invitation.workspace?.name}
       </h1>
-      <p className="text-pretty text-sm text-[--color-muted-foreground]">
+      <p className="text-pretty text-sm text-[var(--color-muted-foreground)]">
         {invitation.invitedBy?.name || invitation.invitedBy?.email} invited you
         to join as{" "}
         <Badge variant="outline" className="text-[10px] tracking-wider capitalize">
@@ -102,7 +102,7 @@ export default async function AcceptInvitationPage({ params }: PageProps) {
         </Badge>{" "}
         — {ROLE_HINT[invitation.role]}
       </p>
-      <div className="mt-2 flex items-center gap-2 rounded-md border border-[--color-border] bg-[--color-muted]/40 px-3 py-2 text-xs text-[--color-muted-foreground]">
+      <div className="mt-2 flex items-center gap-2 rounded-md border border-[var(--color-border)] bg-[var(--color-muted)]/40 px-3 py-2 text-xs text-[var(--color-muted-foreground)]">
         <Mail className="h-3.5 w-3.5" />
         <span className="truncate">Invitation labeled for {invitation.email}</span>
       </div>
@@ -138,8 +138,8 @@ function Icon({
 }) {
   const cls =
     variant === "success"
-      ? "bg-[--color-primary]/10 text-[--color-primary]"
-      : "bg-[--color-warning]/10 text-[--color-warning]";
+      ? "bg-[var(--color-primary)]/10 text-[var(--color-primary)]"
+      : "bg-[var(--color-warning)]/10 text-[var(--color-warning)]";
   return (
     <div className={`mx-auto flex h-12 w-12 items-center justify-center rounded-full ${cls}`}>
       {children}

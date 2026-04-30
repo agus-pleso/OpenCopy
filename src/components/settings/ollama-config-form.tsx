@@ -61,9 +61,9 @@ export function OllamaConfigForm({ existing }: Props) {
 
   if (existing && !editing) {
     return (
-      <div className="flex flex-col gap-3 rounded-lg border border-[--color-border] bg-[--color-card] p-4">
+      <div className="flex flex-col gap-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] p-4">
         <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-md bg-[--color-success]/15 text-[--color-success]">
+          <div className="flex h-9 w-9 items-center justify-center rounded-md bg-[var(--color-success)]/15 text-[var(--color-success)]">
             <ShieldCheck className="h-4 w-4" />
           </div>
           <div className="flex-1 min-w-0">
@@ -73,7 +73,7 @@ export function OllamaConfigForm({ existing }: Props) {
                 Local
               </Badge>
             </div>
-            <p className="text-xs text-[--color-muted-foreground] font-mono truncate">
+            <p className="text-xs text-[var(--color-muted-foreground)] font-mono truncate">
               {existing.baseUrl ?? DEFAULT_URL}
             </p>
           </div>
@@ -86,7 +86,7 @@ export function OllamaConfigForm({ existing }: Props) {
             onClick={onDelete}
             disabled={deleting}
             aria-label="Remove Ollama"
-            className="text-[--color-destructive] hover:text-[--color-destructive]"
+            className="text-[var(--color-destructive)] hover:text-[var(--color-destructive)]"
           >
             {deleting ? (
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -100,12 +100,12 @@ export function OllamaConfigForm({ existing }: Props) {
   }
 
   return (
-    <div className="flex flex-col gap-3 rounded-lg border border-[--color-border] bg-[--color-card] p-4">
+    <div className="flex flex-col gap-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] p-4">
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="ollama-url" className="flex items-center gap-2">
           <Server className="h-3.5 w-3.5" /> Ollama base URL
         </Label>
-        <p className="text-xs text-[--color-muted-foreground] text-pretty">
+        <p className="text-xs text-[var(--color-muted-foreground)] text-pretty">
           Point at your Ollama instance. Default for local installs:{" "}
           <code className="font-mono">{DEFAULT_URL}</code>. For a remote
           self-hosted setup, use the full HTTPS URL. No API key required —

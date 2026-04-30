@@ -13,15 +13,15 @@ const AGENT_LABELS: Record<string, { label: string; tone: "plan" | "draft" | "au
 };
 
 const TONE_COLOR = {
-  plan: "bg-[--color-primary]/15 text-[--color-primary]",
-  draft: "bg-[--color-success]/15 text-[--color-success]",
-  audit: "bg-[--color-warning]/15 text-[--color-warning]",
+  plan: "bg-[var(--color-primary)]/15 text-[var(--color-primary)]",
+  draft: "bg-[var(--color-success)]/15 text-[var(--color-success)]",
+  audit: "bg-[var(--color-warning)]/15 text-[var(--color-warning)]",
 };
 
 export function AgentTimeline({ steps }: { steps: AgentRunStep[] }) {
   if (steps.length === 0) {
     return (
-      <p className="text-sm text-[--color-muted-foreground]">
+      <p className="text-sm text-[var(--color-muted-foreground)]">
         No timeline yet — agents are starting up.
       </p>
     );
@@ -30,7 +30,7 @@ export function AgentTimeline({ steps }: { steps: AgentRunStep[] }) {
   return (
     <ol className="relative flex flex-col gap-3">
       <span
-        className="absolute left-[15px] top-3 bottom-3 w-px bg-[--color-border]"
+        className="absolute left-[15px] top-3 bottom-3 w-px bg-[var(--color-border)]"
         aria-hidden
       />
       {steps.map((s) => {
@@ -49,19 +49,19 @@ export function AgentTimeline({ steps }: { steps: AgentRunStep[] }) {
             : Circle;
         const iconColor =
           s.status === "succeeded"
-            ? "text-[--color-success]"
+            ? "text-[var(--color-success)]"
             : s.status === "failed"
-            ? "text-[--color-destructive]"
+            ? "text-[var(--color-destructive)]"
             : s.status === "running"
-            ? "text-[--color-primary]"
-            : "text-[--color-muted-foreground]";
+            ? "text-[var(--color-primary)]"
+            : "text-[var(--color-muted-foreground)]";
         const animateClass = s.status === "running" ? "animate-spin" : "";
 
         return (
           <li key={s.id} className="relative flex items-start gap-3 pl-0">
             <span
               className={cn(
-                "relative z-10 flex h-8 w-8 items-center justify-center rounded-full border-2 border-[--color-background] bg-[--color-background]",
+                "relative z-10 flex h-8 w-8 items-center justify-center rounded-full border-2 border-[var(--color-background)] bg-[var(--color-background)]",
               )}
             >
               <Icon className={cn("h-4 w-4", iconColor, animateClass)} />
@@ -80,18 +80,18 @@ export function AgentTimeline({ steps }: { steps: AgentRunStep[] }) {
                   {meta.label}
                 </p>
                 {s.durationMs != null && (
-                  <span className="ml-auto text-[11px] tabular-nums text-[--color-muted-foreground]">
+                  <span className="ml-auto text-[11px] tabular-nums text-[var(--color-muted-foreground)]">
                     {(s.durationMs / 1000).toFixed(1)}s
                   </span>
                 )}
               </div>
               {s.modelId && (
-                <p className="text-[11px] font-mono text-[--color-muted-foreground] truncate">
+                <p className="text-[11px] font-mono text-[var(--color-muted-foreground)] truncate">
                   {s.modelId}
                 </p>
               )}
               {s.error && (
-                <p className="mt-1 text-xs text-[--color-destructive]">
+                <p className="mt-1 text-xs text-[var(--color-destructive)]">
                   {s.error}
                 </p>
               )}

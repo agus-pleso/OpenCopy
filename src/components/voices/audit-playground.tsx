@@ -75,10 +75,10 @@ export function AuditPlayground({ voiceId, defaultLocale }: Props) {
   };
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[1.1fr,1fr]">
+    <div className="grid gap-6 lg:grid-cols-[1.1fr_1fr]">
       <div className="flex flex-col gap-3">
         <div className="flex items-center justify-between">
-          <div className="text-xs uppercase tracking-[0.14em] text-[--color-muted-foreground]">
+          <div className="text-xs uppercase tracking-[0.14em] text-[var(--color-muted-foreground)]">
             Draft to audit
           </div>
           <Select value={locale} onValueChange={(v) => setLocale(v as Locale)}>
@@ -101,7 +101,7 @@ export function AuditPlayground({ voiceId, defaultLocale }: Props) {
           className="min-h-[280px] resize-y font-serif"
           style={{ fontFamily: "ui-serif, Georgia, serif" }}
         />
-        <div className="flex items-center justify-between text-xs text-[--color-muted-foreground]">
+        <div className="flex items-center justify-between text-xs text-[var(--color-muted-foreground)]">
           <span>{draft.trim().split(/\s+/).filter(Boolean).length} words</span>
           <Button
             size="sm"
@@ -118,7 +118,7 @@ export function AuditPlayground({ voiceId, defaultLocale }: Props) {
         </div>
       </div>
 
-      <div className="rounded-lg border border-[--color-border] bg-[--color-card] min-h-[400px]">
+      <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] min-h-[400px]">
         <AnimatePresence mode="wait">
           {!audit && !pending && (
             <motion.div
@@ -128,13 +128,13 @@ export function AuditPlayground({ voiceId, defaultLocale }: Props) {
               exit={{ opacity: 0 }}
               className="flex h-full flex-col items-center justify-center px-8 py-16 text-center"
             >
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[--color-primary]/10 text-[--color-primary]">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[var(--color-primary)]/10 text-[var(--color-primary)]">
                 <Sparkles className="h-5 w-5" />
               </div>
               <h3 className="mt-4 font-display text-lg tracking-tight">
                 Audit results land here
               </h3>
-              <p className="mt-1.5 max-w-sm text-sm text-[--color-muted-foreground] text-pretty">
+              <p className="mt-1.5 max-w-sm text-sm text-[var(--color-muted-foreground)] text-pretty">
                 Paste a draft and click Run audit. The Voice Auditor scores it
                 against your brand voice and flags every line worth a second look.
               </p>
@@ -148,8 +148,8 @@ export function AuditPlayground({ voiceId, defaultLocale }: Props) {
               exit={{ opacity: 0 }}
               className="flex h-full flex-col items-center justify-center px-8 py-16 text-center"
             >
-              <Loader2 className="h-5 w-5 animate-spin text-[--color-primary]" />
-              <p className="mt-4 text-sm text-[--color-muted-foreground]">
+              <Loader2 className="h-5 w-5 animate-spin text-[var(--color-primary)]" />
+              <p className="mt-4 text-sm text-[var(--color-muted-foreground)]">
                 Voice Auditor is reading your draft…
               </p>
             </motion.div>
@@ -170,7 +170,7 @@ export function AuditPlayground({ voiceId, defaultLocale }: Props) {
                   <ul className="mt-2 flex flex-col gap-1.5">
                     {audit.strengths.map((s, i) => (
                       <li key={i} className="flex gap-2 text-sm text-pretty">
-                        <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[--color-success]" />
+                        <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[var(--color-success)]" />
                         <span>{s}</span>
                       </li>
                     ))}
@@ -193,7 +193,7 @@ export function AuditPlayground({ voiceId, defaultLocale }: Props) {
                   </ul>
                 </div>
               ) : (
-                <div className="mt-6 rounded-md border border-[--color-success]/30 bg-[--color-success]/10 px-4 py-3 text-sm text-[--color-success]">
+                <div className="mt-6 rounded-md border border-[var(--color-success)]/30 bg-[var(--color-success)]/10 px-4 py-3 text-sm text-[var(--color-success)]">
                   Clean run. No on-brand violations found.
                 </div>
               )}
@@ -219,16 +219,16 @@ function ScoreHeader({ score, summary }: { score: number; summary: string }) {
 
   const tintBg =
     tier.tint === "success"
-      ? "bg-[--color-success]"
+      ? "bg-[var(--color-success)]"
       : tier.tint === "warning"
-      ? "bg-[--color-warning]"
-      : "bg-[--color-destructive]";
+      ? "bg-[var(--color-warning)]"
+      : "bg-[var(--color-destructive)]";
   const tintFg =
     tier.tint === "success"
-      ? "text-[--color-success]"
+      ? "text-[var(--color-success)]"
       : tier.tint === "warning"
-      ? "text-[--color-warning]"
-      : "text-[--color-destructive]";
+      ? "text-[var(--color-warning)]"
+      : "text-[var(--color-destructive)]";
 
   return (
     <div className="flex items-start gap-4">
@@ -280,7 +280,7 @@ function ScoreHeader({ score, summary }: { score: number; summary: string }) {
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <p className="text-xs uppercase tracking-[0.14em] text-[--color-muted-foreground]">
+    <p className="text-xs uppercase tracking-[0.14em] text-[var(--color-muted-foreground)]">
       {children}
     </p>
   );
@@ -296,10 +296,10 @@ function IssueRow({ issue }: { issue: VoiceAuditIssue }) {
       : AlertTriangle;
   const severityColor =
     issue.severity === "high"
-      ? "text-[--color-destructive]"
+      ? "text-[var(--color-destructive)]"
       : issue.severity === "medium"
-      ? "text-[--color-warning]"
-      : "text-[--color-muted-foreground]";
+      ? "text-[var(--color-warning)]"
+      : "text-[var(--color-muted-foreground)]";
 
   const copySuggestion = () => {
     if (issue.suggestion) {
@@ -309,7 +309,7 @@ function IssueRow({ issue }: { issue: VoiceAuditIssue }) {
   };
 
   return (
-    <li className="rounded-md border border-[--color-border] bg-[--color-background] p-3">
+    <li className="rounded-md border border-[var(--color-border)] bg-[var(--color-background)] p-3">
       <div className="flex items-start gap-2.5">
         <SeverityIcon className={cn("mt-0.5 h-4 w-4 shrink-0", severityColor)} />
         <div className="min-w-0 flex-1">
@@ -321,10 +321,10 @@ function IssueRow({ issue }: { issue: VoiceAuditIssue }) {
               {issue.severity}
             </span>
           </div>
-          <blockquote className="mt-2 border-l-2 border-[--color-primary] bg-[--color-muted]/40 px-3 py-1.5 text-sm italic">
+          <blockquote className="mt-2 border-l-2 border-[var(--color-primary)] bg-[var(--color-muted)]/40 px-3 py-1.5 text-sm italic">
             &ldquo;{issue.excerpt}&rdquo;
           </blockquote>
-          <p className="mt-2 text-sm text-pretty text-[--color-foreground]">
+          <p className="mt-2 text-sm text-pretty text-[var(--color-foreground)]">
             {issue.explanation}
           </p>
           {issue.suggestion && (
@@ -332,12 +332,12 @@ function IssueRow({ issue }: { issue: VoiceAuditIssue }) {
               <button
                 type="button"
                 onClick={() => setShowSuggestion((v) => !v)}
-                className="text-xs uppercase tracking-wider text-[--color-primary] hover:underline"
+                className="text-xs uppercase tracking-wider text-[var(--color-primary)] hover:underline"
               >
                 {showSuggestion ? "Hide" : "Show"} suggestion
               </button>
               {showSuggestion && (
-                <div className="mt-2 flex items-start gap-2 rounded-md border border-[--color-success]/30 bg-[--color-success]/8 p-2.5 text-sm">
+                <div className="mt-2 flex items-start gap-2 rounded-md border border-[var(--color-success)]/30 bg-[var(--color-success)]/8 p-2.5 text-sm">
                   <span className="text-pretty">{issue.suggestion}</span>
                   <Button
                     variant="ghost"

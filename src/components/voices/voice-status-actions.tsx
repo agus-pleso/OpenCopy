@@ -22,6 +22,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { setVoiceStatus, deleteVoice } from "@/server/actions/voices";
+import { isRedirectError } from "@/lib/utils";
 import type { VoiceStatus } from "@/db/schema";
 
 interface Props {
@@ -56,6 +57,7 @@ export function VoiceStatusActions({ voiceId, status, hasAnalysis }: Props) {
       try {
         await deleteVoice(voiceId);
       } catch (err) {
+        if (isRedirectError(err)) throw err;
         toast.error((err as Error).message);
       }
     });
@@ -109,7 +111,7 @@ export function VoiceStatusActions({ voiceId, status, hasAnalysis }: Props) {
             <DropdownMenuSeparator />
             <DropdownMenuItem
               onClick={() => setConfirmDelete(true)}
-              className="text-[--color-destructive] focus:text-[--color-destructive]"
+              className="text-[var(--color-destructive)] focus:text-[var(--color-destructive)]"
             >
               <Trash2 className="h-4 w-4" /> Delete voice…
             </DropdownMenuItem>

@@ -21,14 +21,19 @@ export {
   type VoiceCard,
   type VoiceCardForPrompt,
 } from "./voice-card";
-export { voiceAnalyzer, type VoiceAnalyzerInput } from "./voice-analyzer";
 export {
-  voiceAuditor,
-  VoiceAuditSchema,
-  VoiceAuditIssueSchema,
+  runVoiceAnalyzer,
+  parseVoiceCardMarkdown,
+  type VoiceAnalyzerInput,
+  type VoiceAnalyzerRunResult,
+} from "./voice-analyzer";
+export {
+  runVoiceAuditor,
+  parseVoiceAuditMarkdown,
   type VoiceAudit,
   type VoiceAuditIssue,
   type VoiceAuditorInput,
+  type VoiceAuditorRunResult,
 } from "./voice-auditor";
 export * from "./copywriter";
 export * from "./localizer";

@@ -39,7 +39,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { cn } from "@/lib/utils";
+import { cn, isRedirectError } from "@/lib/utils";
 import {
   archiveChatThread,
   deleteChatThread,
@@ -128,6 +128,7 @@ export function ThreadContextBar({
         try {
           await updateChatThread({ threadId, title: next.trim() || "New chat" });
         } catch (err) {
+          if (isRedirectError(err)) throw err;
           toast.error((err as Error).message);
         }
       });
@@ -143,6 +144,7 @@ export function ThreadContextBar({
           voiceId: next === "__none" ? null : next,
         });
       } catch (err) {
+        if (isRedirectError(err)) throw err;
         toast.error((err as Error).message);
       }
     });
@@ -154,6 +156,7 @@ export function ThreadContextBar({
       try {
         await updateChatThread({ threadId, locale: next });
       } catch (err) {
+        if (isRedirectError(err)) throw err;
         toast.error((err as Error).message);
       }
     });
@@ -168,6 +171,7 @@ export function ThreadContextBar({
       try {
         await updateChatThread({ threadId, sourceIds: next });
       } catch (err) {
+        if (isRedirectError(err)) throw err;
         toast.error((err as Error).message);
       }
     });
@@ -181,6 +185,7 @@ export function ThreadContextBar({
         await updateChatThread({ threadId, pinned: next });
         toast.success(next ? "Pinned." : "Unpinned.");
       } catch (err) {
+        if (isRedirectError(err)) throw err;
         toast.error((err as Error).message);
       }
     });
@@ -192,6 +197,7 @@ export function ThreadContextBar({
         await archiveChatThread(threadId);
         toast.success("Archived.");
       } catch (err) {
+        if (isRedirectError(err)) throw err;
         toast.error((err as Error).message);
       }
     });
@@ -202,6 +208,7 @@ export function ThreadContextBar({
       try {
         await deleteChatThread(threadId);
       } catch (err) {
+        if (isRedirectError(err)) throw err;
         toast.error((err as Error).message);
       }
     });
@@ -213,12 +220,12 @@ export function ThreadContextBar({
         <input
           value={title}
           onChange={(e) => onTitleChange(e.target.value)}
-          className="min-w-0 flex-1 bg-transparent font-display text-2xl tracking-tight outline-none focus:bg-[--color-muted]/30 rounded px-1 -mx-1"
+          className="min-w-0 flex-1 bg-transparent font-display text-2xl tracking-tight outline-none focus:bg-[var(--color-muted)]/30 rounded px-1 -mx-1"
           maxLength={220}
         />
         <div className="flex items-center gap-2">
           {pendingMeta && (
-            <span className="text-[11px] text-[--color-muted-foreground]">
+            <span className="text-[11px] text-[var(--color-muted-foreground)]">
               <Loader2 className="inline h-3 w-3 animate-spin" />
             </span>
           )}
@@ -227,7 +234,7 @@ export function ThreadContextBar({
             size="icon"
             onClick={togglePinned}
             aria-label={pinned ? "Unpin" : "Pin"}
-            className={pinned ? "text-[--color-primary]" : ""}
+            className={pinned ? "text-[var(--color-primary)]" : ""}
           >
             {pinned ? <Pin className="h-4 w-4" /> : <PinOff className="h-4 w-4" />}
           </Button>
@@ -244,7 +251,7 @@ export function ThreadContextBar({
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 onClick={() => setConfirmDelete(true)}
-                className="text-[--color-destructive] focus:text-[--color-destructive]"
+                className="text-[var(--color-destructive)] focus:text-[var(--color-destructive)]"
               >
                 <Trash2 className="h-4 w-4" /> Delete chat
               </DropdownMenuItem>
@@ -254,7 +261,7 @@ export function ThreadContextBar({
       </div>
 
       <div className="mt-3 flex flex-wrap items-center gap-3 text-sm">
-        <div className="inline-flex items-center gap-1.5 text-[--color-muted-foreground]">
+        <div className="inline-flex items-center gap-1.5 text-[var(--color-muted-foreground)]">
           <ScanText className="h-3.5 w-3.5" />
           <Select value={voiceId} onValueChange={onVoiceChange}>
             <SelectTrigger className="h-7 w-[170px] border-none bg-transparent px-1 text-xs shadow-none">
@@ -270,7 +277,7 @@ export function ThreadContextBar({
             </SelectContent>
           </Select>
         </div>
-        <div className="inline-flex items-center gap-1.5 text-[--color-muted-foreground]">
+        <div className="inline-flex items-center gap-1.5 text-[var(--color-muted-foreground)]">
           <Languages className="h-3.5 w-3.5" />
           <Select
             value={locale}
@@ -290,7 +297,7 @@ export function ThreadContextBar({
         </div>
         {usableSources.length > 0 && (
           <div className="flex flex-wrap items-center gap-1.5">
-            <BookOpen className="h-3.5 w-3.5 text-[--color-muted-foreground]" />
+            <BookOpen className="h-3.5 w-3.5 text-[var(--color-muted-foreground)]" />
             {usableSources.map((s) => {
               const selected = sourceIds.includes(s.id);
               return (
@@ -301,8 +308,8 @@ export function ThreadContextBar({
                   className={cn(
                     "inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-medium transition",
                     selected
-                      ? "border-[--color-primary]/40 bg-[--color-primary]/10 text-[--color-primary]"
-                      : "border-[--color-border] bg-[--color-background] text-[--color-foreground] hover:bg-[--color-accent]",
+                      ? "border-[var(--color-primary)]/40 bg-[var(--color-primary)]/10 text-[var(--color-primary)]"
+                      : "border-[var(--color-border)] bg-[var(--color-background)] text-[var(--color-foreground)] hover:bg-[var(--color-accent)]",
                   )}
                 >
                   {s.name}

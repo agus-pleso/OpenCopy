@@ -4,6 +4,7 @@ import * as React from "react";
 import { useTransition } from "react";
 import { RefreshCw, Trash2, MoreHorizontal, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { isRedirectError } from "@/lib/utils";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -48,6 +49,7 @@ export function SourceActions({ sourceId }: Props) {
       try {
         await deleteKnowledgeSource(sourceId);
       } catch (err) {
+        if (isRedirectError(err)) throw err;
         toast.error((err as Error).message);
       }
     });
@@ -79,7 +81,7 @@ export function SourceActions({ sourceId }: Props) {
             <DropdownMenuSeparator />
             <DropdownMenuItem
               onClick={() => setConfirmDelete(true)}
-              className="text-[--color-destructive] focus:text-[--color-destructive]"
+              className="text-[var(--color-destructive)] focus:text-[var(--color-destructive)]"
             >
               <Trash2 className="h-4 w-4" /> Delete source
             </DropdownMenuItem>

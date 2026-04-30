@@ -1,19 +1,28 @@
 export {
-  culturalAdapter,
-  CulturalAdapterOutputSchema,
+  runCulturalAdapter,
+  parseCulturalAdapterMarkdown,
   type CulturalAdapterInput,
   type CulturalAdapterOutput,
+  type CulturalAdapterRunResult,
+  type AdapterNote,
+  type AdapterCategory,
+  type AdapterRisk,
 } from "./cultural-adapter";
 export {
-  localizer,
-  LocalizerOutputSchema,
+  runLocalizerTranscreator,
+  parseLocalizerMarkdown,
   type LocalizerInput,
   type LocalizerOutput,
+  type LocalizerRunResult as LocalizerTranscreatorRunResult,
+  type TranscreationDecision,
 } from "./localizer";
 export {
-  backTranslator,
-  BackTranslatorOutputSchema,
+  runBackTranslator,
+  parseBackTranslatorMarkdown,
   type BackTranslatorInput,
   type BackTranslatorOutput,
+  type BackTranslatorRunResult,
+  type Divergence,
+  type DivergenceNature,
 } from "./back-translator";
 export { runLocalizer, type LocalizerRunResult } from "./orchestrator";

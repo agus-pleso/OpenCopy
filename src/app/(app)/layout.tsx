@@ -9,6 +9,7 @@ import { Sidebar } from "@/components/shell/sidebar";
 import { Topbar } from "@/components/shell/topbar";
 import { CommandPalette } from "@/components/shell/command-palette";
 import { SessionProvider } from "@/components/shell/session-provider";
+import { NavProgress } from "@/components/shell/nav-progress";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
 export default async function AppLayout({
@@ -36,6 +37,7 @@ export default async function AppLayout({
   return (
     <SessionProvider>
       <TooltipProvider delayDuration={200}>
+        <NavProgress />
         <div className="flex h-svh overflow-hidden">
           <Sidebar
             currentWorkspace={{ id: ws.workspace.id, name: ws.workspace.name }}

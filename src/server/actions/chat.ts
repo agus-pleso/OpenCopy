@@ -10,7 +10,6 @@ import {
   chatMessages,
   chatThreads,
   type ChatThread,
-  type Locale,
 } from "@/db/schema";
 import {
   getCurrentWorkspace,
@@ -198,5 +197,3 @@ export async function getChatThread(threadId: string) {
     },
   });
 }
-
-export type { Locale };

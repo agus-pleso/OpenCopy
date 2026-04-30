@@ -66,11 +66,11 @@ export function InvitationRow({ invitation }: Props) {
   };
 
   return (
-    <li className="grid grid-cols-[auto,1fr,auto,auto,auto] items-center gap-3 px-4 py-3 text-sm">
-      <Mail className="h-3.5 w-3.5 text-[--color-muted-foreground]" />
+    <li className="grid grid-cols-[auto_1fr_auto_auto_auto] items-center gap-3 px-4 py-3 text-sm">
+      <Mail className="h-3.5 w-3.5 text-[var(--color-muted-foreground)]" />
       <div className="min-w-0">
         <p className="truncate font-medium tracking-tight">{invitation.email}</p>
-        <p className="text-xs text-[--color-muted-foreground]">
+        <p className="text-xs text-[var(--color-muted-foreground)]">
           Invited {formatDistanceShort(invitation.createdAt)}
           {invitation.inviter?.email && ` by ${invitation.inviter.email}`}
         </p>
@@ -107,7 +107,7 @@ export function InvitationRow({ invitation }: Props) {
             <Button
               variant="ghost"
               size="icon"
-              className="h-7 w-7 text-[--color-destructive] hover:text-[--color-destructive]"
+              className="h-7 w-7 text-[var(--color-destructive)] hover:text-[var(--color-destructive)]"
               onClick={onRevoke}
               disabled={pending}
               aria-label="Revoke invitation"

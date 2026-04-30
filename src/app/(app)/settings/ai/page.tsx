@@ -16,6 +16,11 @@ import { OpenAIKeyForm } from "@/components/settings/openai-key-form";
 import { ProviderKeyForm } from "@/components/settings/provider-key-form";
 import { OllamaConfigForm } from "@/components/settings/ollama-config-form";
 import { ModelDefaultsForm } from "@/components/settings/model-defaults-form";
+import { EmbeddingProviderForm } from "@/components/settings/embedding-provider-form";
+import {
+  DEFAULT_EMBEDDING_MODEL_ID,
+  type EmbeddingProviderId,
+} from "@/lib/ai/embeddings-shared";
 
 export default async function AiSettingsPage() {
   const { workspace } = await getCurrentWorkspace();
@@ -76,17 +81,17 @@ export default async function AiSettingsPage() {
             }
           />
 
-          <details className="group rounded-lg border border-[--color-border]">
-            <summary className="cursor-pointer list-none px-4 py-3 text-sm font-medium tracking-tight transition hover:bg-[--color-accent] flex items-center gap-2">
-              <Sparkles className="h-3.5 w-3.5 text-[--color-primary]" />
+          <details className="group rounded-lg border border-[var(--color-border)]">
+            <summary className="cursor-pointer list-none px-4 py-3 text-sm font-medium tracking-tight transition hover:bg-[var(--color-accent)] flex items-center gap-2">
+              <Sparkles className="h-3.5 w-3.5 text-[var(--color-primary)]" />
               Direct provider keys
-              <span className="ml-auto text-[11px] uppercase tracking-wider text-[--color-muted-foreground]">
+              <span className="ml-auto text-[11px] uppercase tracking-wider text-[var(--color-muted-foreground)]">
                 {[anthropic, openai, google, mistral].filter(Boolean).length}{" "}
                 connected
               </span>
             </summary>
-            <div className="flex flex-col gap-3 border-t border-[--color-border] p-4">
-              <p className="text-xs text-[--color-muted-foreground] text-pretty">
+            <div className="flex flex-col gap-3 border-t border-[var(--color-border)] p-4">
+              <p className="text-xs text-[var(--color-muted-foreground)] text-pretty">
                 Skip OpenRouter&apos;s markup for any role you route through
                 these. Set the routing override per-role under <em>Model
                 defaults</em> below.
@@ -185,17 +190,17 @@ export default async function AiSettingsPage() {
             </div>
           </details>
 
-          <details className="group rounded-lg border border-[--color-border]">
-            <summary className="cursor-pointer list-none px-4 py-3 text-sm font-medium tracking-tight transition hover:bg-[--color-accent] flex items-center gap-2">
-              <Server className="h-3.5 w-3.5 text-[--color-primary]" />
+          <details className="group rounded-lg border border-[var(--color-border)]">
+            <summary className="cursor-pointer list-none px-4 py-3 text-sm font-medium tracking-tight transition hover:bg-[var(--color-accent)] flex items-center gap-2">
+              <Server className="h-3.5 w-3.5 text-[var(--color-primary)]" />
               Ollama (local / air-gapped)
               {ollama && (
-                <span className="ml-auto inline-flex items-center gap-1.5 text-[11px] uppercase tracking-wider text-[--color-success]">
+                <span className="ml-auto inline-flex items-center gap-1.5 text-[11px] uppercase tracking-wider text-[var(--color-success)]">
                   Configured
                 </span>
               )}
             </summary>
-            <div className="border-t border-[--color-border] p-4">
+            <div className="border-t border-[var(--color-border)] p-4">
               <OllamaConfigForm
                 existing={
                   ollama
@@ -206,7 +211,7 @@ export default async function AiSettingsPage() {
             </div>
           </details>
 
-          <p className="text-xs text-[--color-muted-foreground] text-pretty">
+          <p className="text-xs text-[var(--color-muted-foreground)] text-pretty">
             <a
               href="https://openrouter.ai/models"
               target="_blank"
@@ -227,18 +232,17 @@ export default async function AiSettingsPage() {
             <div>
               <CardTitle>Embeddings</CardTitle>
               <CardDescription>
-                The knowledge base uses OpenAI&apos;s{" "}
-                <code className="font-mono text-xs">text-embedding-3-small</code>{" "}
-                to vectorize chunks. Voyage and Cohere embeddings (better
-                multilingual quality for PL/RO/UA) land in V1.6.
+                The knowledge base vectorizes chunks for semantic search. Pick
+                between OpenAI (best multilingual quality, paid) and Ollama
+                (local, free, fully open source).
               </CardDescription>
             </div>
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[--color-primary]/10 text-[--color-primary]">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[var(--color-primary)]/10 text-[var(--color-primary)]">
               <BookOpen className="h-4 w-4" />
             </div>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="flex flex-col gap-4">
           <OpenAIKeyForm
             existing={
               openai
@@ -249,6 +253,18 @@ export default async function AiSettingsPage() {
                   }
                 : undefined
             }
+          />
+          <EmbeddingProviderForm
+            current={{
+              provider:
+                (workspace.embeddingProvider as EmbeddingProviderId | null) ??
+                "openai",
+              modelId:
+                workspace.embeddingModel ??
+                DEFAULT_EMBEDDING_MODEL_ID,
+            }}
+            hasOpenAIKey={!!openai}
+            hasOllamaConfigured={!!ollama}
           />
         </CardContent>
       </Card>

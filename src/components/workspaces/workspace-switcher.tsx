@@ -46,13 +46,13 @@ export function WorkspaceSwitcher({ current, workspaces }: Props) {
         <DropdownMenuTrigger asChild>
           <button
             type="button"
-            className="flex w-full items-center gap-2 rounded-md border border-[--color-sidebar-border] bg-[--color-background]/40 px-2.5 py-2 text-sm transition hover:bg-[--color-sidebar-accent]"
+            className="flex w-full items-center gap-2 rounded-md border border-[var(--color-sidebar-border)] bg-[var(--color-background)]/40 px-2.5 py-2 text-sm transition hover:bg-[var(--color-sidebar-accent)]"
           >
-            <Sparkles className="h-4 w-4 text-[--color-primary]" />
+            <Sparkles className="h-4 w-4 text-[var(--color-primary)]" />
             <span className="truncate font-medium flex-1 text-left">
               {current.name}
             </span>
-            <ChevronsUpDown className="h-3.5 w-3.5 text-[--color-muted-foreground]" />
+            <ChevronsUpDown className="h-3.5 w-3.5 text-[var(--color-muted-foreground)]" />
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent
@@ -68,20 +68,20 @@ export function WorkspaceSwitcher({ current, workspaces }: Props) {
               disabled={pending}
               className="flex items-center gap-2"
             >
-              <span className="flex h-5 w-5 items-center justify-center rounded bg-[--color-primary]/10 text-[10px] font-semibold uppercase text-[--color-primary]">
+              <span className="flex h-5 w-5 items-center justify-center rounded bg-[var(--color-primary)]/10 text-[10px] font-semibold uppercase text-[var(--color-primary)]">
                 {w.name.slice(0, 1)}
               </span>
               <span className="flex-1 truncate">
                 <span className="block truncate font-medium tracking-tight">
                   {w.name}
                 </span>
-                <span className="block text-[10px] uppercase tracking-wider text-[--color-muted-foreground]">
+                <span className="block text-[10px] uppercase tracking-wider text-[var(--color-muted-foreground)]">
                   {w.role} · {w.memberCount} member
                   {w.memberCount === 1 ? "" : "s"}
                 </span>
               </span>
               {w.isCurrent && (
-                <Check className="h-3.5 w-3.5 text-[--color-primary]" />
+                <Check className="h-3.5 w-3.5 text-[var(--color-primary)]" />
               )}
             </DropdownMenuItem>
           ))}
@@ -90,7 +90,7 @@ export function WorkspaceSwitcher({ current, workspaces }: Props) {
             trigger={
               <button
                 type="button"
-                className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm transition hover:bg-[--color-accent]"
+                className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm transition hover:bg-[var(--color-accent)]"
               >
                 <Plus className="h-4 w-4" /> New workspace
               </button>
