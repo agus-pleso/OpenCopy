@@ -1,10 +1,34 @@
-# OpenCopy — UX Reorganization Plan
+# OpenCopy — Plan & Roadmap
 
-> Goal: rebuild the IA around how a marketing team thinks (Brand → Work → Compose → Admin) instead of how the codebase grew. Ship in eight phases, lowest-risk first. Every phase is independently shippable; if we stop after Phase 3 the product is already meaningfully better.
+> Single source of truth for what's shipped, what's next, and how we get there. Replaces the previous `docs/UX_REORG_PLAN.md` and the inline Roadmap section that used to live in `README.md`.
 
 ---
 
-## Mental model we're designing for
+## 1. Version timeline
+
+| Version | Status | Theme |
+|---|---|---|
+| V0.1 | ✅ shipped | Scaffold + auth + multi-tenant data model + OpenRouter |
+| V0.2 | ✅ shipped | Brand voice primitive + agent core |
+| V1.0 | ✅ shipped | Copywriter + Localizer agents |
+| V1.1 | ✅ shipped | Long-form editor + inline AI commands |
+| V1.2 | ✅ shipped | Knowledge base (pgvector) |
+| V1.3 | ✅ shipped | Chat assistant |
+| V1.4 | ✅ shipped | Campaigns (multi-asset orchestration) |
+| V1.5 | ✅ shipped | Direct providers + Ollama + cost dashboard |
+| V1.6 | ✅ shipped | Workspaces + invitations + member management |
+| V1.7 | ✅ shipped | Exports (MD / HTML / DOCX) + Resend invitation email |
+| V1.8 | next | Browser extension (Chrome / Firefox MV3) |
+| V1.9 | planned | Helm + Coolify / Dokploy + public docs site |
+| V2.0 | planned | REST API + webhooks + admin + i18n |
+
+---
+
+## 2. UX reorganization (eight phases)
+
+> Goal: rebuild the IA around how a marketing team thinks (Brand → Work → Compose → Admin) instead of how the codebase grew. Ship lowest-risk first. Every phase is independently shippable; if we stop after Phase 3 the product is already meaningfully better.
+
+### Mental model we're designing for
 
 A marketer's daily flow:
 
@@ -16,15 +40,13 @@ A marketer's daily flow:
 
 The current sidebar puts all five layers as peers. We're regrouping them.
 
----
-
-## Phase 1 — Punch list (low risk, quick wins) · ~1 day
+### Phase 1 — Punch list (low risk, quick wins) · ~1 day · ✅ shipped
 
 No architectural changes. Each fix is independently mergeable.
 
 | # | Change | Files |
 |---|---|---|
-| 1.1 | Wire the Library Copy button (today it's a stub admitting "Copy via run page") | `src/app/(app)/library/page.tsx`; new `library-copy-button.tsx` client component |
+| 1.1 | Wire the Library Copy button (was a stub admitting "Copy via run page") | `src/app/(app)/library/page.tsx`; new `library-copy-button.tsx` client component |
 | 1.2 | Add `Save to library` on Localizer outputs (parity with Copywriter) | `src/components/agents/localizer-result.tsx`, `src/server/actions/agents.ts` |
 | 1.3 | Add Knowledge / Campaigns / Documents / Chat to CmdK navigation | `src/components/shell/command-palette.tsx` |
 | 1.4 | Pass `pageTitle` from each route, render breadcrumbs in `Topbar` | `src/components/shell/topbar.tsx`, all `(app)/**/page.tsx` |
@@ -34,9 +56,7 @@ No architectural changes. Each fix is independently mergeable.
 
 **Acceptance:** `pnpm typecheck` clean, `pnpm lint` clean, dev-server walkthrough confirms no regressions on hot paths (run an agent, save a variant, switch theme, navigate via CmdK).
 
----
-
-## Phase 2 — Sidebar IA + breadcrumb wayfinding · ~0.5 day
+### Phase 2 — Sidebar IA + breadcrumb wayfinding · ~0.5 day
 
 No behavior change yet — just regrouping nav and finishing wayfinding.
 
@@ -53,9 +73,7 @@ No behavior change yet — just regrouping nav and finishing wayfinding.
 
 **Acceptance:** every page renders breadcrumbs `Workspace ▸ Section ▸ Page`. No removed routes. Sidebar still ≤ 56px wide on collapse.
 
----
-
-## Phase 3 — Library as the spine of output management · 2–3 days
+### Phase 3 — Library as the spine of output management · 2–3 days
 
 Library becomes the answer to "where's the approved copy?"
 
@@ -66,9 +84,7 @@ Library becomes the answer to "where's the approved copy?"
 
 **Acceptance:** I can save copy from any of {Copywriter run, Localizer run, Campaign asset, Chat message, Document selection}, find it in Library, filter by voice + locale, export 12 selected variants as Markdown.
 
----
-
-## Phase 4 — Unified Compose context bar · 1–2 days
+### Phase 4 — Unified Compose context bar · 1–2 days
 
 One component for voice + knowledge attachment, used identically across every Compose surface.
 
@@ -79,9 +95,7 @@ One component for voice + knowledge attachment, used identically across every Co
 
 **Acceptance:** the same context bar component appears on Copywriter, Localizer, Campaign new, Chat thread, Document editor — same pixels, same behavior.
 
----
-
-## Phase 5 — Unified `+ New` entry · 1 day
+### Phase 5 — Unified `+ New` entry · 1 day
 
 One button at the top of the sidebar, replaces four separate entry points.
 
@@ -95,9 +109,7 @@ One button at the top of the sidebar, replaces four separate entry points.
 
 **Acceptance:** any compose flow starts from the same sidebar button. Voice + knowledge selection in the sheet flows through to the destination.
 
----
-
-## Phase 6 — Run timeline drawer + step-level metrics · 2 days
+### Phase 6 — Run timeline drawer + step-level metrics · 2 days
 
 The agent timeline today is a sticky sidebar; once a run finishes, it goes inert. We want a richer post-mortem view.
 
@@ -108,9 +120,7 @@ The agent timeline today is a sticky sidebar; once a run finishes, it goes inert
 
 **Acceptance:** I can compare two runs side-by-side and see why one was slower / more expensive / produced a higher audit score.
 
----
-
-## Phase 7 — Real CmdK content search · 1–2 days
+### Phase 7 — Real CmdK content search · 1–2 days
 
 Today CmdK is a navigator pretending to be search.
 
@@ -119,9 +129,7 @@ Today CmdK is a navigator pretending to be search.
 
 **Acceptance:** typing `q3 launch` finds the campaign, the related runs, and the saved variants — with click-through to each.
 
----
-
-## Phase 8 (optional/bold) — Compose unification
+### Phase 8 (optional / bold) — Compose unification
 
 The strongest IA move: collapse Copywriter / Long-form / Chat into a single **Compose** surface with three modes (brief → variants, blank canvas, conversation). Same context bar, same output destination, same save behavior. Localizer stays separate (it's a different task — transcreation, not generation).
 
@@ -129,9 +137,7 @@ The strongest IA move: collapse Copywriter / Long-form / Chat into a single **Co
 
 If we don't ship Phase 8, that's fine — Phases 1–7 already deliver a much better marketing-team experience.
 
----
-
-## Phase ordering rationale
+### Phase ordering rationale
 
 | Order | Why |
 |---|---|
@@ -143,25 +149,32 @@ If we don't ship Phase 8, that's fine — Phases 1–7 already deliver a much be
 | 7 anytime after 3 | Search benefits from a populated Library |
 | 8 last | High-risk, optional — only viable on top of 3+4 |
 
+### Status tracking
+
+- [x] Phase 1 — quick-win punch list (commit `c35f78d`)
+- [ ] Phase 2 — sidebar IA + breadcrumb wayfinding
+- [ ] Phase 3 — Library as the spine
+- [ ] Phase 4 — unified Compose context bar
+- [ ] Phase 5 — unified `+ New` entry
+- [ ] Phase 6 — run timeline drawer + step metrics
+- [ ] Phase 7 — real CmdK content search
+- [ ] Phase 8 — Compose unification (optional)
+
 ---
 
-## Out of scope (intentionally)
+## 3. Out of scope (intentional, won't change without a deliberate ask)
 
-- New top-level destinations beyond what the audit identified.
-- Mobile redesign (current is desktop-first by design — marketing-team workflow).
-- Theming / palette changes (locked: cream + ink + terracotta).
-- Replacing shadcn primitives (we extend, not rewrite).
+- Mobile redesign — desktop-first by design (marketing-team workflow)
+- Theming / palette changes — locked: cream + ink + terracotta
+- Replacing shadcn primitives — we extend, not rewrite
+- Multi-region active-active write topology — single primary region per workspace is enough for v1
 
 ---
 
-## Status tracking
+## 4. Inline TODOs worth surfacing here
 
-- [x] Plan written
-- [ ] Phase 1 in progress
-- [ ] Phase 2
-- [ ] Phase 3
-- [ ] Phase 4
-- [ ] Phase 5
-- [ ] Phase 6
-- [ ] Phase 7
-- [ ] Phase 8 (optional)
+These are stale comments in the code that reference features as "lands in V1.x" but the version they pointed at already shipped or scope changed. Cleanup is a 10-min PR — surfaced here so they don't get lost:
+
+- `src/app/(app)/settings/workspace/page.tsx` — three "lands in V1.6" / "Editing lands in V1.6" copy bits (V1.6 shipped invitations + member management; the page hasn't been updated to reflect that).
+- `src/components/knowledge/new-source-dialog.tsx:151` — "PDF / file uploads land in V1.5" — V1.5 was provider polish, file uploads remain unscheduled.
+- `src/app/(app)/settings/usage/page.tsx:225` — "tracked here yet — that lands in V1.6" — same situation.

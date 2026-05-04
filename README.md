@@ -105,21 +105,7 @@ V1.0 ships **EN · PL · RO · UA**. The Localizer's Cultural Adapter understand
 
 ## Roadmap
 
-| Version | Status | Theme |
-|---|---|---|
-| V0.1 | ✅ | Scaffold + auth + multi-tenant data model + OpenRouter |
-| V0.2 | ✅ | Brand voice primitive + agent core |
-| V1.0 | ✅ | Copywriter + Localizer agents |
-| V1.1 | ✅ | Long-form editor + inline AI commands |
-| V1.2 | ✅ | Knowledge base (pgvector) |
-| V1.3 | ✅ | Chat assistant |
-| V1.4 | ✅ | Campaigns (multi-asset orchestration) |
-| V1.5 | ✅ | Direct providers + Ollama + cost dashboard |
-| V1.6 | ✅ | Workspaces + invitations + member management |
-| V1.7 | ✅ | Exports (MD / HTML / DOCX) + Resend invitation email |
-| V1.8 | next | Browser extension (Chrome/Firefox MV3) |
-| V1.9 |  | Helm + Coolify/Dokploy + docs site |
-| V2.0 |  | REST API + webhooks + admin + i18n |
+Versioned roadmap, the eight-phase UX reorganization, and out-of-scope items all live in **[docs/PLAN.md](docs/PLAN.md)** — single source of truth.
 
 ## License
 
