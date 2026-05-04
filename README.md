@@ -62,6 +62,49 @@ Generate secrets:
 node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
 ```
 
+## Desktop installer
+
+Pre-built Windows + macOS installers are produced by CI on every tagged release and live on the [GitHub Releases](../../releases) page. Download the file for your OS, double-click, and the app starts in your default browser at a local URL — no Docker, no separate Postgres, no terminal.
+
+What's inside the installer:
+
+- A small Tauri shell (system-tray icon · Open · Restart · Quit)
+- A bundled Node.js runtime that runs the Next.js server locally
+- An embedded **PGlite** Postgres database with `pgvector` preloaded — your data lives in `%APPDATA%/io.opencopy.desktop/` (Windows) or `~/Library/Application Support/io.opencopy.desktop/` (macOS)
+- Auto-generated `AUTH_SECRET` + `ENCRYPTION_KEY` on first launch (persisted under the same data dir)
+
+### First-launch warning (one-time)
+
+The installers are **unsigned** to keep distribution free. The OS will warn the first time you open them — bypassing the warning is a single click:
+
+- **macOS** — double-click → "OpenCopy can't be opened because Apple cannot check it for malicious software" → click **OK** → right-click the app → **Open** → **Open** in the dialog. After this once, normal launches work.
+- **Windows** — double-click → "Windows protected your PC" → click **More info** → **Run anyway**.
+
+If your Mac shows "OpenCopy is damaged and can't be opened" (Gatekeeper sometimes adds a quarantine attribute on download), run once in Terminal:
+
+```bash
+xattr -cr /Applications/OpenCopy.app
+```
+
+### Building installers locally
+
+```bash
+pnpm install
+node scripts/download-node.mjs   # one-time: ~30 MB sidecar binary for your OS
+pnpm tauri:build                  # produces .exe / .dmg in src-tauri/target/release/bundle/
+```
+
+On Windows + pnpm, Next.js's standalone build needs symlink permission — enable Developer Mode (Settings → For developers → Developer Mode) and rebuild. CI runners (`windows-latest` / `macos-13` / `macos-14`) work without this.
+
+### Running the developer build (no installer)
+
+```bash
+pnpm dev          # in one terminal
+pnpm tauri:dev    # in another — Tauri shell pointing at localhost:3000
+```
+
+The dev shell uses your existing `DATABASE_URL` (no embedded DB), so existing data and migrations apply normally.
+
 ## Self-host (production)
 
 Docker Compose (app + Postgres with pgvector):
