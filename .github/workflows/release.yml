@@ -9,9 +9,11 @@ on:
         description: 'Optional tag to attach the draft release to'
         required: false
 
-# Builds unsigned Tauri installers for Windows + macOS (Intel + Apple Silicon),
-# uploads each to a draft GitHub Release. Colleagues download from the release
-# page; first-launch warnings (Gatekeeper / SmartScreen) are bypassed once.
+# Builds Tauri installers for Windows + macOS (Apple Silicon), signs them
+# with the project's Ed25519 update key, generates a `latest.json` manifest
+# for the in-app auto-updater, and uploads everything to a draft GitHub
+# Release. First-launch warnings (Gatekeeper / SmartScreen) still apply on
+# fresh installs; subsequent versions arrive in-app via the updater.
 
 permissions:
   contents: write
@@ -32,14 +34,24 @@ jobs:
           - os: windows-latest
             target: x86_64-pc-windows-msvc
             node-target: win32-x64
+            # `tauri build` produces NSIS .exe + MSI .msi for distribution
+            # plus an `*-setup.nsis.zip` (signed) that the in-app updater
+            # consumes. The `.sig` file alongside is the Ed25519 signature.
             artifact-glob: |
               src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.exe
               src-tauri/target/x86_64-pc-windows-msvc/release/bundle/msi/*.msi
+              src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*-setup.nsis.zip
+              src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*-setup.nsis.zip.sig
           - os: macos-14
             target: aarch64-apple-darwin
             node-target: darwin-arm64
+            # `.dmg` is the human-facing installer; `.app.tar.gz` is the
+            # compressed `.app` bundle the auto-updater downloads. Both
+            # ship to the release.
             artifact-glob: |
               src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/*.dmg
+              src-tauri/target/aarch64-apple-darwin/release/bundle/macos/*.app.tar.gz
+              src-tauri/target/aarch64-apple-darwin/release/bundle/macos/*.app.tar.gz.sig
 
     steps:
       - uses: actions/checkout@v4
@@ -72,9 +84,12 @@ jobs:
       - name: Build Tauri installer
         run: pnpm tauri build --target ${{ matrix.target }}
         env:
-          # Tauri's bundled signer is skipped by default when no key is set;
-          # we make that explicit so unsigned-build behaviour is consistent.
-          TAURI_SIGNING_PRIVATE_KEY: ''
+          # Ed25519 signing key for the auto-updater. Must be set as a
+          # repo secret. tauri build fails if the updater plugin is
+          # configured but no signing key is available — that's the
+          # right behaviour, signed updates are non-negotiable.
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
 
       - name: Attest build provenance
         # SLSA build provenance is only available for public repos (or
@@ -112,6 +127,60 @@ jobs:
       - name: List artifacts
         run: ls -la artifacts
 
+      # Tauri's auto-updater fetches `latest.json` from the configured
+      # endpoint and matches the running platform against `platforms`.
+      # The signature for each platform's bundle is the literal contents
+      # of the `.sig` file produced by `tauri build`.
+      - name: Build latest.json manifest
+        env:
+          TAG: ${{ github.event.inputs.tag || github.ref_name }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          # Strip the leading 'v' so the manifest version matches the
+          # bundle version (Tauri compares semver without the prefix).
+          VERSION="${TAG#v}"
+          PUB_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          BASE="https://github.com/${REPO}/releases/download/${TAG}"
+
+          MAC_BUNDLE=$(ls artifacts/*.app.tar.gz 2>/dev/null | head -1 || true)
+          MAC_SIG_FILE=$(ls artifacts/*.app.tar.gz.sig 2>/dev/null | head -1 || true)
+          WIN_BUNDLE=$(ls artifacts/*-setup.nsis.zip 2>/dev/null | head -1 || true)
+          WIN_SIG_FILE=$(ls artifacts/*-setup.nsis.zip.sig 2>/dev/null | head -1 || true)
+
+          MAC_SIG=""
+          WIN_SIG=""
+          [ -n "$MAC_SIG_FILE" ] && MAC_SIG=$(cat "$MAC_SIG_FILE")
+          [ -n "$WIN_SIG_FILE" ] && WIN_SIG=$(cat "$WIN_SIG_FILE")
+
+          MAC_URL=""
+          WIN_URL=""
+          [ -n "$MAC_BUNDLE" ] && MAC_URL="${BASE}/$(basename "$MAC_BUNDLE")"
+          [ -n "$WIN_BUNDLE" ] && WIN_URL="${BASE}/$(basename "$WIN_BUNDLE")"
+
+          # Compose the manifest with jq so quoting + newline handling is
+          # bulletproof — the .sig contents include literal newlines.
+          jq -n \
+            --arg version "$VERSION" \
+            --arg pub_date "$PUB_DATE" \
+            --arg mac_url "$MAC_URL" \
+            --arg mac_sig "$MAC_SIG" \
+            --arg win_url "$WIN_URL" \
+            --arg win_sig "$WIN_SIG" \
+            '{
+              version: $version,
+              notes: "See the GitHub release for change notes.",
+              pub_date: $pub_date,
+              platforms: (
+                ({} as $base) |
+                (if $mac_url != "" then $base + {"darwin-aarch64": {signature: $mac_sig, url: $mac_url}} else $base end) |
+                (if $win_url != "" then . + {"windows-x86_64": {signature: $win_sig, url: $win_url}} else . end)
+              )
+            }' > artifacts/latest.json
+
+          echo "--- latest.json ---"
+          cat artifacts/latest.json
+
       - name: Create draft release
         uses: softprops/action-gh-release@v2
         with:
@@ -119,10 +188,18 @@ jobs:
           generate_release_notes: true
           tag_name: ${{ github.event.inputs.tag || github.ref_name }}
           name: ${{ github.event.inputs.tag || github.ref_name }}
+          # latest.json is read by the in-app updater at the URL hard-
+          # coded in tauri.conf.json (releases/latest/download/latest.json).
+          # GitHub serves /latest/download/<asset> only for non-prerelease
+          # releases — promote a tag from draft to "latest" once the build
+          # is sanity-checked.
           files: |
             artifacts/**/*.exe
             artifacts/**/*.msi
             artifacts/**/*.dmg
+            artifacts/**/*.app.tar.gz
+            artifacts/**/*.nsis.zip
+            artifacts/latest.json
           fail_on_unmatched_files: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

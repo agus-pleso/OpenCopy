@@ -9,9 +9,11 @@ use tauri::{
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
     AppHandle, Manager,
 };
+use tauri_plugin_dialog::{DialogExt, MessageDialogButtons, MessageDialogKind};
 use tauri_plugin_opener::OpenerExt;
 use tauri_plugin_shell::process::{CommandChild, CommandEvent};
 use tauri_plugin_shell::ShellExt;
+use tauri_plugin_updater::UpdaterExt;
 
 #[derive(Default)]
 struct ServerState {
@@ -46,6 +48,101 @@ fn open_app(app: &AppHandle) {
     if let Err(e) = app.opener().open_url(&url, None::<&str>) {
         log::error!("failed to open {url} in browser: {e}");
     }
+}
+
+/// Check the configured updater endpoint for a newer signed bundle and,
+/// if one exists, prompt the user to install + restart.
+///
+/// Spawned from the tray menu's "Check for updates…" item. Failures and
+/// "no update" outcomes both surface as native dialogs so the user gets
+/// feedback regardless of result.
+async fn check_for_updates(app: AppHandle) {
+    let updater = match app.updater() {
+        Ok(u) => u,
+        Err(e) => {
+            log::error!("updater plugin unavailable: {e}");
+            app.dialog()
+                .message(format!("Update check failed: {e}"))
+                .kind(MessageDialogKind::Error)
+                .title("OpenCopy update")
+                .blocking_show();
+            return;
+        }
+    };
+
+    let update = match updater.check().await {
+        Ok(Some(u)) => u,
+        Ok(None) => {
+            app.dialog()
+                .message("OpenCopy is up to date.")
+                .kind(MessageDialogKind::Info)
+                .title("No updates")
+                .blocking_show();
+            return;
+        }
+        Err(e) => {
+            log::error!("update check failed: {e}");
+            app.dialog()
+                .message(format!(
+                    "Couldn't check for updates: {e}\n\nSee the logs for details."
+                ))
+                .kind(MessageDialogKind::Error)
+                .title("OpenCopy update")
+                .blocking_show();
+            return;
+        }
+    };
+
+    let confirm = app
+        .dialog()
+        .message(format!(
+            "A new version is available.\n\nCurrent: {}\nNew: {}\n\nOpenCopy will download and restart automatically.",
+            update.current_version, update.version,
+        ))
+        .kind(MessageDialogKind::Info)
+        .title("Update OpenCopy")
+        .buttons(MessageDialogButtons::OkCancelCustom(
+            "Install".into(),
+            "Later".into(),
+        ))
+        .blocking_show();
+
+    if !confirm {
+        return;
+    }
+
+    log::info!(
+        "installing update {} → {}",
+        update.current_version,
+        update.version
+    );
+
+    let install_result = update
+        .download_and_install(
+            |chunk_length, _content_length| {
+                log::debug!("update: downloaded {chunk_length} bytes");
+            },
+            || log::info!("update: download finished, applying"),
+        )
+        .await;
+
+    if let Err(e) = install_result {
+        log::error!("update install failed: {e}");
+        app.dialog()
+            .message(format!("Update install failed: {e}"))
+            .kind(MessageDialogKind::Error)
+            .title("OpenCopy update")
+            .blocking_show();
+        return;
+    }
+
+    log::info!("update installed; restarting");
+    // Kill the bundled Node sidecar before the platform-specific restart
+    // takes over. Otherwise on Windows the new install can fail to extract
+    // because the old node.exe still holds a file lock — the same issue
+    // the NSIS pre-install hook covers for the manual-installer path.
+    shutdown(&app);
+    app.restart();
 }
 
 async fn wait_for_server(addr: String) {
@@ -264,8 +361,10 @@ fn shutdown(app: &AppHandle) {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(
             tauri_plugin_log::Builder::default()
                 .level(if cfg!(debug_assertions) {
@@ -278,13 +377,28 @@ pub fn run() {
         .manage(ServerState::default())
         .setup(|app| {
             let open_item = MenuItem::with_id(app, "open", "Open OpenCopy", true, None::<&str>)?;
+            let check_update_item = MenuItem::with_id(
+                app,
+                "check_update",
+                "Check for updates…",
+                true,
+                None::<&str>,
+            )?;
             let restart_item = MenuItem::with_id(app, "restart", "Restart", true, None::<&str>)?;
             let separator = PredefinedMenuItem::separator(app)?;
+            let separator_2 = PredefinedMenuItem::separator(app)?;
             let quit_item = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
 
             let menu = Menu::with_items(
                 app,
-                &[&open_item, &separator, &restart_item, &quit_item],
+                &[
+                    &open_item,
+                    &separator,
+                    &check_update_item,
+                    &restart_item,
+                    &separator_2,
+                    &quit_item,
+                ],
             )?;
 
             let _tray = TrayIconBuilder::with_id("main")
@@ -295,6 +409,12 @@ pub fn run() {
                 .show_menu_on_left_click(false)
                 .on_menu_event(|app, event| match event.id.as_ref() {
                     "open" => open_app(app),
+                    "check_update" => {
+                        let app = app.clone();
+                        tauri::async_runtime::spawn(async move {
+                            check_for_updates(app).await;
+                        });
+                    }
                     "restart" => app.restart(),
                     "quit" => app.exit(0),
                     _ => {}
