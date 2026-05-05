@@ -71,6 +71,13 @@
       "when": 1777968088576,
       "tag": "0009_lazy_orphan",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1777975146598,
+      "tag": "0010_library_entries",
+      "breakpoints": true
     }
   ]
 }

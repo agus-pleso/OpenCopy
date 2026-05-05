@@ -1,11 +1,11 @@
 import Link from "next/link";
 import { Library, Bot, Languages } from "lucide-react";
-import { listLibraryVariants } from "@/server/actions/agents";
+import { listLibrary } from "@/server/actions/library";
 import { Button } from "@/components/ui/button";
 import { LibraryBoard } from "@/components/library/library-board";
 
 export default async function LibraryPage() {
-  const variants = await listLibraryVariants({ status: "saved" });
+  const items = await listLibrary();
 
   return (
     <div className="mx-auto w-full max-w-6xl px-6 py-10 md:px-10 md:py-14">
@@ -18,8 +18,9 @@ export default async function LibraryPage() {
             Approved copy, organized.
           </h1>
           <p className="mt-3 max-w-2xl text-pretty text-[var(--color-muted-foreground)]">
-            Every variant you saved from a Copywriter or Localizer run lands
-            here — searchable, copyable, traceable back to its run and brand voice.
+            Variants from agent runs, chat replies, and document selections —
+            everything you saved is searchable, copyable, and traceable to its
+            source.
           </p>
         </div>
         <Button asChild variant="outline">
@@ -27,7 +28,7 @@ export default async function LibraryPage() {
         </Button>
       </div>
 
-      {variants.length === 0 ? <EmptyState /> : <LibraryBoard variants={variants} />}
+      {items.length === 0 ? <EmptyState /> : <LibraryBoard items={items} />}
     </div>
   );
 }
@@ -42,8 +43,9 @@ function EmptyState() {
         Nothing saved yet
       </h2>
       <p className="mt-2 max-w-sm text-sm text-[var(--color-muted-foreground)] text-pretty">
-        Run a Copywriter or Localizer agent and click <em>Save to library</em>{" "}
-        on the variants you like.
+        Run a Copywriter or Localizer agent and click <em>Save to library</em>
+        {" "}on the variants you like — or save chat replies and document
+        selections from anywhere in the app.
       </p>
       <div className="mt-5 flex items-center gap-2">
         <Button asChild size="sm" variant="outline">

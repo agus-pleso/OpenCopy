@@ -9,11 +9,14 @@ import {
   ChevronsLeftRight,
   ChevronsRightLeft,
   Loader2,
+  Bookmark,
+  BookmarkCheck,
 } from "lucide-react";
 import type { Editor } from "@tiptap/react";
 import { toast } from "sonner";
 
 import { runEditorCommand } from "@/server/actions/documents";
+import { saveDocumentSelectionToLibrary } from "@/server/actions/library";
 import type { EditorCommand } from "@/lib/agents/editor/commands";
 import { cn } from "@/lib/utils";
 
@@ -39,6 +42,8 @@ export function BubbleActions({ editor, documentId }: Props) {
   const [activeCommand, setActiveCommand] = React.useState<EditorCommand | null>(
     null,
   );
+  const [savingSelection, setSavingSelection] = React.useState(false);
+  const [justSaved, setJustSaved] = React.useState(false);
 
   const runCommand = (command: EditorCommand) => {
     const { from, to } = editor.state.selection;
@@ -74,6 +79,34 @@ export function BubbleActions({ editor, documentId }: Props) {
     });
   };
 
+  const saveSelection = async () => {
+    const { from, to } = editor.state.selection;
+    if (from === to) {
+      toast.error("Select some text first.");
+      return;
+    }
+    const content = editor.state.doc.textBetween(from, to, "\n");
+    if (content.trim().length < 2) {
+      toast.error("Select more text — at least a couple words.");
+      return;
+    }
+    setSavingSelection(true);
+    try {
+      await saveDocumentSelectionToLibrary({
+        documentId,
+        content,
+        selectionAnchor: { from, to },
+      });
+      setJustSaved(true);
+      toast.success("Saved to library.");
+      window.setTimeout(() => setJustSaved(false), 1800);
+    } catch (err) {
+      toast.error((err as Error).message);
+    } finally {
+      setSavingSelection(false);
+    }
+  };
+
   return (
     <div className="flex items-center gap-0.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-popover)] p-1 shadow-xl">
       {ACTIONS.map((a) => {
@@ -100,6 +133,30 @@ export function BubbleActions({ editor, documentId }: Props) {
           </button>
         );
       })}
+      <span
+        aria-hidden
+        className="mx-0.5 h-4 w-px bg-[var(--color-border)]"
+      />
+      <button
+        type="button"
+        onClick={saveSelection}
+        disabled={savingSelection}
+        title="Save selection to library"
+        className={cn(
+          "flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium transition",
+          "hover:bg-[var(--color-accent)] disabled:pointer-events-none disabled:opacity-50",
+          justSaved && "bg-[var(--color-success)]/10 text-[var(--color-success)]",
+        )}
+      >
+        {savingSelection ? (
+          <Loader2 className="h-3 w-3 animate-spin" />
+        ) : justSaved ? (
+          <BookmarkCheck className="h-3 w-3" />
+        ) : (
+          <Bookmark className="h-3 w-3" />
+        )}
+        {justSaved ? "Saved" : "Save"}
+      </button>
     </div>
   );
 }

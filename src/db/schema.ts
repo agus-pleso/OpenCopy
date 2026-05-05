@@ -1207,3 +1207,100 @@ export const workspaceInvitationsRelations = relations(
 export type WorkspaceInvitation = typeof workspaceInvitations.$inferSelect;
 export type InvitationStatus =
   (typeof invitationStatusEnum.enumValues)[number];
+
+/* ----------------------------------------------------------------------------
+ * Library entries (V2.1) — polymorphic catalog of saved snippets.
+ *
+ * Saved copy variants (V1.0) live in `copy_variants` with `status='saved'`;
+ * this table extends the library to other surfaces — chat messages and
+ * Tiptap document selections. Each entry snapshots the content at save time
+ * (so source deletion or edit doesn't lose the saved snippet) and links back
+ * to the source for "open original".
+ *
+ * The Library page projects rows from BOTH `copy_variants` (saved status)
+ * and `library_entries` into a single unified DTO; this keeps the variant
+ * lifecycle (save / discard / re-audit) on its existing source of truth and
+ * avoids dual-write hazards.
+ * -------------------------------------------------------------------------- */
+
+export const libraryEntryKindEnum = pgEnum("library_entry_kind", [
+  "chat_message",
+  "document_selection",
+]);
+
+export const libraryEntries = pgTable(
+  "library_entry",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    workspaceId: uuid("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    kind: libraryEntryKindEnum("kind").notNull(),
+    /** Snapshot of the content at save time. Survives source deletion. */
+    content: text("content").notNull(),
+    /** Optional short label ("from Q3 launch chat", "hero copy v2"). */
+    title: text("title"),
+    voiceId: uuid("voice_id").references(() => brandVoices.id, {
+      onDelete: "set null",
+    }),
+    locale: localeEnum("locale").notNull().default("en"),
+    /** User-applied tags for filtering / grouping. */
+    tags: jsonb("tags").$type<string[]>().notNull().default([]),
+    /** Source links — exactly one is populated based on kind. */
+    chatMessageId: uuid("chat_message_id").references(() => chatMessages.id, {
+      onDelete: "set null",
+    }),
+    chatThreadId: uuid("chat_thread_id").references(() => chatThreads.id, {
+      onDelete: "set null",
+    }),
+    documentId: uuid("document_id").references(() => documents.id, {
+      onDelete: "set null",
+    }),
+    /** Tiptap selection range — used to highlight on "open original". */
+    selectionAnchor: jsonb("selection_anchor").$type<{
+      from: number;
+      to: number;
+    } | null>(),
+    savedByUserId: text("saved_by_user_id")
+      .notNull()
+      .references(() => users.id),
+    createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("library_entry_workspace_idx").on(t.workspaceId, t.createdAt),
+    index("library_entry_kind_idx").on(t.workspaceId, t.kind, t.createdAt),
+    index("library_entry_voice_idx").on(t.voiceId),
+    index("library_entry_chat_message_idx").on(t.chatMessageId),
+    index("library_entry_document_idx").on(t.documentId),
+  ],
+);
+
+export const libraryEntriesRelations = relations(libraryEntries, ({ one }) => ({
+  workspace: one(workspaces, {
+    fields: [libraryEntries.workspaceId],
+    references: [workspaces.id],
+  }),
+  voice: one(brandVoices, {
+    fields: [libraryEntries.voiceId],
+    references: [brandVoices.id],
+  }),
+  chatMessage: one(chatMessages, {
+    fields: [libraryEntries.chatMessageId],
+    references: [chatMessages.id],
+  }),
+  chatThread: one(chatThreads, {
+    fields: [libraryEntries.chatThreadId],
+    references: [chatThreads.id],
+  }),
+  document: one(documents, {
+    fields: [libraryEntries.documentId],
+    references: [documents.id],
+  }),
+  savedBy: one(users, {
+    fields: [libraryEntries.savedByUserId],
+    references: [users.id],
+  }),
+}));
+
+export type LibraryEntry = typeof libraryEntries.$inferSelect;
+export type LibraryEntryKind = (typeof libraryEntryKindEnum.enumValues)[number];

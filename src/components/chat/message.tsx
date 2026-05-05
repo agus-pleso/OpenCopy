@@ -9,6 +9,8 @@ import {
   Loader2,
   Wrench,
   AlertCircle,
+  Bookmark,
+  BookmarkCheck,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import ReactMarkdown from "react-markdown";
@@ -18,6 +20,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { LogoMark } from "@/components/marketing/logo";
+import { saveChatMessageToLibrary } from "@/server/actions/library";
 
 export interface ChatToolInvocation {
   toolCallId: string;
@@ -52,6 +55,8 @@ interface Props {
 
 export function ChatMessage({ message, isStreaming }: Props) {
   const [copied, setCopied] = React.useState(false);
+  const [saving, setSaving] = React.useState(false);
+  const [justSaved, setJustSaved] = React.useState(false);
 
   if (message.role === "system") return null; // never render system
 
@@ -60,6 +65,20 @@ export function ChatMessage({ message, isStreaming }: Props) {
     setCopied(true);
     toast.success("Copied.");
     setTimeout(() => setCopied(false), 1500);
+  };
+
+  const onSaveToLibrary = async () => {
+    setSaving(true);
+    try {
+      await saveChatMessageToLibrary({ messageId: message.id });
+      setJustSaved(true);
+      toast.success("Saved to library.");
+      setTimeout(() => setJustSaved(false), 1800);
+    } catch (err) {
+      toast.error((err as Error).message || "Couldn't save.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const isUser = message.role === "user";
@@ -134,6 +153,25 @@ export function ChatMessage({ message, isStreaming }: Props) {
                 <Copy className="h-3 w-3" />
               )}
               {copied ? "Copied" : "Copy"}
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className={cn(
+                "h-7 gap-1 px-2 text-[11px]",
+                justSaved && "text-[var(--color-success)]",
+              )}
+              onClick={onSaveToLibrary}
+              disabled={saving}
+            >
+              {saving ? (
+                <Loader2 className="h-3 w-3 animate-spin" />
+              ) : justSaved ? (
+                <BookmarkCheck className="h-3 w-3" />
+              ) : (
+                <Bookmark className="h-3 w-3" />
+              )}
+              {justSaved ? "Saved" : "Save"}
             </Button>
             {message.modelId && (
               <span className="font-mono">{message.modelId}</span>
