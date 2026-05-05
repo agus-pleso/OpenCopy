@@ -160,6 +160,35 @@ A marketer's daily flow:
 
 These items aren't on the V2.x rail but are explicitly *not* "won't do" — they're queued for a future pass.
 
+### Native-app shell (high priority — promised next session)
+
+Today the Tauri shell is tray-only and the actual UI renders in the user's default browser. Goal: flip the Tauri main window to render the app *inside itself* via WebView2 (Windows) / WKWebView (Mac), so OpenCopy looks/feels like a real desktop app with its own dock/taskbar entry, instead of "an app that opens a browser." All free — no paid certs, no third-party deps, the webview is OS-provided and already bundled.
+
+**Phase 1 — Single-window native app · ~1–2 hours**
+- `tauri.conf.json`: flip `app.windows[0].visible: true`, set sensible default size, drop the placeholder `dist/index.html`.
+- Rust `setup()`: after `wait_for_server` resolves, navigate the main window to `http://127.0.0.1:<port>` via `webview.navigate()`.
+- Tray menu: "Open OpenCopy" focuses the window instead of launching the browser; "Open in browser" stays as a fallback item.
+- Remove the auto-`open_url` on first launch.
+
+**Phase 2 — Multi-window · ~2–3 hours**
+- Cmd/Ctrl+N "New window" via Tauri menu / global shortcut → spawns a new `WebviewWindow` pointing at the same local URL.
+- Window menu (View → New Window, Window → Bring all to front).
+- Cookies / login shared across windows (same origin = `127.0.0.1:<port>`).
+- Works identically on Windows + macOS.
+
+**Phase 3 — macOS native tabs (optional) · ~3–5 hours**
+- On macOS only: `NSWindowTabbingMode` so multiple `WebviewWindow`s merge into a single tabbed window the way Safari / Finder do it. Cmd+T spawns a new tab inside the same window instead of a separate window.
+- Windows: not applicable — no native tabbed-window concept. Multi-window from Phase 2 is the Windows answer.
+
+**Out of scope for this track**
+- Chrome-style in-app tab bar (custom-rendered tab strip + multiple webviews stacked in one window). Possible (~2 extra days), but most desktop-app users today expect multi-window over in-app tabs (VS Code, Slack, Notion, Linear all work that way).
+
+**Tradeoffs flagged**
+- Memory: each window = its own webview process. 4 windows ≈ 4 processes. Same shape as Chrome, fine in practice.
+- The Next.js app needs zero changes — same routes, same sessions, just a different client renders them.
+
+---
+
 ### Upgrade & install hardening (high priority — burned a colleague-test session on this)
 
 - **NSIS pre-install hook: detect-and-stop running instance.** ~1 hour, cheap, fixes a sharp edge that costs new users the first 10 min of their first try.
