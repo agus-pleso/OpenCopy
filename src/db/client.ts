@@ -61,10 +61,20 @@ function create(): { db: unknown; pool: unknown; embedded: boolean } {
   };
 }
 
+// Always cache on globalThis. The Next.js standalone bundler can include
+// `db/client.ts` in more than one webpack chunk on the server side; without
+// the global handoff each chunk would call `create()` and end up with its
+// own PGlite instance pointed at the same data dir. Two PGlite instances on
+// one dataDir cannot share in-memory state, so writes through one chunk's
+// `db` are invisible to reads through another chunk's `db` until the
+// process restarts. (Symptom that surfaced this: saveApiKey returned ok
+// but the row never appeared on /settings/ai re-render — Ollama specifically
+// because the OpenRouter form happened to land in the same chunk as the
+// page render, while Ollama's form did not.) The global cache also still
+// protects against dev-mode hot-reload re-instantiation, which is what the
+// original guard was for.
 const cached = global.__opencopyDb ?? create();
-if (process.env.NODE_ENV !== "production") {
-  global.__opencopyDb = cached;
-}
+global.__opencopyDb = cached;
 
 // The two Drizzle adapters share the same query API but have different
 // generic types — cast through `unknown` so call-sites get the typed
