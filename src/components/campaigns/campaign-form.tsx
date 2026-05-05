@@ -3,8 +3,7 @@
 import * as React from "react";
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
-import { Sparkles, X, BookOpen, ScanText } from "lucide-react";
+import { Sparkles, X, ScanText } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -12,13 +11,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
+  ComposeContextBar,
+  type ComposeContextValue,
+} from "@/components/compose/compose-context-bar";
 import { startCampaignRun } from "@/server/actions/campaigns";
 import { AgentRunningOverlay } from "@/components/agents/agent-running-overlay";
 import { cn } from "@/lib/utils";
@@ -54,27 +49,18 @@ const CHANNELS: { value: Channel; label: string; hint: string }[] = [
   { value: "other", label: "Other", hint: "as specified" },
 ];
 
-const LOCALES: { value: Locale; label: string }[] = [
-  { value: "en", label: "English" },
-  { value: "pl", label: "Polski" },
-  { value: "ro", label: "Română" },
-  { value: "uk", label: "Українська" },
-];
-
 export function CampaignForm({ voices, sources }: Props) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
 
   const usableVoices = voices.filter((v) => v.isAnalyzed);
-  const usableSources = sources.filter((s) => s.status === "ready");
 
   const [name, setName] = React.useState("");
-  const [voiceId, setVoiceId] = React.useState<string>(
-    usableVoices[0]?.id ?? "__none",
-  );
-  const [locale, setLocale] = React.useState<Locale>(
-    usableVoices[0]?.defaultLocale ?? "en",
-  );
+  const [compose, setCompose] = React.useState<ComposeContextValue>({
+    voiceId: usableVoices[0]?.id ?? null,
+    locale: usableVoices[0]?.defaultLocale ?? "en",
+    sourceIds: [],
+  });
   const [objective, setObjective] = React.useState("");
   const [productInfo, setProductInfo] = React.useState("");
   const [audience, setAudience] = React.useState("");
@@ -83,17 +69,10 @@ export function CampaignForm({ voices, sources }: Props) {
     "social",
     "ad",
   ]);
-  const [selectedSourceIds, setSelectedSourceIds] = React.useState<string[]>([]);
 
   const toggleChannel = (c: Channel) => {
     setChannels((prev) =>
       prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c],
-    );
-  };
-
-  const toggleSource = (id: string) => {
-    setSelectedSourceIds((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
     );
   };
 
@@ -115,13 +94,13 @@ export function CampaignForm({ voices, sources }: Props) {
       try {
         const { campaignId } = await startCampaignRun({
           name: name.trim(),
-          voiceId: voiceId !== "__none" ? voiceId : undefined,
-          locale,
+          voiceId: compose.voiceId ?? undefined,
+          locale: compose.locale,
           objective: objective.trim(),
           audienceOverride: audience.trim() || undefined,
           productInfo: productInfo.trim() || undefined,
           requestedChannels: channels,
-          sourceIds: selectedSourceIds.length > 0 ? selectedSourceIds : undefined,
+          sourceIds: compose.sourceIds.length > 0 ? compose.sourceIds : undefined,
         });
         router.push(`/campaigns/${campaignId}`);
       } catch (err) {
@@ -132,171 +111,93 @@ export function CampaignForm({ voices, sources }: Props) {
 
   return (
     <>
-      <form onSubmit={onSubmit} className="grid gap-6 md:grid-cols-2">
-        <div className="md:col-span-2">
-          <Field
-            label="Campaign name"
-            hint="Internal label — what you'll search for in the list later."
-          >
+      <form onSubmit={onSubmit} className="grid gap-6">
+        <Field
+          label="Campaign name"
+          hint="Internal label — what you'll search for in the list later."
+        >
+          <Input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="e.g. Pro plan launch — Q3"
+            required
+            minLength={2}
+            maxLength={160}
+            className="text-base"
+          />
+        </Field>
+
+        <ComposeContextBar
+          value={compose}
+          onChange={setCompose}
+          voices={voices}
+          sources={sources}
+          tourPrefix="campaigns"
+        />
+
+        <Field
+          label="Objective"
+          hint="What the campaign needs to accomplish. Specific verb + measurable outcome beats vague ambition."
+        >
+          <Textarea
+            value={objective}
+            onChange={(e) => setObjective(e.target.value)}
+            placeholder="e.g. Drive Pro-plan trial signups for mid-market B2B founders, with the angle that Pro saves 6 hours/week on reporting."
+            className="min-h-[100px]"
+            required
+            minLength={10}
+          />
+        </Field>
+
+        <div className="grid gap-4 md:grid-cols-2">
+          <Field label="Audience override (optional)">
             <Input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. Pro plan launch — Q3"
-              required
-              minLength={2}
-              maxLength={160}
-              className="text-base"
+              value={audience}
+              onChange={(e) => setAudience(e.target.value)}
+              placeholder="Overrides the voice's audience for this campaign."
+            />
+          </Field>
+
+          <Field label="Product info (optional)" hint="Feature names, pricing, value props.">
+            <Input
+              value={productInfo}
+              onChange={(e) => setProductInfo(e.target.value)}
+              placeholder="What does the product actually do?"
             />
           </Field>
         </div>
 
-        <Field label="Brand voice" hint="Drives every drafter and the auditor.">
-          <Select value={voiceId} onValueChange={setVoiceId}>
-            <SelectTrigger>
-              <SelectValue placeholder="Pick a voice" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="__none">No voice</SelectItem>
-              {usableVoices.map((v) => (
-                <SelectItem key={v.id} value={v.id}>
-                  {v.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </Field>
-
-        <Field label="Locale" hint="Locale for every asset.">
-          <Select value={locale} onValueChange={(v) => setLocale(v as Locale)}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {LOCALES.map((l) => (
-                <SelectItem key={l.value} value={l.value}>
-                  {l.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </Field>
-
-        <div className="md:col-span-2">
-          <Field
-            label="Objective"
-            hint="What the campaign needs to accomplish. Specific verb + measurable outcome beats vague ambition."
-          >
-            <Textarea
-              value={objective}
-              onChange={(e) => setObjective(e.target.value)}
-              placeholder="e.g. Drive Pro-plan trial signups for mid-market B2B founders, with the angle that Pro saves 6 hours/week on reporting."
-              className="min-h-[100px]"
-              required
-              minLength={10}
-            />
-          </Field>
-        </div>
-
-        <Field label="Audience override (optional)">
-          <Input
-            value={audience}
-            onChange={(e) => setAudience(e.target.value)}
-            placeholder="Overrides the voice's audience for this campaign."
-          />
-        </Field>
-
-        <Field label="Product info (optional)" hint="Feature names, pricing, value props.">
-          <Input
-            value={productInfo}
-            onChange={(e) => setProductInfo(e.target.value)}
-            placeholder="What does the product actually do?"
-          />
-        </Field>
-
-        <div className="md:col-span-2">
-          <Field
-            label="Channels"
-            hint="Pick which channels the campaign should produce assets for. The planner decides exact quantity per channel."
-          >
-            <div className="flex flex-wrap gap-1.5">
-              {CHANNELS.map((c) => {
-                const selected = channels.includes(c.value);
-                return (
-                  <button
-                    key={c.value}
-                    type="button"
-                    onClick={() => toggleChannel(c.value)}
-                    className={cn(
-                      "inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-medium transition",
-                      selected
-                        ? "border-[var(--color-primary)]/40 bg-[var(--color-primary)]/10 text-[var(--color-primary)]"
-                        : "border-[var(--color-border)] bg-[var(--color-background)] text-[var(--color-foreground)] hover:bg-[var(--color-accent)]",
-                    )}
-                  >
-                    <span>{c.label}</span>
-                    <span className="text-[10px] text-[var(--color-muted-foreground)]">
-                      {c.hint}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </Field>
-        </div>
-
-        {usableSources.length > 0 && (
-          <div className="md:col-span-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <BookOpen className="h-4 w-4 text-[var(--color-primary)]" />
-                <Label className="text-xs uppercase tracking-[0.14em] text-[var(--color-muted-foreground)]">
-                  Knowledge sources
-                </Label>
-                {selectedSourceIds.length > 0 && (
-                  <Badge variant="muted" className="text-[10px] tracking-wider">
-                    {selectedSourceIds.length} selected
-                  </Badge>
-                )}
-              </div>
-              <Link
-                href="/knowledge"
-                className="text-[11px] uppercase tracking-wider text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)] transition"
-              >
-                Manage
-              </Link>
-            </div>
-            <p className="mt-2 text-[11px] text-[var(--color-muted-foreground)]">
-              Retrieved chunks are shared across the campaign planner and every
-              asset drafter — top 10 most relevant per run.
-            </p>
-            <div className="mt-3 flex flex-wrap gap-1.5">
-              {usableSources.map((s) => {
-                const selected = selectedSourceIds.includes(s.id);
-                return (
-                  <button
-                    key={s.id}
-                    type="button"
-                    onClick={() => toggleSource(s.id)}
-                    className={cn(
-                      "inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-medium transition",
-                      selected
-                        ? "border-[var(--color-primary)]/40 bg-[var(--color-primary)]/10 text-[var(--color-primary)]"
-                        : "border-[var(--color-border)] bg-[var(--color-background)] text-[var(--color-foreground)] hover:bg-[var(--color-accent)]",
-                    )}
-                  >
-                    <span>{s.name}</span>
-                    <span className="text-[10px] tabular-nums text-[var(--color-muted-foreground)]">
-                      {s.chunkCount}c
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
+        <Field
+          label="Channels"
+          hint="Pick which channels the campaign should produce assets for. The planner decides exact quantity per channel."
+        >
+          <div className="flex flex-wrap gap-1.5">
+            {CHANNELS.map((c) => {
+              const selected = channels.includes(c.value);
+              return (
+                <button
+                  key={c.value}
+                  type="button"
+                  onClick={() => toggleChannel(c.value)}
+                  className={cn(
+                    "inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-medium transition",
+                    selected
+                      ? "border-[var(--color-primary)]/40 bg-[var(--color-primary)]/10 text-[var(--color-primary)]"
+                      : "border-[var(--color-border)] bg-[var(--color-background)] text-[var(--color-foreground)] hover:bg-[var(--color-accent)]",
+                  )}
+                >
+                  <span>{c.label}</span>
+                  <span className="text-[10px] text-[var(--color-muted-foreground)]">
+                    {c.hint}
+                  </span>
+                </button>
+              );
+            })}
           </div>
-        )}
+        </Field>
 
-        {voiceId === "__none" && (
-          <div className="md:col-span-2 inline-flex items-center gap-2 rounded-md border border-dashed border-[var(--color-warning)]/40 bg-[var(--color-warning)]/10 px-3 py-2 text-xs text-[var(--color-warning)]">
+        {compose.voiceId === null && (
+          <div className="inline-flex items-center gap-2 rounded-md border border-dashed border-[var(--color-warning)]/40 bg-[var(--color-warning)]/10 px-3 py-2 text-xs text-[var(--color-warning)]">
             <ScanText className="h-3.5 w-3.5" />
             <span>
               Without a voice, assets will be drafted but not voice-audited.
@@ -305,7 +206,7 @@ export function CampaignForm({ voices, sources }: Props) {
           </div>
         )}
 
-        <div className="md:col-span-2 flex items-center justify-end gap-3">
+        <div className="flex items-center justify-end gap-3">
           <Button
             type="button"
             variant="outline"
@@ -314,7 +215,7 @@ export function CampaignForm({ voices, sources }: Props) {
               setObjective("");
               setProductInfo("");
               setAudience("");
-              setSelectedSourceIds([]);
+              setCompose((c) => ({ ...c, sourceIds: [] }));
             }}
           >
             <X className="h-3.5 w-3.5" /> Clear

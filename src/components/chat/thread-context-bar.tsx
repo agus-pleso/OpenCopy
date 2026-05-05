@@ -3,9 +3,6 @@
 import * as React from "react";
 import { useTransition } from "react";
 import {
-  ScanText,
-  BookOpen,
-  Languages,
   Pin,
   PinOff,
   Trash2,
@@ -16,14 +13,6 @@ import {
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -39,7 +28,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { cn, isRedirectError } from "@/lib/utils";
+import {
+  ComposeContextBar,
+  type ComposeContextValue,
+  type ComposeVoiceOption,
+  type ComposeSourceOption,
+} from "@/components/compose/compose-context-bar";
+import { isRedirectError } from "@/lib/utils";
 import {
   archiveChatThread,
   deleteChatThread,
@@ -47,24 +42,8 @@ import {
 } from "@/server/actions/chat";
 import type { Locale } from "@/db/schema";
 
-const LOCALES: { value: Locale; label: string }[] = [
-  { value: "en", label: "English" },
-  { value: "pl", label: "Polski" },
-  { value: "ro", label: "Română" },
-  { value: "uk", label: "Українська" },
-];
-
-export interface VoiceOption {
-  id: string;
-  name: string;
-  isAnalyzed: boolean;
-}
-
-export interface SourceOption {
-  id: string;
-  name: string;
-  status: string;
-}
+export type VoiceOption = ComposeVoiceOption;
+export type SourceOption = ComposeSourceOption;
 
 interface Props {
   threadId: string;
@@ -98,27 +77,15 @@ export function ThreadContextBar({
   const [confirmDelete, setConfirmDelete] = React.useState(false);
 
   const [title, setTitle] = React.useState(initialTitle);
-  const [voiceId, setVoiceId] = React.useState<string>(initialVoiceId ?? "__none");
-  const [locale, setLocale] = React.useState<Locale>(initialLocale);
-  const [sourceIds, setSourceIds] = React.useState<string[]>(initialSourceIds);
+  const [compose, setCompose] = React.useState<ComposeContextValue>({
+    voiceId: initialVoiceId,
+    locale: initialLocale,
+    sourceIds: initialSourceIds,
+  });
   const [pinned, setPinned] = React.useState(initialPinned);
 
   const titleSaveTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
-
   const usableVoices = voices.filter((v) => v.isAnalyzed);
-  const usableSources = sources.filter((s) => s.status === "ready");
-
-  React.useEffect(() => {
-    onContextChange?.({
-      voiceId: voiceId !== "__none" ? voiceId : null,
-      sourceIds,
-      voiceName:
-        voiceId !== "__none"
-          ? usableVoices.find((v) => v.id === voiceId)?.name ?? null
-          : null,
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [voiceId, sourceIds]);
 
   const onTitleChange = (next: string) => {
     setTitle(next);
@@ -135,45 +102,44 @@ export function ThreadContextBar({
     }, 700);
   };
 
-  const onVoiceChange = (next: string) => {
-    setVoiceId(next);
-    startMeta(async () => {
-      try {
-        await updateChatThread({
-          threadId,
-          voiceId: next === "__none" ? null : next,
+  // The bar emits the full new ComposeContextValue on every interaction.
+  // We diff against the previous state to figure out what to persist —
+  // the server action accepts each field independently so we only send the
+  // delta. That keeps the existing per-field auto-save semantics intact.
+  const onComposeChange = (next: ComposeContextValue) => {
+    setCompose((prev) => {
+      const patch: {
+        threadId: string;
+        voiceId?: string | null;
+        locale?: Locale;
+        sourceIds?: string[];
+      } = { threadId };
+      if (next.voiceId !== prev.voiceId) patch.voiceId = next.voiceId;
+      if (next.locale !== prev.locale) patch.locale = next.locale;
+      if (
+        next.sourceIds.length !== prev.sourceIds.length ||
+        next.sourceIds.some((id, i) => id !== prev.sourceIds[i])
+      ) {
+        patch.sourceIds = next.sourceIds;
+      }
+      if (Object.keys(patch).length > 1) {
+        startMeta(async () => {
+          try {
+            await updateChatThread(patch);
+          } catch (err) {
+            if (isRedirectError(err)) throw err;
+            toast.error((err as Error).message);
+          }
         });
-      } catch (err) {
-        if (isRedirectError(err)) throw err;
-        toast.error((err as Error).message);
       }
+      return next;
     });
-  };
-
-  const onLocaleChange = (next: Locale) => {
-    setLocale(next);
-    startMeta(async () => {
-      try {
-        await updateChatThread({ threadId, locale: next });
-      } catch (err) {
-        if (isRedirectError(err)) throw err;
-        toast.error((err as Error).message);
-      }
-    });
-  };
-
-  const toggleSource = (id: string) => {
-    const next = sourceIds.includes(id)
-      ? sourceIds.filter((x) => x !== id)
-      : [...sourceIds, id];
-    setSourceIds(next);
-    startMeta(async () => {
-      try {
-        await updateChatThread({ threadId, sourceIds: next });
-      } catch (err) {
-        if (isRedirectError(err)) throw err;
-        toast.error((err as Error).message);
-      }
+    onContextChange?.({
+      voiceId: next.voiceId,
+      sourceIds: next.sourceIds,
+      voiceName: next.voiceId
+        ? usableVoices.find((v) => v.id === next.voiceId)?.name ?? null
+        : null,
     });
   };
 
@@ -260,69 +226,15 @@ export function ThreadContextBar({
         </div>
       </div>
 
-      <div className="mt-3 flex flex-wrap items-center gap-3 text-sm">
-        <div className="inline-flex items-center gap-1.5 text-[var(--color-muted-foreground)]">
-          <ScanText className="h-3.5 w-3.5" />
-          <Select value={voiceId} onValueChange={onVoiceChange}>
-            <SelectTrigger className="h-7 w-[170px] border-none bg-transparent px-1 text-xs shadow-none">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="__none">No voice</SelectItem>
-              {usableVoices.map((v) => (
-                <SelectItem key={v.id} value={v.id}>
-                  {v.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="inline-flex items-center gap-1.5 text-[var(--color-muted-foreground)]">
-          <Languages className="h-3.5 w-3.5" />
-          <Select
-            value={locale}
-            onValueChange={(v) => onLocaleChange(v as Locale)}
-          >
-            <SelectTrigger className="h-7 w-[120px] border-none bg-transparent px-1 text-xs shadow-none">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {LOCALES.map((l) => (
-                <SelectItem key={l.value} value={l.value}>
-                  {l.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        {usableSources.length > 0 && (
-          <div className="flex flex-wrap items-center gap-1.5">
-            <BookOpen className="h-3.5 w-3.5 text-[var(--color-muted-foreground)]" />
-            {usableSources.map((s) => {
-              const selected = sourceIds.includes(s.id);
-              return (
-                <button
-                  key={s.id}
-                  type="button"
-                  onClick={() => toggleSource(s.id)}
-                  className={cn(
-                    "inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-medium transition",
-                    selected
-                      ? "border-[var(--color-primary)]/40 bg-[var(--color-primary)]/10 text-[var(--color-primary)]"
-                      : "border-[var(--color-border)] bg-[var(--color-background)] text-[var(--color-foreground)] hover:bg-[var(--color-accent)]",
-                  )}
-                >
-                  {s.name}
-                </button>
-              );
-            })}
-          </div>
-        )}
-        {sourceIds.length > 0 && (
-          <Badge variant="muted" className="text-[10px] tracking-wider">
-            {sourceIds.length} active
-          </Badge>
-        )}
+      <div className="mt-3">
+        <ComposeContextBar
+          variant="inline"
+          value={compose}
+          onChange={onComposeChange}
+          voices={voices}
+          sources={sources}
+          tourPrefix="chat"
+        />
       </div>
 
       <Dialog open={confirmDelete} onOpenChange={setConfirmDelete}>

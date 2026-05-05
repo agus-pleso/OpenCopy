@@ -16,6 +16,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  ComposeContextBar,
+  type ComposeContextValue,
+} from "@/components/compose/compose-context-bar";
 import { cn } from "@/lib/utils";
 import { startLocalizerRun } from "@/server/actions/agents";
 import { AgentRunningOverlay } from "./agent-running-overlay";
@@ -42,13 +46,18 @@ export function LocalizerForm({ voices }: Props) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
 
-  const [voiceId, setVoiceId] = React.useState<string>("__none");
+  // Localizer's "context" is just the voice — locale here is the SOURCE
+  // locale, which is a localizer-specific concept (paired with targetLocales).
+  // We hide the bar's locale picker and keep locale state local.
+  const [compose, setCompose] = React.useState<ComposeContextValue>({
+    voiceId: null,
+    locale: "en",
+    sourceIds: [],
+  });
   const [sourceLocale, setSourceLocale] = React.useState<Locale>("en");
   const [targetLocales, setTargetLocales] = React.useState<Locale[]>(["pl"]);
   const [sourceText, setSourceText] = React.useState("");
   const [contextHint, setContextHint] = React.useState("");
-
-  const usable = voices.filter((v) => v.isAnalyzed);
 
   const toggleTarget = (l: Locale) => {
     setTargetLocales((prev) =>
@@ -70,7 +79,7 @@ export function LocalizerForm({ voices }: Props) {
     startTransition(async () => {
       try {
         const { runId } = await startLocalizerRun({
-          voiceId: voiceId !== "__none" ? voiceId : undefined,
+          voiceId: compose.voiceId ?? undefined,
           sourceLocale,
           targetLocales: targets,
           sourceText: sourceText.trim(),
@@ -86,6 +95,15 @@ export function LocalizerForm({ voices }: Props) {
   return (
     <>
       <form onSubmit={onSubmit} className="grid gap-6">
+        <ComposeContextBar
+          value={compose}
+          onChange={setCompose}
+          voices={voices}
+          hideLocale
+          hideSources
+          tourPrefix="localizer"
+        />
+
         <div className="grid gap-4 md:grid-cols-3">
           <div className="md:col-span-2">
             <Field
@@ -96,7 +114,7 @@ export function LocalizerForm({ voices }: Props) {
                 value={sourceText}
                 onChange={(e) => setSourceText(e.target.value)}
                 placeholder="Paste a headline, paragraph, ad, email, or full landing-page copy."
-                className="min-h-[200px] font-serif"
+                className="min-h-[200px]"
                 style={{ fontFamily: "ui-serif, Georgia, serif" }}
                 required
                 minLength={20}
@@ -156,39 +174,18 @@ export function LocalizerForm({ voices }: Props) {
           </div>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2">
-          <Field
-            label="Brand voice"
-            hint="Optional. With a voice the auditor checks that the target copy stays on-brand."
-          >
-            <Select value={voiceId} onValueChange={setVoiceId}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__none">No voice — translate cleanly</SelectItem>
-                {usable.map((v) => (
-                  <SelectItem key={v.id} value={v.id}>
-                    {v.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </Field>
-
-          <Field
-            label="Context hint"
-            hint="Optional. Channel, audience, or anything that shapes register."
-          >
-            <Textarea
-              value={contextHint}
-              onChange={(e) => setContextHint(e.target.value)}
-              placeholder="e.g. B2B landing page, addressing senior PMs"
-              className="min-h-[60px]"
-              maxLength={500}
-            />
-          </Field>
-        </div>
+        <Field
+          label="Context hint"
+          hint="Optional. Channel, audience, or anything that shapes register."
+        >
+          <Textarea
+            value={contextHint}
+            onChange={(e) => setContextHint(e.target.value)}
+            placeholder="e.g. B2B landing page, addressing senior PMs"
+            className="min-h-[60px]"
+            maxLength={500}
+          />
+        </Field>
 
         <div className="flex items-center justify-end">
           <Button type="submit" disabled={pending}>

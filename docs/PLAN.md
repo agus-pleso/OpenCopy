@@ -22,8 +22,8 @@
 | V1.9 | ✅ shipped | Workspace export / import (single-file `.opencopy`) |
 | V2.0 | ✅ shipped | Guided-tour onboarding (`react-joyride`, replayable) |
 | V2.1 | ✅ shipped | Library polymorphism — `library_entries`, save chat / doc selections, batch select + bulk delete/export |
-| **V2.2** | **next** | **Unified Compose context bar (UX Phase 4)** |
-| V2.3 | planned | Unified `+ New` entry (UX Phase 5) |
+| V2.2 | ✅ shipped | Unified Compose context bar — single `<ComposeContextBar>` across Copywriter / Localizer / Campaign / Chat / Document |
+| **V2.3** | **next** | **Unified `+ New` entry (UX Phase 5)** |
 | V2.4 | planned | Run timeline drawer + step metrics (UX Phase 6) |
 | V2.5 | planned | Real CmdK content search (UX Phase 7) |
 
@@ -135,7 +135,7 @@ A marketer's daily flow:
 - [x] **Phase 1 — Quick-win punch list** (`c35f78d`): Library Copy button, Save-to-library on Localizer, CmdK navigation parity, breadcrumbs in Topbar, voice/knowledge backlinks, dashboard widgets, Usage in sidebar footer.
 - [x] **Phase 2 — Sidebar IA + breadcrumb consolidation** (`bf639e9`): regrouped into BRAND / WORK / COMPOSE / footer; hand-rolled `← Back` links removed from 10 sub-pages (Topbar breadcrumb is the single source of wayfinding).
 - [x] **Phase 3 — Library as the spine** (V2.1): `library_entries` polymorphic table covers chat-message and document-selection saves alongside copy variants; Tiptap bubble menu now includes a `Save` action for the current selection; chat-message hover toolbar adds `Save`; Library page consumes a unified DTO from `listLibrary()` and renders three card kinds (variant / chat / document selection). Batch select with bulk delete + bulk JSON export ships in the same release. *Inline expand-to-preview is deferred to a later polish pass — line-clamp + "Open original" link is the v1 affordance.*
-- [ ] **Phase 4 — Unified Compose context bar** (V2.2 candidate): one `<ComposeContextBar voice knowledge required readOnly>` component, used identically on Copywriter form, Localizer form, Campaign brief, Chat thread, Document toolbar.
+- [x] **Phase 4 — Unified Compose context bar** (V2.2): one `<ComposeContextBar>` in [src/components/compose/compose-context-bar.tsx](../src/components/compose/compose-context-bar.tsx) with two visual variants (`form` for Copywriter / Localizer / Campaign forms, `inline` for Chat thread + Document headers). Fully controlled, internally filters voices to `isAnalyzed` and sources to `status='ready'`. Props: `voiceRequired`, `hideLocale`, `hideSources`, `readOnly`, `tourPrefix` (so per-surface tours can spotlight individual controls). Header surfaces (chat / document) keep their existing per-field auto-save semantics by diffing the emitted state against the previous value and sending only the delta to the server action.
 - [ ] **Phase 5 — Unified `+ New` entry** (V2.3 candidate): one `+ New` button at the top of the sidebar replaces four separate entry points. Opens a sheet asking *"What are you making?"* with cards for Single asset / Campaign / Long-form / Brainstorm. Pre-attaches voice + knowledge to the destination if user picks them in the sheet first.
 - [ ] **Phase 6 — Run timeline drawer + step metrics** (V2.4 candidate): convert `agent-timeline.tsx` to a right-side drawer. During live runs auto-opens, status pulses, draft-card stream-in. After completion: drawer collapses to a tab; opening reveals step-level metrics (model used, input/output tokens, latency, cost, retries). Add `Re-run with same brief` and `Replay timeline`.
 - [ ] **Phase 7 — Real CmdK content search** (V2.5 candidate): server-side search index (Drizzle-built, trigram + ilike fallback, no external service). Voices by name, knowledge sources by name + tags, campaigns by name + objective, runs by brief snippet, saved variants by content snippet. CmdK shows result types with icon + title + snippet + breadcrumb.

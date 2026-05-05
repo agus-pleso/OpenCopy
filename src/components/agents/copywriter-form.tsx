@@ -4,7 +4,7 @@ import * as React from "react";
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Sparkles, X, BookOpen } from "lucide-react";
+import { Sparkles, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -18,10 +18,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
+import {
+  ComposeContextBar,
+  type ComposeContextValue,
+} from "@/components/compose/compose-context-bar";
 import { startCopywriterRun } from "@/server/actions/agents";
 import { AgentRunningOverlay } from "./agent-running-overlay";
-import { cn } from "@/lib/utils";
 import type { Locale, Channel } from "@/db/schema";
 
 interface VoiceOption {
@@ -56,43 +58,29 @@ const CHANNELS: { value: Channel; label: string; lengthHint: string }[] = [
   { value: "other", label: "Other", lengthHint: "as specified" },
 ];
 
-const LOCALES: { value: Locale; label: string }[] = [
-  { value: "en", label: "English" },
-  { value: "pl", label: "Polski" },
-  { value: "ro", label: "Română" },
-  { value: "uk", label: "Українська" },
-];
-
 export function CopywriterForm({ voices, sources = [] }: Props) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
 
   const usable = voices.filter((v) => v.isAnalyzed);
-  const usableSources = sources.filter((s) => s.status === "ready");
 
-  const [voiceId, setVoiceId] = React.useState<string>(usable[0]?.id ?? "");
+  const [compose, setCompose] = React.useState<ComposeContextValue>({
+    voiceId: usable[0]?.id ?? null,
+    locale: usable[0]?.defaultLocale ?? "en",
+    sourceIds: [],
+  });
   const [channel, setChannel] = React.useState<Channel>("ad");
-  const [locale, setLocale] = React.useState<Locale>(
-    usable[0]?.defaultLocale ?? "en",
-  );
   const [objective, setObjective] = React.useState("");
   const [productInfo, setProductInfo] = React.useState("");
   const [length, setLength] = React.useState("");
   const [variantCount, setVariantCount] = React.useState(3);
   const [keywordsRaw, setKeywordsRaw] = React.useState("");
-  const [selectedSourceIds, setSelectedSourceIds] = React.useState<string[]>([]);
 
   const channelMeta = CHANNELS.find((c) => c.value === channel);
 
-  const toggleSource = (id: string) => {
-    setSelectedSourceIds((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
-    );
-  };
-
   const onSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!voiceId) {
+    if (!compose.voiceId) {
       toast.error("Pick an analyzed brand voice first.");
       return;
     }
@@ -108,15 +96,15 @@ export function CopywriterForm({ voices, sources = [] }: Props) {
     startTransition(async () => {
       try {
         const { runId } = await startCopywriterRun({
-          voiceId,
+          voiceId: compose.voiceId!,
           channel,
-          locale,
+          locale: compose.locale,
           objective: objective.trim(),
           productInfo: productInfo.trim() || undefined,
           length: length.trim() || channelMeta?.lengthHint || undefined,
           variantCount,
           keywords: keywords.length > 0 ? keywords : undefined,
-          sourceIds: selectedSourceIds.length > 0 ? selectedSourceIds : undefined,
+          sourceIds: compose.sourceIds.length > 0 ? compose.sourceIds : undefined,
         });
         router.push(`/agents/runs/${runId}`);
       } catch (err) {
@@ -144,178 +132,108 @@ export function CopywriterForm({ voices, sources = [] }: Props) {
 
   return (
     <>
-      <form onSubmit={onSubmit} className="grid gap-6 md:grid-cols-2">
-        <Field label="Brand voice" hint="Drives every drafter and the auditor.">
-          <Select value={voiceId} onValueChange={setVoiceId}>
-            <SelectTrigger>
-              <SelectValue placeholder="Pick a voice" />
-            </SelectTrigger>
-            <SelectContent>
-              {usable.map((v) => (
-                <SelectItem key={v.id} value={v.id}>
-                  {v.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </Field>
+      <form onSubmit={onSubmit} className="grid gap-6">
+        <ComposeContextBar
+          value={compose}
+          onChange={setCompose}
+          voices={voices}
+          sources={sources}
+          voiceRequired
+          tourPrefix="copywriter"
+        />
 
-        <Field label="Channel" hint={channelMeta?.lengthHint ?? ""}>
-          <Select value={channel} onValueChange={(v) => setChannel(v as Channel)}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {CHANNELS.map((c) => (
-                <SelectItem key={c.value} value={c.value}>
-                  {c.label}
-                  <span className="ml-2 text-xs text-[var(--color-muted-foreground)]">
-                    {c.lengthHint}
-                  </span>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </Field>
-
-        <div className="md:col-span-2">
-          <Field
-            label="Objective"
-            hint="What this copy needs to do. Be specific — 'Drive trial signups for the Pro plan' beats 'Be persuasive'."
-          >
-            <Textarea
-              value={objective}
-              onChange={(e) => setObjective(e.target.value)}
-              placeholder="e.g. Convert mid-market B2B founders to start a 14-day free trial of the Pro plan, with the angle that they save 6 hours/week on reporting."
-              className="min-h-[100px]"
-              required
-              minLength={10}
-            />
-          </Field>
-        </div>
-
-        <div className="md:col-span-2">
-          <Field
-            label="Product / service info"
-            hint="Optional. Drop in feature names, value props, key specs the copy should know."
-          >
-            <Textarea
-              value={productInfo}
-              onChange={(e) => setProductInfo(e.target.value)}
-              placeholder="What does the product actually do? Pricing? Audience pain points it solves?"
-              className="min-h-[80px]"
-            />
-          </Field>
-        </div>
-
-        <Field label="Locale" hint="Affects voice locale notes if defined.">
-          <Select value={locale} onValueChange={(v) => setLocale(v as Locale)}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {LOCALES.map((l) => (
-                <SelectItem key={l.value} value={l.value}>
-                  {l.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </Field>
-
-        <Field label="Variants" hint="1–5. More = wider angle exploration.">
-          <div className="flex items-center gap-1">
-            {[1, 2, 3, 4, 5].map((n) => (
-              <button
-                key={n}
-                type="button"
-                onClick={() => setVariantCount(n)}
-                className={
-                  n === variantCount
-                    ? "h-9 w-9 rounded-md bg-[var(--color-primary)] text-[var(--color-primary-foreground)] font-medium"
-                    : "h-9 w-9 rounded-md border border-[var(--color-border)] hover:bg-[var(--color-accent)]"
-                }
-              >
-                {n}
-              </button>
-            ))}
-          </div>
-        </Field>
-
-        <Field
-          label="Length override"
-          hint={`Optional. Defaults to "${channelMeta?.lengthHint}".`}
-        >
-          <Input
-            value={length}
-            onChange={(e) => setLength(e.target.value)}
-            placeholder={channelMeta?.lengthHint}
-          />
-        </Field>
-
-        <Field
-          label="Keywords"
-          hint="Optional. Comma-separated. The drafters will weave these in."
-        >
-          <Input
-            value={keywordsRaw}
-            onChange={(e) => setKeywordsRaw(e.target.value)}
-            placeholder="e.g. observability, postgres, self-hosted"
-          />
-        </Field>
-
-        {usableSources.length > 0 && (
-          <div className="md:col-span-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <BookOpen className="h-4 w-4 text-[var(--color-primary)]" />
-                <Label className="text-xs uppercase tracking-[0.14em] text-[var(--color-muted-foreground)]">
-                  Knowledge sources
-                </Label>
-                {selectedSourceIds.length > 0 && (
-                  <Badge variant="muted" className="text-[10px] tracking-wider">
-                    {selectedSourceIds.length} selected
-                  </Badge>
-                )}
-              </div>
-              <Link
-                href="/knowledge"
-                className="text-[11px] uppercase tracking-wider text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)] transition"
-              >
-                Manage
-              </Link>
-            </div>
-            <p className="mt-2 text-[11px] text-[var(--color-muted-foreground)]">
-              Pick which sources the planner + drafters consult. We retrieve the
-              top 8 most relevant chunks per run.
-            </p>
-            <div className="mt-3 flex flex-wrap gap-1.5">
-              {usableSources.map((s) => {
-                const selected = selectedSourceIds.includes(s.id);
-                return (
-                  <button
-                    key={s.id}
-                    type="button"
-                    onClick={() => toggleSource(s.id)}
-                    className={cn(
-                      "inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-medium transition",
-                      selected
-                        ? "border-[var(--color-primary)]/40 bg-[var(--color-primary)]/10 text-[var(--color-primary)]"
-                        : "border-[var(--color-border)] bg-[var(--color-background)] text-[var(--color-foreground)] hover:bg-[var(--color-accent)]",
-                    )}
-                  >
-                    <span>{s.name}</span>
-                    <span className="text-[10px] tabular-nums text-[var(--color-muted-foreground)]">
-                      {s.chunkCount}c
+        <div className="grid gap-6 md:grid-cols-2">
+          <Field label="Channel" hint={channelMeta?.lengthHint ?? ""}>
+            <Select value={channel} onValueChange={(v) => setChannel(v as Channel)}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {CHANNELS.map((c) => (
+                  <SelectItem key={c.value} value={c.value}>
+                    {c.label}
+                    <span className="ml-2 text-xs text-[var(--color-muted-foreground)]">
+                      {c.lengthHint}
                     </span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        )}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
 
-        <div className="md:col-span-2 flex items-center justify-end gap-3">
+          <Field label="Variants" hint="1–5. More = wider angle exploration.">
+            <div className="flex items-center gap-1">
+              {[1, 2, 3, 4, 5].map((n) => (
+                <button
+                  key={n}
+                  type="button"
+                  onClick={() => setVariantCount(n)}
+                  className={
+                    n === variantCount
+                      ? "h-9 w-9 rounded-md bg-[var(--color-primary)] text-[var(--color-primary-foreground)] font-medium"
+                      : "h-9 w-9 rounded-md border border-[var(--color-border)] hover:bg-[var(--color-accent)]"
+                  }
+                >
+                  {n}
+                </button>
+              ))}
+            </div>
+          </Field>
+
+          <div className="md:col-span-2">
+            <Field
+              label="Objective"
+              hint="What this copy needs to do. Be specific — 'Drive trial signups for the Pro plan' beats 'Be persuasive'."
+            >
+              <Textarea
+                value={objective}
+                onChange={(e) => setObjective(e.target.value)}
+                placeholder="e.g. Convert mid-market B2B founders to start a 14-day free trial of the Pro plan, with the angle that they save 6 hours/week on reporting."
+                className="min-h-[100px]"
+                required
+                minLength={10}
+              />
+            </Field>
+          </div>
+
+          <div className="md:col-span-2">
+            <Field
+              label="Product / service info"
+              hint="Optional. Drop in feature names, value props, key specs the copy should know."
+            >
+              <Textarea
+                value={productInfo}
+                onChange={(e) => setProductInfo(e.target.value)}
+                placeholder="What does the product actually do? Pricing? Audience pain points it solves?"
+                className="min-h-[80px]"
+              />
+            </Field>
+          </div>
+
+          <Field
+            label="Length override"
+            hint={`Optional. Defaults to "${channelMeta?.lengthHint}".`}
+          >
+            <Input
+              value={length}
+              onChange={(e) => setLength(e.target.value)}
+              placeholder={channelMeta?.lengthHint}
+            />
+          </Field>
+
+          <Field
+            label="Keywords"
+            hint="Optional. Comma-separated. The drafters will weave these in."
+          >
+            <Input
+              value={keywordsRaw}
+              onChange={(e) => setKeywordsRaw(e.target.value)}
+              placeholder="e.g. observability, postgres, self-hosted"
+            />
+          </Field>
+        </div>
+
+        <div className="flex items-center justify-end gap-3">
           <Button
             type="button"
             variant="outline"
@@ -324,7 +242,7 @@ export function CopywriterForm({ voices, sources = [] }: Props) {
               setProductInfo("");
               setKeywordsRaw("");
               setLength("");
-              setSelectedSourceIds([]);
+              setCompose((c) => ({ ...c, sourceIds: [] }));
             }}
           >
             <X className="h-3.5 w-3.5" /> Clear

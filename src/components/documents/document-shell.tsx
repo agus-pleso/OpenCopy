@@ -2,26 +2,13 @@
 
 import * as React from "react";
 import { useTransition } from "react";
-import { useRouter } from "next/navigation";
-import {
-  Trash2,
-  ScanText,
-  MoreHorizontal,
-  Languages,
-} from "lucide-react";
+import { Trash2, MoreHorizontal } from "lucide-react";
 import { toast } from "sonner";
 import { isRedirectError } from "@/lib/utils";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -39,6 +26,11 @@ import {
 import { DocumentEditor } from "@/components/editor/editor";
 import { ExportButton } from "@/components/exports/export-button";
 import {
+  ComposeContextBar,
+  type ComposeContextValue,
+  type ComposeVoiceOption,
+} from "@/components/compose/compose-context-bar";
+import {
   AutosaveIndicator,
   type SaveState,
 } from "./autosave-indicator";
@@ -46,36 +38,23 @@ import {
   deleteDocument,
   updateDocument,
 } from "@/server/actions/documents";
-import type { Document, Locale } from "@/db/schema";
-
-const LOCALES: { value: Locale; label: string }[] = [
-  { value: "en", label: "English" },
-  { value: "pl", label: "Polski" },
-  { value: "ro", label: "Română" },
-  { value: "uk", label: "Українська" },
-];
-
-interface VoiceOption {
-  id: string;
-  name: string;
-  isAnalyzed: boolean;
-}
+import type { Document } from "@/db/schema";
 
 interface Props {
   document: Document;
-  voices: VoiceOption[];
+  voices: ComposeVoiceOption[];
 }
 
 export function DocumentShell({ document, voices }: Props) {
-  const router = useRouter();
   const [pendingMeta, startMetaTransition] = useTransition();
   const [pendingDelete, startDelete] = useTransition();
   const [confirmDelete, setConfirmDelete] = React.useState(false);
   const [title, setTitle] = React.useState(document.title);
-  const [voiceId, setVoiceId] = React.useState<string>(
-    document.voiceId ?? "__none",
-  );
-  const [locale, setLocale] = React.useState<Locale>(document.locale);
+  const [compose, setCompose] = React.useState<ComposeContextValue>({
+    voiceId: document.voiceId,
+    locale: document.locale,
+    sourceIds: [],
+  });
   const [saveState, setSaveState] = React.useState<SaveState>("saved");
   const [lastSavedAt, setLastSavedAt] = React.useState<Date | null>(
     document.updatedAt,
@@ -100,31 +79,33 @@ export function DocumentShell({ document, voices }: Props) {
     }, 800);
   };
 
-  const onVoiceChange = (next: string) => {
-    setVoiceId(next);
-    startMetaTransition(async () => {
-      try {
-        await updateDocument({
-          documentId: document.id,
-          voiceId: next === "__none" ? null : next,
+  // The bar emits the full new compose value; persist only the deltas so we
+  // keep the existing per-field auto-save semantics + toast on voice change.
+  const onComposeChange = (next: ComposeContextValue) => {
+    setCompose((prev) => {
+      const patch: {
+        documentId: string;
+        voiceId?: string | null;
+        locale?: typeof prev.locale;
+      } = { documentId: document.id };
+      let voiceChanged = false;
+      if (next.voiceId !== prev.voiceId) {
+        patch.voiceId = next.voiceId;
+        voiceChanged = true;
+      }
+      if (next.locale !== prev.locale) patch.locale = next.locale;
+      if (Object.keys(patch).length > 1) {
+        startMetaTransition(async () => {
+          try {
+            await updateDocument(patch);
+            if (voiceChanged) toast.success("Voice updated.");
+          } catch (err) {
+            if (isRedirectError(err)) throw err;
+            toast.error((err as Error).message);
+          }
         });
-        toast.success("Voice updated.");
-      } catch (err) {
-        if (isRedirectError(err)) throw err;
-        toast.error((err as Error).message);
       }
-    });
-  };
-
-  const onLocaleChange = (next: Locale) => {
-    setLocale(next);
-    startMetaTransition(async () => {
-      try {
-        await updateDocument({ documentId: document.id, locale: next });
-      } catch (err) {
-        if (isRedirectError(err)) throw err;
-        toast.error((err as Error).message);
-      }
+      return next;
     });
   };
 
@@ -138,8 +119,6 @@ export function DocumentShell({ document, voices }: Props) {
       }
     });
   };
-
-  const usableVoices = voices.filter((v) => v.isAnalyzed);
 
   return (
     <div className="mx-auto w-full max-w-3xl px-6 py-8 md:px-10 md:py-12">
@@ -176,37 +155,14 @@ export function DocumentShell({ document, voices }: Props) {
           maxLength={220}
         />
         <div className="mt-3 flex flex-wrap items-center gap-3 text-sm">
-          <div className="inline-flex items-center gap-1.5 text-[var(--color-muted-foreground)]">
-            <ScanText className="h-3.5 w-3.5" />
-            <Select value={voiceId} onValueChange={onVoiceChange}>
-              <SelectTrigger className="h-7 w-[180px] border-none bg-transparent px-1 text-xs shadow-none">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__none">No voice</SelectItem>
-                {usableVoices.map((v) => (
-                  <SelectItem key={v.id} value={v.id}>
-                    {v.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="inline-flex items-center gap-1.5 text-[var(--color-muted-foreground)]">
-            <Languages className="h-3.5 w-3.5" />
-            <Select value={locale} onValueChange={(v) => onLocaleChange(v as Locale)}>
-              <SelectTrigger className="h-7 w-[120px] border-none bg-transparent px-1 text-xs shadow-none">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {LOCALES.map((l) => (
-                  <SelectItem key={l.value} value={l.value}>
-                    {l.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          <ComposeContextBar
+            variant="inline"
+            value={compose}
+            onChange={onComposeChange}
+            voices={voices}
+            hideSources
+            tourPrefix="documents"
+          />
           <Badge variant="muted" className="text-[10px] tracking-wider">
             {pendingMeta ? "syncing" : document.status}
           </Badge>
