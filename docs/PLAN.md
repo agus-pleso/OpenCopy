@@ -190,16 +190,11 @@ Today the Tauri shell is tray-only and the actual UI renders in the user's defau
 
 ---
 
-### Upgrade & install hardening (high priority — burned a colleague-test session on this)
+### Upgrade & install hardening
 
-- **NSIS pre-install hook: detect-and-stop running instance.** ~1 hour, cheap, fixes a sharp edge that costs new users the first 10 min of their first try.
-  - **Symptom:** Reinstalling over a previous version fails mid-extract with `Error opening file for writing: %LOCALAPPDATA%\OpenCopy\node.exe`. Cause: the old install's bundled Node sidecar is still running and holds a file lock — the Windows uninstaller closes the OpenCopy tray app but doesn't kill its child Node process.
-  - **Fix:** custom NSIS hook (`bundle.windows.nsis.installerHooks` in `tauri.conf.json`) that runs before extract:
-    1. `FindWindow "OpenCopy"` — close the Tauri shell window if open
-    2. Iterate processes for any `node.exe` whose path is under `$INSTDIR` and `nsExec::Exec` a kill
-    3. Wait 1–2 seconds for handles to release
-    4. Proceed with extract
-  - Same hook in the uninstaller would make the issue go away on uninstall too — no orphan node.exe left behind.
+- **NSIS pre-install hook: detect-and-stop running instance · ✅ shipped.**
+  - **Symptom (now fixed):** Reinstalling over a previous version failed mid-extract with `Error opening file for writing: %LOCALAPPDATA%\OpenCopy\node.exe`. The old install's Tauri shell + bundled Node sidecar held a file lock through the new installer's extract step.
+  - **Fix:** [`src-tauri/windows/installer-hooks.nsh`](../src-tauri/windows/installer-hooks.nsh), wired via `bundle.windows.nsis.installerHooks` in `tauri.conf.json`. Both `NSIS_HOOK_PREINSTALL` and `NSIS_HOOK_PREUNINSTALL` run `taskkill /F /T /IM "OpenCopy.exe"` (process-tree kill, takes the bundled node.exe sidecar with it) plus a path-scoped PowerShell backstop that only touches `node.exe` whose `Path` is under `$INSTDIR` — never a developer's unrelated Node processes. Then a 1.5 s pause to let file handles release before extract begins.
 
 - **Tauri auto-update channel** — the proper user-facing upgrade path. ~1 day.
   - User clicks **"Update available"** inside the app → bundle downloads + replaces in-place → app restarts on the new version. No re-running an installer, no clicking through SmartScreen again.

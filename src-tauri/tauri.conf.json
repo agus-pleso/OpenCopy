@@ -42,6 +42,11 @@
     "shortDescription": "Local-first AI copywriting workspace",
     "longDescription": "OpenCopy is a self-hosted AI copywriting workspace. The installer bundles everything you need to run it locally — no Docker, no external accounts.",
     "externalBin": ["binaries/node"],
-    "resources": ["server/**/*"]
+    "resources": ["server/**/*"],
+    "windows": {
+      "nsis": {
+        "installerHooks": "windows/installer-hooks.nsh"
+      }
+    }
   }
 }
