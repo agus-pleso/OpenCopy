@@ -14,14 +14,13 @@
       {
         "label": "main",
         "title": "OpenCopy",
-        "width": 1280,
-        "height": 800,
-        "minWidth": 800,
-        "minHeight": 600,
+        "width": 720,
+        "height": 520,
+        "minWidth": 480,
+        "minHeight": 360,
         "resizable": true,
         "fullscreen": false,
-        "visible": true,
-        "center": true
+        "visible": false
       }
     ],
     "security": {

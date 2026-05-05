@@ -38,42 +38,10 @@ fn current_url(app: &AppHandle) -> String {
         .unwrap_or_else(|| FALLBACK_URL.to_string())
 }
 
-/// Bring the main window forward. The webview has already been navigated
-/// to the live URL once the server became ready, so this is purely focus.
-fn focus_main_window(app: &AppHandle) {
-    if let Some(window) = app.get_webview_window("main") {
-        let _ = window.show();
-        let _ = window.unminimize();
-        let _ = window.set_focus();
-    } else {
-        log::warn!("main window not available");
-    }
-}
-
-/// Navigate the main window's webview to the running Next.js server.
-/// Called once `wait_for_server` resolves. The window starts on the splash
-/// HTML bundled into the Tauri binary, so the user sees a smooth handoff.
-fn navigate_to_app(app: &AppHandle, url_str: &str) {
-    let Some(window) = app.get_webview_window("main") else {
-        log::warn!("main window not available for navigation");
-        return;
-    };
-    match tauri::Url::parse(url_str) {
-        Ok(url) => {
-            if let Err(e) = window.navigate(url) {
-                log::error!("failed to navigate main window to {url_str}: {e}");
-                return;
-            }
-            let _ = window.show();
-            let _ = window.set_focus();
-        }
-        Err(e) => log::error!("invalid url {url_str}: {e}"),
-    }
-}
-
-/// Fallback exposed via the tray menu in case the in-window webview
-/// can't load (corporate proxies, weird WebView2 state, etc.).
-fn open_in_browser(app: &AppHandle) {
+/// Open the running OpenCopy server in the user's default browser.
+/// This is the primary "open the app" action — the Tauri shell stays
+/// tray-only, the actual UI lives in whichever browser the user prefers.
+fn open_app(app: &AppHandle) {
     let url = current_url(app);
     if let Err(e) = app.opener().open_url(&url, None::<&str>) {
         log::error!("failed to open {url} in browser: {e}");
@@ -109,10 +77,10 @@ fn spawn_server(app: &AppHandle) {
     let server_dir = resource_dir.join("server");
     let server_js = server_dir.join("server.js");
 
-    // Debug builds always take the dev path, even if a stale prepared-server
-    // bundle is sitting in the resource dir from a previous `pnpm tauri build`.
-    // Otherwise we'd spawn the bundled Node sidecar against an out-of-date
-    // standalone bundle and run migrate.mjs against the wrong store.
+    // Debug builds always take the dev path so a stale prepared-server
+    // bundle in the resource dir (left over from a previous `pnpm tauri
+    // build`) doesn't get spawned and run migrate.mjs against the wrong
+    // store. Release builds use the bundled server.
     let use_dev_path = cfg!(debug_assertions) || !server_js.exists();
     if use_dev_path {
         if !server_js.exists() {
@@ -132,7 +100,7 @@ fn spawn_server(app: &AppHandle) {
         let app_handle = app.clone();
         tauri::async_runtime::spawn(async move {
             wait_for_server("127.0.0.1:3000".to_string()).await;
-            navigate_to_app(&app_handle, FALLBACK_URL);
+            open_app(&app_handle);
         });
         return;
     }
@@ -261,10 +229,9 @@ fn spawn_server(app: &AppHandle) {
 
     let app_handle = app.clone();
     let probe = format!("127.0.0.1:{port}");
-    let nav_url = url.clone();
     tauri::async_runtime::spawn(async move {
         wait_for_server(probe).await;
-        navigate_to_app(&app_handle, &nav_url);
+        open_app(&app_handle);
     });
 
     tauri::async_runtime::spawn(async move {
@@ -311,21 +278,13 @@ pub fn run() {
         .manage(ServerState::default())
         .setup(|app| {
             let open_item = MenuItem::with_id(app, "open", "Open OpenCopy", true, None::<&str>)?;
-            let browser_item =
-                MenuItem::with_id(app, "browser", "Open in browser", true, None::<&str>)?;
             let restart_item = MenuItem::with_id(app, "restart", "Restart", true, None::<&str>)?;
             let separator = PredefinedMenuItem::separator(app)?;
             let quit_item = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
 
             let menu = Menu::with_items(
                 app,
-                &[
-                    &open_item,
-                    &browser_item,
-                    &separator,
-                    &restart_item,
-                    &quit_item,
-                ],
+                &[&open_item, &separator, &restart_item, &quit_item],
             )?;
 
             let _tray = TrayIconBuilder::with_id("main")
@@ -335,8 +294,7 @@ pub fn run() {
                 .menu(&menu)
                 .show_menu_on_left_click(false)
                 .on_menu_event(|app, event| match event.id.as_ref() {
-                    "open" => focus_main_window(app),
-                    "browser" => open_in_browser(app),
+                    "open" => open_app(app),
                     "restart" => app.restart(),
                     "quit" => app.exit(0),
                     _ => {}
@@ -348,10 +306,18 @@ pub fn run() {
                         ..
                     } = event
                     {
-                        focus_main_window(tray.app_handle());
+                        open_app(tray.app_handle());
                     }
                 })
                 .build(app)?;
+
+            // macOS: keep OpenCopy out of the Dock — it's a tray-resident
+            // utility that opens the actual UI in the user's default browser.
+            #[cfg(target_os = "macos")]
+            {
+                use tauri::ActivationPolicy;
+                app.set_activation_policy(ActivationPolicy::Accessory);
+            }
 
             spawn_server(app.handle());
 
