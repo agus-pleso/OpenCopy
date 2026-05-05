@@ -77,6 +77,12 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY: ''
 
       - name: Attest build provenance
+        # SLSA build provenance is only available for public repos (or
+        # paid organisation plans). On a free-tier private repo this
+        # step fails with "Feature not available for user-owned private
+        # repositories" — let it fail without sinking the build. When
+        # the repo flips public it will start working automatically.
+        continue-on-error: true
         uses: actions/attest-build-provenance@v2
         with:
           subject-path: ${{ matrix.artifact-glob }}
