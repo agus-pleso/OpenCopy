@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- V8 (Node.js) JIT-compiles JavaScript at runtime, which means
+         allocating writable+executable memory. macOS Sequoia + Apple Silicon
+         enforce W^X by default and refuse this without an explicit
+         entitlement. Symptom without it:
+            "Fatal process OOM in Failed to reserve virtual memory for CodeRange"
+         The bundled `node` sidecar dies at startup, migrations never run,
+         the server never boots, and the tray icon click does nothing. -->
+    <key>com.apple.security.cs.allow-jit</key>
+    <true/>
+
+    <!-- Belt-and-suspenders for V8 paths that don't go through MAP_JIT
+         and for older macOS where the JIT entitlement alone isn't enough. -->
+    <key>com.apple.security.cs.allow-unsigned-executable-memory</key>
+    <true/>
+
+    <!-- The bundled `node` sidecar links against system dylibs and ships
+         its own .dylibs (under server/node_modules). With ad-hoc signing,
+         dyld's library validation refuses to load anything not signed by
+         the same identity as the loader — which is everything. Disabling
+         library validation lets the sidecar boot. -->
+    <key>com.apple.security.cs.disable-library-validation</key>
+    <true/>
+</dict>
+</plist>
