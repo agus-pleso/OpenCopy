@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "OpenCopy",
-  "version": "1.8.0",
+  "version": "1.9.0",
   "identifier": "io.opencopy.desktop",
   "build": {
     "frontendDist": "../src-tauri/dist",
