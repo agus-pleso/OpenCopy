@@ -18,170 +18,108 @@
 | V1.5 | ✅ shipped | Direct providers + Ollama + cost dashboard |
 | V1.6 | ✅ shipped | Workspaces + invitations + member management |
 | V1.7 | ✅ shipped | Exports (MD / HTML / DOCX) + Resend invitation email |
-| **V1.8** | **next** | **Native installer wizard** (Tauri shell + bundled Postgres) |
-| **V1.9** | **planned** | **Workspace export / import** (single-file `.opencopy` package) |
-| **V2.0** | **planned** | **Guided-tour onboarding** (`react-joyride`, replayable) |
+| V1.8 | ✅ shipped | Native installer (Tauri shell + Node sidecar + PGlite) |
+| V1.9 | ✅ shipped | Workspace export / import (single-file `.opencopy`) |
+| V2.0 | ✅ shipped | Guided-tour onboarding (`react-joyride`, replayable) |
+| **V2.1** | **next** | **Library polymorphism** — `library_entries`, save chat / doc selections, batch select |
+| V2.2 | planned | Unified Compose context bar (UX Phase 4) |
+| V2.3 | planned | Unified `+ New` entry (UX Phase 5) |
+| V2.4 | planned | Run timeline drawer + step metrics (UX Phase 6) |
+| V2.5 | planned | Real CmdK content search (UX Phase 7) |
 
-Each of V1.8–V2.0 is detailed below.
+V2.x details for shipped releases live below; planned ones are summarised in [§ 5. UX reorganization track](#5-ux-reorganization--parallel-track).
 
 ---
 
-## 2. V1.8 — Native installer wizard · ~5–7 days
+## 2. V1.8 — Native installer · ✅ shipped
 
-**Goal.** Download one signed installer (`.dmg` for macOS, `.exe` for Windows), double-click, and have OpenCopy running locally in 60 seconds with zero terminal interaction. Fully local, fully self-contained.
+Distribution artefact: `OpenCopy_<version>_x64-setup.exe` (Windows NSIS, ~80 MB), `.msi` (Windows Group-Policy variant), `OpenCopy_<version>_aarch64.dmg` (Apple Silicon, ~130 MB). Built by GitHub Actions matrix on every `v*` tag and uploaded to a draft Release.
 
-### Approach
+### Architecture (as actually shipped)
 
-- **Tauri** (Rust shell) wrapping the Next.js standalone build.
-  - Cross-platform: macOS Universal (Apple Silicon + Intel), Windows, Linux AppImage
-  - Installer ~15 MB (vs Electron's 80 MB+)
-  - System-tray icon — running state, "Open OpenCopy", "Restart", "Quit"
-  - Signature-verified auto-updates baked in via Tauri's updater
-  - Smaller download → faster install → more user trust on the first impression
-- **Embedded Postgres + pgvector**, shipped per-platform. No Docker, no Neon account, no external network. The bundled binary lives in `~/Library/Application Support/OpenCopy/data` (macOS) or `%APPDATA%\OpenCopy\data` (Windows). Each install owns its database.
-- **First-run wizard inside the Tauri shell**:
-  1. Welcome + license acceptance
-  2. Pick install location (sane default)
-  3. Auto-generates `AUTH_SECRET` + `ENCRYPTION_KEY`
-  4. Boots embedded Postgres on a random local port
-  5. Applies migrations (`drizzle-kit migrate`)
-  6. Opens the dashboard in default browser
-  7. Tray icon stays resident; quitting from the tray cleanly stops Postgres
-- **Code-signed + notarized** — Apple Developer cert ($99/yr) for macOS Gatekeeper, Windows code-signing cert ($300/yr) for SmartScreen. Without these, users see scary warnings on first run.
+- **Tauri 2.x shell** (`src-tauri/`) wrapping a bundled Node 20 sidecar that runs the Next.js standalone server. Tray icon with **Open / Restart / Quit**. The Tauri webview is currently a small "OpenCopy is starting…" splash; the actual app loads in the user's default browser at `http://127.0.0.1:<random-port>`.
+- **PGlite** (`@electric-sql/pglite` + pgvector) replaces native Postgres binaries — Postgres compiled to WASM, runs in-process inside Node, persists under `<app_data>/pgdata/`. Cuts the installer ~3× vs shipping native binaries per platform and removes the per-platform pgvector compile entirely.
+- **First-run bootstrap** (`src-tauri/src/secrets.rs`): Rust generates `AUTH_SECRET` + `ENCRYPTION_KEY` into `<app_data>/secrets.env`, persisted across launches. Migrations run via a separate Node script (`migrate.mjs`) spawned before the main server — keeps the drizzle migrator out of webpack's hands.
+- **GH Actions matrix** — `windows-latest` + `macos-14` (Apple Silicon). `macos-13` (Intel) was tried and dropped: free-tier private repos get queue-starved on the Intel runner (rc.3 sat queued for 9+ hours). Intel users on modern Macs are < 5%; revisit only if a colleague reports needing it.
+- **Unsigned**. Apple Developer ($99/yr) and Windows code-signing ($300/yr) certs intentionally skipped to keep distribution free. Colleagues click through Gatekeeper / SmartScreen warnings once on first launch. Flow documented in README.
 
-### Sub-tasks
+### What changed vs the original V1.8 draft
 
-| # | Task | Est. |
+| Original plan | Shipped instead | Reason |
 |---|---|---|
-| 1.1 | Tauri shell skeleton + system tray + window management | 1d |
-| 1.2 | Embedded Postgres + pgvector bundle (per-platform precompiled binaries) | 2d |
-| 1.3 | First-run wizard UI inside the Tauri shell | 1d |
-| 1.4 | Auto-update channel (Tauri updater + GitHub Releases as the artifact host) | 0.5d |
-| 1.5 | macOS notarization pipeline + Windows signing | 1d |
-| 1.6 | Release-artifact CI: builds `.dmg`, `.exe`, `.AppImage` from a single tag | 0.5d |
+| Native Postgres + pgvector binaries per platform | PGlite (WASM) | ~3× smaller installer, no per-platform pgvector compile, single dep tree |
+| Code-signed + notarized | Unsigned | Free distribution; colleagues click through OS warning once |
+| Wizard *inside* Tauri shell | App opens in default browser; Rust does silent secret gen | Less UI to maintain; Tauri shell stays minimal |
+| AppImage for Linux | Skipped | No Linux colleagues yet — revisit on demand |
+| Auto-update via Tauri updater | Deferred to V2.x | Tauri updater wants signed builds |
 
-### Out of scope (V1.8)
+### Security pass (committed alongside V1.8)
 
-- Linux beyond AppImage (deb/rpm packages later)
-- Auto-launch on system boot (toggle later)
-- Mobile / iPad
-- User-customizable local port / install path beyond the wizard's defaults
+- **drizzle-orm 0.38 → 0.45.2** — closes HIGH SQL-injection-via-unescaped-identifiers (GHSA-gpj5-g38j-94v9).
+- **next-auth beta.25 → beta.31** — closes magic-link email-misdelivery (GHSA-5jpx-9hw9-2fx4).
+- **`postcss ^8.5.10` pnpm override** — closes XSS-via-unescaped-`</style>` in transitively-bundled postcss.
+- **Node sidecar SHA256 verification** in `scripts/download-node.mjs` — fetches `SHASUMS256.txt` from nodejs.org and aborts on mismatch. Closes "compromised mirror over valid TLS" supply-chain hole.
+- **SLSA build provenance** via `actions/attest-build-provenance@v2`. Currently a no-op on the private repo (free-tier limitation; step is `continue-on-error`); will start persisting attestations automatically when the repo flips public.
 
-### Acceptance
-
-A new user downloads `OpenCopy-1.8.0.dmg`, drags it to Applications, opens it, waits ~30 seconds. Browser opens at the dashboard. No terminal, no `pnpm`, no `.env`, no Postgres setup. Quitting from the tray stops Postgres cleanly.
+Two remaining low/moderate CVEs (`jsondiffpatch` XSS via internal-only `HtmlFormatter`, `ai` SDK filetype-bypass on user uploads we don't yet take) require an `ai 4 → 5` major bump — deferred. Both have ~zero practical exposure in our app today.
 
 ---
 
-## 3. V1.9 — Workspace export / import · ~3.5–4 days
+## 3. V1.9 — Workspace export / import · ✅ shipped
 
-**Goal.** Any owner can export their entire workspace to a single file and a teammate with the app installed can import it and have everything ready to use. MVP of multiplayer — async sharing, no live cursors yet.
+Async multiplayer MVP. An owner exports their workspace to a single `.opencopy` file; a teammate imports it on a fresh install and lands as the new workspace's sole owner.
 
-### Approach
+### File format (`src/lib/export/workspace-format.ts`)
 
-- **Export format** — single zip with the extension `.opencopy`:
-  ```
-  manifest.json          schema version, source metadata, export timestamp,
-                         table list, includes_embeddings: bool, encrypted: bool
-  tables/*.jsonl         one file per table, newline-delimited JSON rows
-  embeddings/chunks.bin  pgvector blobs preserved verbatim (only when included)
-  README.txt             human-readable summary
-  ```
-- **Single file, optional embeddings via checkbox** at export time:
-  - Default ON → file is larger but KB search works immediately on import
-  - Unchecked → smaller file; importer can recompute embeddings using their own OpenAI key (one-click), or import a companion `.opencopy` later
-- **Encrypted exports** — passphrase prompt at export. Key derived via PBKDF2-SHA-256 (300k iterations); zip contents encrypted with AES-256-GCM. The same passphrase is required to import. The `manifest.json` reveals only that the file is encrypted, not the workspace name. ~0.5 day on top of the unencrypted base.
-- **What's included**: workspace meta, brand voices + samples + audits, knowledge sources + chunks (+ optional embeddings), agent runs + steps + variants, documents, chat threads + messages, campaigns + assets, library entries.
-- **What's NOT included** (intentional):
-  - **API keys** — security; importer re-enters them. *(V2 may add an "include encrypted API keys via passphrase" toggle.)*
-  - **Member rows as memberships** — exported as email *labels* only. Importer becomes the sole owner of the imported workspace; can re-invite teammates.
-  - **Auth state / sessions** — auth is per-install.
-- **Import flow**:
-  1. `Settings → Workspace → Import` → file picker
-  2. App reads `manifest.json`, validates schema version, prompts for passphrase if encrypted
-  3. Preview screen: "About to import 'Acme Marketing' — 12 voices, 47 KB sources, 230 runs, embeddings: yes (44 MB). Continue?"
-  4. Generates new UUIDs everywhere; foreign keys rewritten in transactional pass
-  5. Embeddings copied verbatim (dimension match enforced)
-  6. Importer becomes owner of the new workspace; lands on the workspace dashboard
+- **Unencrypted** = a plain zip. Any unzip tool can open it.
+- **Encrypted** = `{header-json}\n` + AES-256-GCM ciphertext of the zip. PBKDF2-SHA-256 (300k iterations) over UTF-8 passphrase + 16-byte random salt → 256-bit key. 12-byte random IV. 16-byte auth tag.
+- First byte of the file alone tells the parser the mode (`0x50 'P'` = zip; `0x7B '{'` = encrypted wrapper).
 
-### Sub-tasks
+### Inside the zip
 
-| # | Task | Est. |
-|---|---|---|
-| 2.1 | Manifest schema + file format spec | 0.5d |
-| 2.2 | Server-side exporter — streams zip to client, embeddings toggle, passphrase encryption | 1.5d |
-| 2.3 | Server-side importer — passphrase decryption, transactional insert with id rewriting | 1.5d |
-| 2.4 | UI: export dialog (toggle + passphrase) + import dialog (preview + passphrase) | 1d |
+- `manifest.json` — schema version, source workspace metadata, table inventory, member email labels (for re-invite hints), embedding model + dimensions
+- `tables/<name>.jsonl` — one JSON row per line, 15 workspace-scoped tables
+- `embeddings/chunks.bin` — compact binary container (`OCEMB1` magic + dimensions + per-row UUID + float32-LE), only when `includeEmbeddings: true`. ~3× smaller than JSON-of-floats.
+- `README.txt` — human-readable summary so the file is self-explaining
 
-### Out of scope (V1.9)
+### What's NOT included (intentional)
 
-- Real-time multiplayer — live cursors, Yjs/Hocuspocus, presence avatars
-- Shared identity / cross-install accounts
-- Workspace version history / diff / merge
-- Companion-file imports for embeddings independently of a workspace import (deferred — checkbox handles 95% of cases)
-- Including encrypted API keys (V2)
+- **API keys** — security; importer re-enters them.
+- **Member rows as memberships** — exported as email *labels* only. Importer becomes the sole owner; can re-invite teammates.
+- **Auth state / sessions** — auth is per-install.
 
-### Acceptance
+### Round-trip mechanics
 
-I export from install A with embeddings checked + passphrase set → send the `.opencopy` file to a teammate over any channel → they import on install B, enter the passphrase, click through the preview → they see every voice, KB source, run, variant, document, campaign I had, with embeddings intact, ready to run agents.
+Importer rewrites every UUID via a remap table, walks 15 tables in dependency order in a single transaction, pins user FKs (createdByUserId etc.) to the importer, enforces embedding-dimension match. Smoke test (`scripts/test-workspace-roundtrip.ts`) verifies UUID remap, embedding fidelity within float32 tolerance, importer-as-owner, and pgvector cosine-similarity queries against the imported data.
+
+Wired through `Settings → Workspace → Transfer` card. Dialogs prompt for passphrase only when the file is encrypted (or when one is opted into on export). Preview before commit; switches workspace on success.
 
 ---
 
-## 4. V2.0 — Guided-tour onboarding · ~2.5–3 days
+## 4. V2.0 — Guided-tour onboarding · ✅ shipped
 
-**Goal.** First-run experience that walks new users through every meaningful surface, replayable any time from a "Take guided tour" button. Polish layer that pays off when V1.8/V1.9 brings real new users in.
+First-run welcome walkthrough plus per-surface mini-tours, all replayable from the user menu's "Guided tours" section.
 
-### Approach
+### Pieces
 
-- **Library**: [`react-joyride`](https://github.com/gilbarbara/react-joyride). React-native, JSX-rich tooltips so the tour feels like part of the app (Geist font, terracotta accent, our `<Badge>` for keyboard hints, etc.) rather than a generic third-party overlay.
-- **Two tour shapes**:
-  - **First-run tour** — auto-fires after the very first sign-in. ~10 steps across the app:
-    1. Welcome to OpenCopy
-    2. Create your first brand voice
-    3. Paste an OpenRouter key in Settings → AI Providers
-    4. Run your first Copywriter agent
-    5. Audit the variants
-    6. Save your favorite to the Library
-    7. Try the Localizer
-    8. Optional: knowledge base, documents, chat
-    9. Workspace settings + invitations
-    10. "You're set — explore from here"
-  - **Per-surface mini-tours** — each major surface (Voices, Agents, Knowledge, Campaigns, Library, Documents, Chat) has a small `?` button in its header that launches a 3–5 step tour scoped just to that surface.
-- **State** — new column `user_prefs.tours_completed JSONB`:
-  ```json
-  { "first_run": true, "voices": false, "agents": true, ... }
-  ```
-  Per-user, persisted in Postgres; survives sign-out and reinstall (since it lives in the local DB).
-- **"Take guided tour" entry points**:
-  - User menu (top-right dropdown) → "Take guided tour" → opens a chooser of available tours
-  - Per-surface `?` button on each surface header → replays just that surface's tour
-- **Accessibility** — keyboard navigation, screen-reader labels, prominent **Skip tour** on every step.
+- Migration `0009` adds `tours_completed jsonb` to `user_prefs` (default `{}`).
+- `src/server/actions/tours.ts` — `getToursCompleted` / `markTourCompleted` / `resetTours` server actions.
+- `src/lib/tours/definitions.tsx` — 8 tours: `first_run` (11 steps walking the sidebar) + 7 per-surface (`voices`, `knowledge`, `campaigns`, `library`, `documents`, `chat`, `agents`).
+- `src/components/tours/tour-runner.tsx` — client wrapper, loads `react-joyride` dynamically (SSR off — pulls DOM APIs eagerly), exposes `useTours()` hook with `startTour` / `resetAll` / `completed`.
+- Sidebar nav links carry `data-tour="nav-<href>"` so the welcome can spotlight each surface.
+- `AppLayout` reads `tours_completed` once on the server and seeds the runner so the welcome only auto-fires once per user.
+- `UserMenu` lists every tour under "Guided tours" — one click replays.
 
-### Sub-tasks
+### Deferred to V2.1
 
-| # | Task | Est. |
-|---|---|---|
-| 3.1 | Tour primitives + `tours_completed` schema migration + add-on to `userPrefs` server actions | 0.5d |
-| 3.2 | First-run tour content (~10 steps end-to-end) | 1d |
-| 3.3 | Per-surface mini-tours (5 surfaces × ~4 steps each) | 1d |
-| 3.4 | "Take guided tour" UI (user menu + surface `?` buttons + tour chooser) | 0.5d |
-
-### Out of scope (V2.0)
-
-- Role-specific tours (admin vs editor vs viewer) — same content for everyone in V1
-- Video walkthroughs
-- Interactive tutorials that require the user to actually click (read-and-next is enough for V1)
-- Localized tour copy beyond EN — pairs with a broader future i18n track
-
-### Acceptance
-
-Brand-new user signs in for the first time → guided tour pops up → walks through all key surfaces in ~2 minutes → user dismisses → next day clicks "Take guided tour" in the user menu → same tour replays from step 1. Voices `?` button replays just the Voices mini-tour without redoing the welcome.
+- **Per-surface `?` button** in each surface header (currently only the user-menu chooser replays tours).
+- **`data-tour` anchors on surface-specific elements** (`voices-new`, `kb-list`, etc.) — sidebar anchors are in place, but the per-surface tours fall back to body-centred tooltips when their target selector isn't found.
 
 ---
 
-## 5. UX reorganization — parallel track (eight phases)
+## 5. UX reorganization — parallel track
 
-> Goal: rebuild the IA around how a marketing team thinks (Brand → Work → Compose → Admin) instead of how the codebase grew. Independent of the V1.8–V2.0 platform work above; each phase is shippable on its own. Phase 1 already shipped at commit `c35f78d`.
+> Goal: rebuild the IA around how a marketing team thinks (Brand → Work → Compose → Admin). Each phase is shippable on its own.
 
 ### Mental model
 
@@ -192,91 +130,84 @@ A marketer's daily flow:
 4. **"Where's the approved version?"** — Library (the canonical archive)
 5. **"What did we spend?"** — usage / budget
 
-The current sidebar puts all five layers as peers. We're regrouping them.
+### Phase status
 
-### Phases
-
-#### Phase 1 — Quick-win punch list · ~1 day · ✅ shipped (`c35f78d`)
-
-Library Copy button wired, Save-to-library on Localizer, CmdK navigation parity, breadcrumbs in Topbar, voice/knowledge backlinks, dashboard widgets, Usage in sidebar footer.
-
-#### Phase 2 — Sidebar IA + breadcrumb wayfinding · ~0.5 day
-
-Regroup sidebar:
-```
-BRAND      Voices · Knowledge
-WORK       Campaigns · Library
-COMPOSE    Copywriter · Localizer · Long-form · Chat
-(footer)   Usage · Settings
-```
-Subtle group headers; replace hand-rolled `← Back` links with consistent breadcrumbs (uses Phase 1 plumbing). No removed routes.
-
-#### Phase 3 — Library as the spine of output management · 2–3 days
-
-Standardize a `SavedVariant` model usable from any surface. Add `Save to library` action everywhere — including Chat messages and Document selections (highlight → bubble action). Library page gets filter chips, batch select, inline preview, link-back to source. Export formats: Markdown, CSV, JSON.
-
-#### Phase 4 — Unified Compose context bar · 1–2 days
-
-One `<ComposeContextBar voice knowledge required readOnly>` component, used identically on Copywriter form, Localizer form, Campaign brief, Chat thread, Document toolbar. Voice attachment required by default with explicit `Translate without voice` opt-out only on Localizer. Knowledge becomes attachable on every Compose surface.
-
-#### Phase 5 — Unified `+ New` entry · 1 day
-
-One `+ New` button at the top of the sidebar replaces four separate entry points. Opens a sheet asking *"What are you making?"* with four cards: Single asset / Campaign / Long-form / Brainstorm. Pre-attaches voice + knowledge to the destination if user picks them in the sheet first.
-
-#### Phase 6 — Run timeline drawer + step-level metrics · 2 days
-
-Convert `agent-timeline.tsx` to a right-side drawer. During live runs: drawer auto-opens, status pulses, draft-card stream-in. After completion: drawer collapses to a tab; opening reveals step-level metrics (model used, input/output tokens, latency, cost, retries). Add `Re-run with same brief` and `Replay timeline` actions.
-
-#### Phase 7 — Real CmdK content search · 1–2 days
-
-Server-side search index (Drizzle-built, trigram + ilike fallback, no external service). Voices by name, knowledge sources by name + tags, campaigns by name + objective, runs by brief snippet, saved variants by content snippet. CmdK shows result types with icon + title + snippet + breadcrumb, keyboard navigation, recent results, fuzzy matching.
-
-#### Phase 8 (optional / bold) — Compose unification
-
-Collapse Copywriter / Long-form / Chat into a single **Compose** surface with three modes (brief → variants, blank canvas, conversation). Same context bar, same output destination, same save behavior. Localizer stays separate (transcreation, not generation). Recommended only after Phases 3–4 land.
+- [x] **Phase 1 — Quick-win punch list** (`c35f78d`): Library Copy button, Save-to-library on Localizer, CmdK navigation parity, breadcrumbs in Topbar, voice/knowledge backlinks, dashboard widgets, Usage in sidebar footer.
+- [x] **Phase 2 — Sidebar IA + breadcrumb consolidation** (`bf639e9`): regrouped into BRAND / WORK / COMPOSE / footer; hand-rolled `← Back` links removed from 10 sub-pages (Topbar breadcrumb is the single source of wayfinding).
+- [⚠️] **Phase 3 — Library as the spine** (partial: `82fac50`): filter chips (kind / voice / locale), JSON / CSV / MD exports, `data-tour` anchors. **Deferred to V2.1**: `library_entries` polymorphic table to support saving chat messages and document selections; document-selection bubble action via Tiptap; batch select with bulk export / delete; inline expand-to-preview.
+- [ ] **Phase 4 — Unified Compose context bar** (V2.2 candidate): one `<ComposeContextBar voice knowledge required readOnly>` component, used identically on Copywriter form, Localizer form, Campaign brief, Chat thread, Document toolbar.
+- [ ] **Phase 5 — Unified `+ New` entry** (V2.3 candidate): one `+ New` button at the top of the sidebar replaces four separate entry points. Opens a sheet asking *"What are you making?"* with cards for Single asset / Campaign / Long-form / Brainstorm. Pre-attaches voice + knowledge to the destination if user picks them in the sheet first.
+- [ ] **Phase 6 — Run timeline drawer + step metrics** (V2.4 candidate): convert `agent-timeline.tsx` to a right-side drawer. During live runs auto-opens, status pulses, draft-card stream-in. After completion: drawer collapses to a tab; opening reveals step-level metrics (model used, input/output tokens, latency, cost, retries). Add `Re-run with same brief` and `Replay timeline`.
+- [ ] **Phase 7 — Real CmdK content search** (V2.5 candidate): server-side search index (Drizzle-built, trigram + ilike fallback, no external service). Voices by name, knowledge sources by name + tags, campaigns by name + objective, runs by brief snippet, saved variants by content snippet. CmdK shows result types with icon + title + snippet + breadcrumb.
+- [ ] **Phase 8 — Compose unification** (optional / bold): collapse Copywriter / Long-form / Chat into a single **Compose** surface with three modes (brief → variants, blank canvas, conversation). Same context bar, same output destination, same save behavior. Localizer stays separate (transcreation, not generation). Recommended only after Phases 3–4 land.
 
 ### Phase ordering rationale
 
 | Order | Why |
 |---|---|
-| 1 first | ✅ shipped — visible polish, no architectural risk |
-| 2 next | IA regroup is meaningful but cheap; needs Phase 1 breadcrumbs |
-| 3 before 4 | Library data model unblocks Save buttons in Phase 4 |
-| 4 before 5 | `+ New` sheet pre-attaches via the ContextBar built in Phase 4 |
-| 6 anytime after 1 | Independent of IA; slot in based on capacity |
-| 7 anytime after 3 | Search benefits from a populated Library |
-| 8 last | High-risk, optional — only viable on top of 3+4 |
-
-### UX phase status
-
-- [x] Phase 1 — quick-win punch list (commit `c35f78d`)
-- [ ] Phase 2 — sidebar IA + breadcrumb wayfinding
-- [ ] Phase 3 — Library as the spine
-- [ ] Phase 4 — unified Compose context bar
-- [ ] Phase 5 — unified `+ New` entry
-- [ ] Phase 6 — run timeline drawer + step metrics
-- [ ] Phase 7 — real CmdK content search
-- [ ] Phase 8 — Compose unification (optional)
+| 1 ✅ | shipped — visible polish, no architectural risk |
+| 2 ✅ | shipped — IA regroup needed Phase 1 breadcrumbs |
+| 3 first (V2.1) | Library data model unblocks save-everywhere in Phase 4 |
+| 4 next (V2.2) | `+ New` sheet pre-attaches via the ContextBar built in Phase 4 |
+| 5 (V2.3) | depends on 4 |
+| 6 anytime | independent; slot in based on capacity |
+| 7 anytime after 3 | search benefits from a populated Library |
+| 8 last | high-risk, optional — only viable on top of 3+4 |
 
 ---
 
-## 6. Out of scope (intentional, won't change without a deliberate ask)
+## 6. Other tracks worth surfacing (not yet versioned)
 
-- Mobile redesign — desktop-first by design (marketing-team workflow)
-- Theming / palette changes — locked: cream + ink + terracotta
-- Replacing shadcn primitives — we extend, not rewrite
-- Multi-region active-active write topology — single primary region per workspace is enough
-- Browser extension (was floated for V1.8 in earlier drafts; superseded by the installer)
-- Helm chart / Coolify / Dokploy templates (was V1.9; reconsider only if installer adoption signals demand)
-- REST API + webhooks + admin (was V2.0; reconsider after V2.0 onboarding work proves the surface area is stable)
-- Real-time multiplayer (live cursors, Yjs/Hocuspocus, presence) — V1.9 sharing is async-only
+These items aren't on the V2.x rail but are explicitly *not* "won't do" — they're queued for a future pass.
+
+### Upgrade & install hardening (high priority — burned a colleague-test session on this)
+
+- **NSIS pre-install hook: detect-and-stop running instance.** ~1 hour, cheap, fixes a sharp edge that costs new users the first 10 min of their first try.
+  - **Symptom:** Reinstalling over a previous version fails mid-extract with `Error opening file for writing: %LOCALAPPDATA%\OpenCopy\node.exe`. Cause: the old install's bundled Node sidecar is still running and holds a file lock — the Windows uninstaller closes the OpenCopy tray app but doesn't kill its child Node process.
+  - **Fix:** custom NSIS hook (`bundle.windows.nsis.installerHooks` in `tauri.conf.json`) that runs before extract:
+    1. `FindWindow "OpenCopy"` — close the Tauri shell window if open
+    2. Iterate processes for any `node.exe` whose path is under `$INSTDIR` and `nsExec::Exec` a kill
+    3. Wait 1–2 seconds for handles to release
+    4. Proceed with extract
+  - Same hook in the uninstaller would make the issue go away on uninstall too — no orphan node.exe left behind.
+
+- **Tauri auto-update channel** — the proper user-facing upgrade path. ~1 day.
+  - User clicks **"Update available"** inside the app → bundle downloads + replaces in-place → app restarts on the new version. No re-running an installer, no clicking through SmartScreen again.
+  - Tauri's updater uses its own **Ed25519 update-signing key** (generate locally, `tauri signer generate`, public key baked into the bundle) — *unrelated* to OS code-signing. So this works on free-tier without paying Apple/Microsoft.
+  - Update server is just a JSON manifest hosted on GitHub Releases (`latest.json` with version + signed bundle URLs per platform). The `release.yml` workflow needs a step to generate the signed `.tauri.app.tar.gz` artefacts and update the manifest on each tag.
+  - Public repo flip + this combined gives colleagues a one-click upgrade with zero terminal work.
+
+### Other items, in roughly priority order
+
+- **Per-surface `?` tour replay buttons** — finishes the V2.0 polish loop; ~2 hours.
+- **Per-surface `data-tour` anchors** — makes the V2.0 mini-tours actually point at the right UI elements; ~1 hour per surface.
+- **`ai` SDK 4 → 5 major bump** — closes the last 2 (low/moderate) CVEs; hours-of-refactor across many files.
+- **OS-level code signing** — Apple Developer cert ($99/yr) + Windows code-signing ($300/yr). Drops the click-through SmartScreen / Gatekeeper warnings on first launch. Independent of the auto-update plumbing above; pure first-impression UX. Worth doing once OpenCopy has actual non-colleague users.
+- **macOS Intel runner** — dropped from CI because of free-tier queue starvation. Reintroduce as `continue-on-error: true` in the matrix the moment a colleague reports needing it.
+- **Encrypted API-key export toggle** — V1.9 export deliberately strips API keys; a future V2.x option could include them encrypted with the same passphrase.
+- **PDF / file uploads to Knowledge** — referenced by a `V1.5` TODO comment but never scheduled; revisit when there's demand.
+- **Public repo flip** — currently private; flipping to public unlocks free unlimited CI minutes, SLSA attestations begin persisting automatically, and lets colleagues clone without invite. Pending readiness call.
 
 ---
 
-## 7. Inline TODOs worth surfacing here
+## 7. Out of scope (intentional, won't change without a deliberate ask)
+
+- Mobile redesign — desktop-first by design (marketing-team workflow).
+- Theming / palette changes — locked: cream + ink + terracotta.
+- Replacing shadcn primitives — we extend, not rewrite.
+- Multi-region active-active write topology — single primary region per workspace is enough.
+- Browser extension (was floated for V1.8 in earlier drafts; superseded by the installer).
+- Helm chart / Coolify / Dokploy templates (was V1.9; reconsider only if installer adoption signals demand).
+- REST API + webhooks + admin (was V2.0; reconsider after V2.1 polish proves the surface area is stable).
+- Real-time multiplayer (live cursors, Yjs/Hocuspocus, presence) — V1.9 sharing is async-only and that's the design intent.
+- Native Postgres + pgvector binaries in the installer — superseded by PGlite. Won't reintroduce unless a workload shows up that PGlite genuinely can't handle.
+
+---
+
+## 8. Inline TODOs worth surfacing here
 
 Stale comments in code referencing features as "lands in V1.x" but the version they point at already shipped or scope changed. ~10 min cleanup PR — listed here so they don't get lost:
 
-- `src/app/(app)/settings/workspace/page.tsx` — three "lands in V1.6" / "Editing lands in V1.6" copy bits (V1.6 shipped invitations + member management; the page hasn't been updated to reflect that).
-- `src/components/knowledge/new-source-dialog.tsx:151` — "PDF / file uploads land in V1.5" — V1.5 was provider polish; file uploads remain unscheduled.
+- `src/app/(app)/settings/workspace/page.tsx` — three "Editing lands in V1.6" copy bits. The Transfer card (V1.9) was added to this file; the Members copy still says V1.6. Update to remove the stale "lands in" language.
+- `src/components/knowledge/new-source-dialog.tsx:151` — "PDF / file uploads land in V1.5" — V1.5 was provider polish; file uploads remain unscheduled. Either remove the promise or schedule the work.
 - `src/app/(app)/settings/usage/page.tsx:225` — "tracked here yet — that lands in V1.6" — same situation.

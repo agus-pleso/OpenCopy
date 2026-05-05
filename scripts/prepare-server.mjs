@@ -94,11 +94,27 @@ const SWC_BY_PLATFORM = {
   "linux-arm64": "@next/swc-linux-arm64-gnu",
 };
 const PEER_DEPS_TO_HOIST = [
+  // Next.js runtime peers
   "styled-jsx",
   "@swc/helpers",
   "@next/env",
   "caniuse-lite",
   "postcss",
+  // React runtime — Next imports `react-dom/server.browser` from a deeply-
+  // nested location, and the symlink-preserving cpSync of standalone
+  // doesn't always resolve to the right node_modules layout on the install
+  // target. Hoisting the real files dereferenced removes the surprise.
+  "react",
+  "react-dom",
+  "scheduler",
+  // node-postgres — `pg` is statically imported by src/db/client.ts even in
+  // embedded mode (the `useEmbedded` branch doesn't use it, but webpack
+  // still bundles the import). pg's internals require these at runtime.
+  "pg-types",
+  "pg-pool",
+  "pg-connection-string",
+  "pgpass",
+  "split2",
 ];
 const swcPkg = SWC_BY_PLATFORM[`${process.platform}-${process.arch}`];
 if (swcPkg) PEER_DEPS_TO_HOIST.push(swcPkg);
