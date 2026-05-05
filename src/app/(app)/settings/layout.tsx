@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ChevronLeft, KeyRound, Building2, Activity, Users } from "lucide-react";
+import { KeyRound, Building2, Activity, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const SETTINGS_NAV = [
@@ -40,13 +40,7 @@ export default function SettingsLayout({
   const pathname = usePathname();
   return (
     <div className="mx-auto w-full max-w-5xl px-6 py-10 md:px-10 md:py-14">
-      <Link
-        href="/"
-        className="inline-flex items-center gap-1 text-xs uppercase tracking-wider text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)] transition"
-      >
-        <ChevronLeft className="h-3 w-3" /> Back
-      </Link>
-      <h1 className="mt-3 font-display text-4xl tracking-tight">Settings</h1>
+      <h1 className="font-display text-4xl tracking-tight">Settings</h1>
 
       <div className="mt-10 grid gap-10 md:grid-cols-[220px_1fr]">
         <nav className="md:sticky md:top-20 md:self-start">

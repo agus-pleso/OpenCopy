@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
-  ChevronLeft,
   ScanText,
   Bot,
   Megaphone,
@@ -66,14 +65,7 @@ export default async function VoiceDetailPage({
 
   return (
     <div className="mx-auto w-full max-w-5xl px-6 py-10 md:px-10 md:py-14">
-      <Link
-        href="/voices"
-        className="inline-flex items-center gap-1 text-xs uppercase tracking-wider text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)] transition"
-      >
-        <ChevronLeft className="h-3 w-3" /> All voices
-      </Link>
-
-      <div className="mt-3 flex items-start justify-between gap-4">
+      <div className="flex items-start justify-between gap-4">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <ScanText className="h-4 w-4 text-[var(--color-primary)]" />

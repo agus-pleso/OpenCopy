@@ -1,5 +1,4 @@
-import Link from "next/link";
-import { ChevronLeft, Languages } from "lucide-react";
+import { Languages } from "lucide-react";
 import { eq } from "drizzle-orm";
 
 import { db } from "@/db/client";
@@ -27,14 +26,7 @@ export default async function LocalizerPage() {
 
   return (
     <div className="mx-auto w-full max-w-5xl px-6 py-10 md:px-10 md:py-14">
-      <Link
-        href="/agents"
-        className="inline-flex items-center gap-1 text-xs uppercase tracking-wider text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)] transition"
-      >
-        <ChevronLeft className="h-3 w-3" /> Agents
-      </Link>
-
-      <div className="mt-3 flex items-center gap-3">
+      <div className="flex items-center gap-3">
         <Languages className="h-5 w-5 text-[var(--color-primary)]" />
         <p className="text-xs uppercase tracking-[0.18em] text-[var(--color-muted-foreground)]">
           Localizer agent

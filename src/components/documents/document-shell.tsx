@@ -2,10 +2,8 @@
 
 import * as React from "react";
 import { useTransition } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  ChevronLeft,
   Trash2,
   ScanText,
   MoreHorizontal,
@@ -146,13 +144,7 @@ export function DocumentShell({ document, voices }: Props) {
   return (
     <div className="mx-auto w-full max-w-3xl px-6 py-8 md:px-10 md:py-12">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <Link
-          href="/documents"
-          className="inline-flex items-center gap-1 text-xs uppercase tracking-wider text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)] transition"
-        >
-          <ChevronLeft className="h-3 w-3" /> Documents
-        </Link>
+      <div className="flex items-center justify-end">
         <div className="flex items-center gap-3">
           <AutosaveIndicator state={saveState} lastSavedAt={lastSavedAt} />
           <ExportButton kind="document" id={document.id} />

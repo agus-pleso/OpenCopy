@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ChevronLeft, Bot, Languages, RotateCw } from "lucide-react";
+import { Bot, Languages, RotateCw } from "lucide-react";
 
 import { getAgentRun } from "@/server/actions/agents";
 import { Badge } from "@/components/ui/badge";
@@ -39,14 +39,7 @@ export default async function RunPage({ params }: PageProps) {
 
   return (
     <div className="mx-auto w-full max-w-6xl px-6 py-10 md:px-10 md:py-14">
-      <Link
-        href="/agents"
-        className="inline-flex items-center gap-1 text-xs uppercase tracking-wider text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)] transition"
-      >
-        <ChevronLeft className="h-3 w-3" /> Agents
-      </Link>
-
-      <div className="mt-3 flex items-start justify-between gap-4">
+      <div className="flex items-start justify-between gap-4">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <Icon className="h-4 w-4 text-[var(--color-primary)]" />
