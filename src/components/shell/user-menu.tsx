@@ -1,7 +1,15 @@
 "use client";
 
 import { signOut } from "next-auth/react";
-import { LogOut, Settings, KeyRound, Users, Activity, Building2 } from "lucide-react";
+import {
+  LogOut,
+  Settings,
+  KeyRound,
+  Users,
+  Activity,
+  Building2,
+  Compass,
+} from "lucide-react";
 import Link from "next/link";
 import {
   DropdownMenu,
@@ -12,6 +20,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
+import { ALL_TOURS } from "@/lib/tours/definitions";
+import { useTours } from "@/components/tours/tour-runner";
 
 export function UserMenu({
   email,
@@ -24,6 +34,7 @@ export function UserMenu({
   workspaceName: string;
   role: string;
 }) {
+  const { startTour } = useTours();
   const initials = (name || email)
     .split(/[\s.@]+/)
     .filter(Boolean)
@@ -90,6 +101,20 @@ export function UserMenu({
             <Settings className="h-4 w-4" /> All settings
           </Link>
         </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuLabel>Guided tours</DropdownMenuLabel>
+        {ALL_TOURS.map((tour) => (
+          <DropdownMenuItem
+            key={tour.id}
+            onSelect={(e) => {
+              e.preventDefault();
+              startTour(tour.id);
+            }}
+          >
+            <Compass className="h-4 w-4" />
+            {tour.label}
+          </DropdownMenuItem>
+        ))}
         <DropdownMenuSeparator />
         <DropdownMenuItem
           onClick={() => signOut({ callbackUrl: "/login" })}

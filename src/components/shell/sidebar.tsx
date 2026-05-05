@@ -148,6 +148,7 @@ export function Sidebar({
                   <li key={item.href}>
                     <Link
                       href={item.href}
+                      data-tour={`nav-${item.href}`}
                       className={cn(
                         "group relative flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm transition",
                         active
@@ -183,6 +184,7 @@ export function Sidebar({
               <li key={item.href}>
                 <Link
                   href={item.href}
+                  data-tour={`nav-${item.href}`}
                   className={cn(
                     "flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm transition",
                     active

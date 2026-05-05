@@ -154,6 +154,25 @@ export const members = pgTable(
 
 /** Per-user UI / app preferences. Holds the "current workspace" for session
  *  continuity across sign-ins. */
+/** Per-tour completion bits. Keys are stable tour ids
+ *  ("first_run" | "voices" | "knowledge" | "campaigns" | "library" |
+ *  "documents" | "chat"). The value is `true` once the user has finished
+ *  (or explicitly skipped) that tour. Anything missing/false is treated
+ *  as "not completed" — first-run tour auto-fires when first_run is unset. */
+export type ToursCompleted = Partial<
+  Record<
+    | "first_run"
+    | "voices"
+    | "knowledge"
+    | "campaigns"
+    | "library"
+    | "documents"
+    | "chat"
+    | "agents",
+    boolean
+  >
+>;
+
 export const userPrefs = pgTable("user_prefs", {
   userId: text("user_id")
     .primaryKey()
@@ -162,6 +181,10 @@ export const userPrefs = pgTable("user_prefs", {
     onDelete: "set null",
   }),
   theme: text("theme").default("system"),
+  toursCompleted: jsonb("tours_completed")
+    .$type<ToursCompleted>()
+    .notNull()
+    .default({}),
   updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
 });
 
