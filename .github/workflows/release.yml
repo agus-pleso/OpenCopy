@@ -15,6 +15,11 @@ on:
 
 permissions:
   contents: write
+  # Required for actions/attest-build-provenance — generates a SLSA-style
+  # signed attestation for each artifact, published to the GitHub
+  # transparency log so colleagues can verify what built each .exe / .dmg.
+  attestations: write
+  id-token: write
 
 jobs:
   build:
@@ -70,6 +75,11 @@ jobs:
           # Tauri's bundled signer is skipped by default when no key is set;
           # we make that explicit so unsigned-build behaviour is consistent.
           TAURI_SIGNING_PRIVATE_KEY: ''
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: ${{ matrix.artifact-glob }}
 
       - name: Upload installer artifacts
         uses: actions/upload-artifact@v4

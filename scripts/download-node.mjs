@@ -11,17 +11,51 @@
 //   node scripts/download-node.mjs --target=linux-x64
 
 import { execSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import {
   chmodSync,
   copyFileSync,
   existsSync,
   mkdirSync,
+  readFileSync,
   rmSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 const NODE_VERSION = process.env.NODE_VERSION || "v20.18.0";
+
+/**
+ * Download SHASUMS256.txt from nodejs.org and parse out the SHA256 we expect
+ * for the given archive filename. Without this, a successful TLS connection
+ * to a compromised mirror would let a malicious archive sneak in.
+ */
+function fetchExpectedSha(version, filename, workDir) {
+  const url = `https://nodejs.org/dist/${version}/SHASUMS256.txt`;
+  const dest = join(workDir, "SHASUMS256.txt");
+  if (process.platform === "win32") {
+    execSync(
+      `powershell -NoProfile -Command "Invoke-WebRequest ${shellQuote(url)} -OutFile ${shellQuote(dest)}"`,
+      { stdio: "ignore" },
+    );
+  } else {
+    execSync(`curl -fsSL ${shellQuote(url)} -o ${shellQuote(dest)}`, {
+      stdio: "ignore",
+    });
+  }
+  const text = readFileSync(dest, "utf-8");
+  const line = text.split(/\r?\n/).find((l) => l.endsWith(`  ${filename}`));
+  if (!line) {
+    throw new Error(`no checksum line for ${filename} in SHASUMS256.txt`);
+  }
+  return line.split(/\s+/)[0].toLowerCase();
+}
+
+function sha256Of(path) {
+  const h = createHash("sha256");
+  h.update(readFileSync(path));
+  return h.digest("hex").toLowerCase();
+}
 
 const TARGETS = {
   "win32-x64": {
@@ -124,7 +158,18 @@ const archivePath = join(work, target.archive);
 
 console.log(`Downloading Node ${NODE_VERSION} for ${targetKey} ...`);
 console.log(`  ${url}`);
+
+const expectedSha = fetchExpectedSha(NODE_VERSION, target.archive, work);
 runDownloadAndExtract(url, archivePath, work, archiveType);
+
+const actualSha = sha256Of(archivePath);
+if (actualSha !== expectedSha) {
+  console.error(
+    `SHA256 mismatch on ${target.archive}\n  expected: ${expectedSha}\n  actual:   ${actualSha}`,
+  );
+  process.exit(1);
+}
+console.log(`✓ SHA256 verified (${expectedSha.slice(0, 16)}…)`);
 
 const extractedExe = join(work, target.extracted, target.inner);
 if (!existsSync(extractedExe)) {
