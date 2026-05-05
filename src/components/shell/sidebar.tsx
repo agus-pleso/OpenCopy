@@ -17,6 +17,11 @@ import {
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/marketing/logo";
 import { WorkspaceSwitcher } from "@/components/workspaces/workspace-switcher";
+import { NewEntryDialog } from "@/components/compose/new-entry-dialog";
+import type {
+  ComposeVoiceOption,
+  ComposeSourceOption,
+} from "@/components/compose/compose-context-bar";
 import type { MyWorkspaceRow } from "@/server/actions/workspaces";
 
 interface NavItem {
@@ -98,9 +103,13 @@ const FOOTER_NAV: NavItem[] = [
 export function Sidebar({
   currentWorkspace,
   workspaces,
+  voices,
+  sources,
 }: {
   currentWorkspace: { id: string; name: string };
   workspaces: MyWorkspaceRow[];
+  voices: ComposeVoiceOption[];
+  sources: ComposeSourceOption[];
 }) {
   const pathname = usePathname();
 
@@ -126,6 +135,25 @@ export function Sidebar({
 
       <div className="px-3 pb-3">
         <WorkspaceSwitcher current={currentWorkspace} workspaces={workspaces} />
+      </div>
+
+      <div className="px-3 pb-3">
+        <NewEntryDialog
+          voices={voices}
+          sources={sources}
+          trigger={
+            <button
+              type="button"
+              data-tour="new-entry"
+              className="flex w-full items-center justify-center gap-2 rounded-md bg-[var(--color-primary)] px-3 py-2 text-sm font-medium text-[var(--color-primary-foreground)] shadow-sm transition hover:opacity-90"
+            >
+              <span className="flex h-4 w-4 items-center justify-center rounded-sm bg-white/15 text-xs font-bold">
+                +
+              </span>
+              New
+            </button>
+          }
+        />
       </div>
 
       <nav className="flex-1 overflow-y-auto px-2 py-2">

@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Sparkles, X, ScanText } from "lucide-react";
 import { toast } from "sonner";
 
@@ -51,15 +51,41 @@ const CHANNELS: { value: Channel; label: string; hint: string }[] = [
 
 export function CampaignForm({ voices, sources }: Props) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [pending, startTransition] = useTransition();
 
   const usableVoices = voices.filter((v) => v.isAnalyzed);
+  const usableSourceIds = new Set(
+    sources.filter((s) => s.status === "ready").map((s) => s.id),
+  );
 
   const [name, setName] = React.useState("");
+
+  // Initial state honours URL params from the unified "+ New" dialog.
+  const initialVoiceId = (() => {
+    const fromUrl = searchParams.get("voiceId");
+    if (fromUrl && usableVoices.some((v) => v.id === fromUrl)) return fromUrl;
+    return usableVoices[0]?.id ?? null;
+  })();
+  const initialLocale = (() => {
+    const fromUrl = searchParams.get("locale");
+    if (fromUrl && ["en", "pl", "ro", "uk"].includes(fromUrl)) {
+      return fromUrl as Locale;
+    }
+    return (usableVoices.find((v) => v.id === initialVoiceId)?.defaultLocale ??
+      usableVoices[0]?.defaultLocale ??
+      "en") as Locale;
+  })();
+  const initialSourceIds = (() => {
+    const raw = searchParams.get("sourceIds");
+    if (!raw) return [];
+    return raw.split(",").filter((id) => usableSourceIds.has(id));
+  })();
+
   const [compose, setCompose] = React.useState<ComposeContextValue>({
-    voiceId: usableVoices[0]?.id ?? null,
-    locale: usableVoices[0]?.defaultLocale ?? "en",
-    sourceIds: [],
+    voiceId: initialVoiceId,
+    locale: initialLocale,
+    sourceIds: initialSourceIds,
   });
   const [objective, setObjective] = React.useState("");
   const [productInfo, setProductInfo] = React.useState("");

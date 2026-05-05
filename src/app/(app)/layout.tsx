@@ -1,8 +1,8 @@
 import { redirect } from "next/navigation";
+import { and, eq } from "drizzle-orm";
 import { auth } from "@/lib/auth/auth";
 import { db } from "@/db/client";
-import { eq } from "drizzle-orm";
-import { userPrefs, users } from "@/db/schema";
+import { brandVoices, kbSources, userPrefs, users } from "@/db/schema";
 import { getCurrentWorkspace } from "@/lib/auth/workspace";
 import { listMyWorkspaces } from "@/server/actions/workspaces";
 import { Sidebar } from "@/components/shell/sidebar";
@@ -38,6 +38,34 @@ export default async function AppLayout({
     where: eq(userPrefs.userId, user.id),
   });
 
+  // Voices + knowledge sources for the sidebar's "+ New" entry dialog.
+  // Cheap queries (small N), runs on every navigation but the layout is
+  // already streaming on workspace + prefs.
+  const [voicesForSidebar, sourcesForSidebar] = await Promise.all([
+    db
+      .select({
+        id: brandVoices.id,
+        name: brandVoices.name,
+        analyzedAt: brandVoices.analyzedAt,
+      })
+      .from(brandVoices)
+      .where(eq(brandVoices.workspaceId, ws.workspace.id)),
+    db
+      .select({
+        id: kbSources.id,
+        name: kbSources.name,
+        chunkCount: kbSources.chunkCount,
+        status: kbSources.status,
+      })
+      .from(kbSources)
+      .where(
+        and(
+          eq(kbSources.workspaceId, ws.workspace.id),
+          eq(kbSources.status, "ready"),
+        ),
+      ),
+  ]);
+
   return (
     <SessionProvider>
       <TooltipProvider delayDuration={200}>
@@ -47,6 +75,17 @@ export default async function AppLayout({
             <Sidebar
               currentWorkspace={{ id: ws.workspace.id, name: ws.workspace.name }}
               workspaces={myWorkspaces}
+              voices={voicesForSidebar.map((v) => ({
+                id: v.id,
+                name: v.name,
+                isAnalyzed: !!v.analyzedAt,
+              }))}
+              sources={sourcesForSidebar.map((s) => ({
+                id: s.id,
+                name: s.name,
+                chunkCount: s.chunkCount,
+                status: s.status,
+              }))}
             />
             <div className="flex min-w-0 flex-1 flex-col">
               <Topbar

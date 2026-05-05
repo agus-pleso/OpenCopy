@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Sparkles, X } from "lucide-react";
 import { toast } from "sonner";
@@ -60,14 +60,41 @@ const CHANNELS: { value: Channel; label: string; lengthHint: string }[] = [
 
 export function CopywriterForm({ voices, sources = [] }: Props) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [pending, startTransition] = useTransition();
 
   const usable = voices.filter((v) => v.isAnalyzed);
+  const usableSourceIds = new Set(
+    sources.filter((s) => s.status === "ready").map((s) => s.id),
+  );
+
+  // Initial state honours `?voiceId=...&locale=...&sourceIds=a,b` from the
+  // unified "+ New" dialog. We validate IDs against what the workspace has
+  // so a stale link doesn't pre-pick a voice/source the user can't see.
+  const initialVoiceId = (() => {
+    const fromUrl = searchParams.get("voiceId");
+    if (fromUrl && usable.some((v) => v.id === fromUrl)) return fromUrl;
+    return usable[0]?.id ?? null;
+  })();
+  const initialLocale = (() => {
+    const fromUrl = searchParams.get("locale");
+    if (fromUrl && ["en", "pl", "ro", "uk"].includes(fromUrl)) {
+      return fromUrl as Locale;
+    }
+    return (usable.find((v) => v.id === initialVoiceId)?.defaultLocale ??
+      usable[0]?.defaultLocale ??
+      "en") as Locale;
+  })();
+  const initialSourceIds = (() => {
+    const raw = searchParams.get("sourceIds");
+    if (!raw) return [];
+    return raw.split(",").filter((id) => usableSourceIds.has(id));
+  })();
 
   const [compose, setCompose] = React.useState<ComposeContextValue>({
-    voiceId: usable[0]?.id ?? null,
-    locale: usable[0]?.defaultLocale ?? "en",
-    sourceIds: [],
+    voiceId: initialVoiceId,
+    locale: initialLocale,
+    sourceIds: initialSourceIds,
   });
   const [channel, setChannel] = React.useState<Channel>("ad");
   const [objective, setObjective] = React.useState("");
