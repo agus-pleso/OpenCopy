@@ -62,11 +62,69 @@ if (!existsSync(standalone)) {
 if (existsSync(dest)) rmSync(dest, { recursive: true, force: true });
 mkdirSync(dest, { recursive: true });
 
+// `dereference: true` — resolve every symlink during the copy and write
+// real files. pnpm's standalone-output layout symlinks node_modules
+// entries back into .pnpm/, and those symlinks don't survive being
+// installed to a different filesystem location (Windows junctions break,
+// the install target's nested node_modules walk doesn't resolve into
+// .pnpm/). Dereferencing produces a flat self-contained bundle that
+// works regardless of the install path.
 console.log(`→ copying server tree to ${dest}`);
-cpSync(standalone, dest, { recursive: true, dereference: false });
-cpSync(staticDir, join(dest, ".next", "static"), { recursive: true });
+cpSync(standalone, dest, { recursive: true, dereference: true });
+cpSync(staticDir, join(dest, ".next", "static"), {
+  recursive: true,
+  dereference: true,
+});
 if (existsSync(publicDir)) {
-  cpSync(publicDir, join(dest, "public"), { recursive: true });
+  cpSync(publicDir, join(dest, "public"), { recursive: true, dereference: true });
+}
+
+// Defence in depth: hoist every package pnpm has staged in .pnpm/ to the
+// bundle's top-level node_modules. Next's tracer may miss transitive
+// deps that are only reached via runtime require.resolve() (styled-jsx
+// → client-only, pg → pg-types → postgres-array, react-dom internals,
+// etc.) — copying them all eliminates the missing-module class of bug.
+const projectPnpm = join(root, "node_modules", ".pnpm");
+const bundleNodeModules = join(dest, "node_modules");
+if (existsSync(projectPnpm) && existsSync(bundleNodeModules)) {
+  console.log("→ hoisting .pnpm packages to bundle node_modules root");
+  let hoistCopied = 0;
+  let hoistSkipped = 0;
+  for (const entryDir of readdirSync(projectPnpm)) {
+    const innerNm = join(projectPnpm, entryDir, "node_modules");
+    if (!existsSync(innerNm)) continue;
+    for (const item of readdirSync(innerNm)) {
+      const itemPath = join(innerNm, item);
+      // Scoped packages: @scope/<pkg>
+      if (item.startsWith("@")) {
+        for (const sub of readdirSync(itemPath)) {
+          const fullName = `${item}/${sub}`;
+          const dst = join(bundleNodeModules, fullName);
+          if (existsSync(dst)) {
+            hoistSkipped++;
+            continue;
+          }
+          mkdirSync(join(bundleNodeModules, item), { recursive: true });
+          cpSync(join(itemPath, sub), dst, {
+            recursive: true,
+            dereference: true,
+          });
+          hoistCopied++;
+        }
+      } else {
+        const dst = join(bundleNodeModules, item);
+        if (existsSync(dst)) {
+          hoistSkipped++;
+          continue;
+        }
+        cpSync(itemPath, dst, { recursive: true, dereference: true });
+        hoistCopied++;
+      }
+    }
+  }
+  console.log(
+    `  hoisted ${hoistCopied} packages (${hoistSkipped} already present)`,
+  );
 }
 
 // Ship the migrations folder + the standalone migration runner. The Tauri
