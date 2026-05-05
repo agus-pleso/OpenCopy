@@ -48,3 +48,4 @@ drizzle/meta/_journal.json.bak
 
 # claude
 .claude/
+.release-artifacts/
