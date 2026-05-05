@@ -4,6 +4,7 @@ import { db } from "@/db/client";
 import {
   members,
   userPrefs,
+  users,
   workspaces,
   type MemberRole,
   type Workspace,
@@ -79,7 +80,13 @@ export async function ensureWorkspaceForUser(
 
 /**
  * Server-side: returns the authenticated user's id or throws.
- * Use in server actions and server components where login is required.
+ *
+ * Defensively verifies the JWT-claimed user actually exists in the database.
+ * Without this check, a stale session (e.g. data dir wiped between launches,
+ * user manually deleted, JWT carried across reinstalls) cascades into FK
+ * violations downstream — every insert touching a user-bound table fails
+ * with `Key (user_id)=... is not present in table "user"`. Surfacing
+ * UNAUTHENTICATED here lets the layout redirect to /login cleanly.
  */
 export async function requireUserId(): Promise<string> {
   const session = await auth();
@@ -87,12 +94,26 @@ export async function requireUserId(): Promise<string> {
   if (!userId) {
     throw new Error("UNAUTHENTICATED");
   }
+  const user = await db.query.users.findFirst({
+    where: eq(users.id, userId),
+    columns: { id: true },
+  });
+  if (!user) {
+    throw new Error("UNAUTHENTICATED");
+  }
   return userId;
 }
 
 /**
  * Returns the user's current workspace + their role within it.
- * Throws if the user has no workspace (should not happen after sign-in).
+ *
+ * Self-heals when the user has no membership yet — typically because
+ * NextAuth's `events.signIn` only fires on actual sign-ins, not on JWT
+ * re-validations. A user whose JWT survives a data dir wipe (e.g.
+ * reinstalling the desktop app, switching deployments) ends up "logged
+ * in" without ever re-running ensureWorkspaceForUser. Calling it on
+ * demand here guarantees every authenticated user has at least a
+ * personal workspace.
  */
 export async function getCurrentWorkspace(): Promise<{
   workspace: Workspace;
@@ -114,7 +135,14 @@ export async function getCurrentWorkspace(): Promise<{
   }
 
   if (!workspaceId) {
-    throw new Error("NO_WORKSPACE");
+    // No workspace at all — auto-recover by provisioning the personal one
+    // that signIn would have created. ensureWorkspaceForUser is idempotent
+    // (it returns the existing membership if one already exists).
+    const session = await auth();
+    const email = session?.user?.email ?? null;
+    const name = session?.user?.name ?? null;
+    const workspace = await ensureWorkspaceForUser(userId, email, name);
+    return { workspace, role: "owner" };
   }
 
   const membership = await db.query.members.findFirst({
