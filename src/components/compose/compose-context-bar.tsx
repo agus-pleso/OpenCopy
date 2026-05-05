@@ -77,6 +77,13 @@ export interface ComposeContextBarProps {
    * spotlight individual controls (e.g. "copywriter-voice").
    */
   tourPrefix?: string;
+
+  /**
+   * Called when the user clicks one of the "Manage" links. Hosts that
+   * render the bar inside a modal (e.g. NewEntryDialog) use this to
+   * close themselves so the navigation isn't hidden behind the overlay.
+   */
+  onNavigate?: () => void;
 }
 
 const LOCALES: { value: Locale; label: string }[] = [
@@ -99,6 +106,7 @@ export function ComposeContextBar({
   hideSources = false,
   readOnly = false,
   tourPrefix,
+  onNavigate,
 }: ComposeContextBarProps) {
   const usableVoices = voices.filter((v) => v.isAnalyzed);
   const usableSources = sources.filter((s) => s.status === "ready");
@@ -216,6 +224,7 @@ export function ComposeContextBar({
         </div>
         <Link
           href="/voices"
+          onClick={onNavigate}
           className="text-[11px] uppercase tracking-wider text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)] transition"
         >
           Manage voices
@@ -296,6 +305,7 @@ export function ComposeContextBar({
             </div>
             <Link
               href="/knowledge"
+              onClick={onNavigate}
               className="text-[11px] uppercase tracking-wider text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)] transition"
             >
               Manage

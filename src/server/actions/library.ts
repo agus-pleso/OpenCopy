@@ -12,7 +12,6 @@ import {
   documents,
   libraryEntries,
   type CopywriterBrief,
-  type LibraryEntry,
   type LibraryEntryKind,
   type Locale,
   type LocalizerBrief,
@@ -374,5 +373,3 @@ export async function bulkDeleteLibraryItems(input: unknown): Promise<{
   revalidatePath("/library");
   return { variantsDiscarded, entriesDeleted };
 }
-
-export type { LibraryEntry };

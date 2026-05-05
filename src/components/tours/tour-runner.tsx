@@ -60,12 +60,21 @@ export function TourRunner({ initialCompleted, children }: Props) {
     React.useState<ToursCompleted>(initialCompleted);
   const [activeTourId, setActiveTourId] = React.useState<TourId | null>(null);
 
-  // Auto-fire the welcome tour exactly once per user.
+  // Auto-fire the welcome tour exactly once per user. We persist
+  // "completed" the moment the tour starts — not on finish/skip — because
+  // ESC, overlay-click, and mid-tour refreshes all leak past Joyride's
+  // terminal-state callbacks and would otherwise cause the tour to replay
+  // forever. Replay is still a one-click affordance from the user menu
+  // ("Reset all tours" → resetTours() blanks the bitmap).
   React.useEffect(() => {
     if (!completed.first_run && activeTourId === null) {
       // Slight delay so the layout finishes painting before the spotlight
       // appears — react-joyride positions against rendered DOM.
-      const t = setTimeout(() => setActiveTourId("first_run"), 600);
+      const t = setTimeout(() => {
+        setActiveTourId("first_run");
+        setCompleted((prev) => ({ ...prev, first_run: true }));
+        void markTourCompleted("first_run", true).catch(() => {});
+      }, 600);
       return () => clearTimeout(t);
     }
   }, [completed.first_run, activeTourId]);

@@ -220,6 +220,7 @@ export function NewEntryDialog({ voices, sources, trigger }: Props) {
             voices={voices}
             sources={sources}
             tourPrefix="new-entry"
+            onNavigate={() => setOpen(false)}
           />
         </div>
 
