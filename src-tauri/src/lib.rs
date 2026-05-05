@@ -38,10 +38,45 @@ fn current_url(app: &AppHandle) -> String {
         .unwrap_or_else(|| FALLBACK_URL.to_string())
 }
 
-fn open_app(app: &AppHandle) {
+/// Bring the main window forward. The webview has already been navigated
+/// to the live URL once the server became ready, so this is purely focus.
+fn focus_main_window(app: &AppHandle) {
+    if let Some(window) = app.get_webview_window("main") {
+        let _ = window.show();
+        let _ = window.unminimize();
+        let _ = window.set_focus();
+    } else {
+        log::warn!("main window not available");
+    }
+}
+
+/// Navigate the main window's webview to the running Next.js server.
+/// Called once `wait_for_server` resolves. The window starts on the splash
+/// HTML bundled into the Tauri binary, so the user sees a smooth handoff.
+fn navigate_to_app(app: &AppHandle, url_str: &str) {
+    let Some(window) = app.get_webview_window("main") else {
+        log::warn!("main window not available for navigation");
+        return;
+    };
+    match tauri::Url::parse(url_str) {
+        Ok(url) => {
+            if let Err(e) = window.navigate(url) {
+                log::error!("failed to navigate main window to {url_str}: {e}");
+                return;
+            }
+            let _ = window.show();
+            let _ = window.set_focus();
+        }
+        Err(e) => log::error!("invalid url {url_str}: {e}"),
+    }
+}
+
+/// Fallback exposed via the tray menu in case the in-window webview
+/// can't load (corporate proxies, weird WebView2 state, etc.).
+fn open_in_browser(app: &AppHandle) {
     let url = current_url(app);
     if let Err(e) = app.opener().open_url(&url, None::<&str>) {
-        log::error!("failed to open {url}: {e}");
+        log::error!("failed to open {url} in browser: {e}");
     }
 }
 
@@ -85,7 +120,7 @@ fn spawn_server(app: &AppHandle) {
         let app_handle = app.clone();
         tauri::async_runtime::spawn(async move {
             wait_for_server("127.0.0.1:3000".to_string()).await;
-            open_app(&app_handle);
+            navigate_to_app(&app_handle, FALLBACK_URL);
         });
         return;
     }
@@ -214,9 +249,10 @@ fn spawn_server(app: &AppHandle) {
 
     let app_handle = app.clone();
     let probe = format!("127.0.0.1:{port}");
+    let nav_url = url.clone();
     tauri::async_runtime::spawn(async move {
         wait_for_server(probe).await;
-        open_app(&app_handle);
+        navigate_to_app(&app_handle, &nav_url);
     });
 
     tauri::async_runtime::spawn(async move {
@@ -263,13 +299,21 @@ pub fn run() {
         .manage(ServerState::default())
         .setup(|app| {
             let open_item = MenuItem::with_id(app, "open", "Open OpenCopy", true, None::<&str>)?;
+            let browser_item =
+                MenuItem::with_id(app, "browser", "Open in browser", true, None::<&str>)?;
             let restart_item = MenuItem::with_id(app, "restart", "Restart", true, None::<&str>)?;
             let separator = PredefinedMenuItem::separator(app)?;
             let quit_item = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
 
             let menu = Menu::with_items(
                 app,
-                &[&open_item, &separator, &restart_item, &quit_item],
+                &[
+                    &open_item,
+                    &browser_item,
+                    &separator,
+                    &restart_item,
+                    &quit_item,
+                ],
             )?;
 
             let _tray = TrayIconBuilder::with_id("main")
@@ -279,7 +323,8 @@ pub fn run() {
                 .menu(&menu)
                 .show_menu_on_left_click(false)
                 .on_menu_event(|app, event| match event.id.as_ref() {
-                    "open" => open_app(app),
+                    "open" => focus_main_window(app),
+                    "browser" => open_in_browser(app),
                     "restart" => app.restart(),
                     "quit" => app.exit(0),
                     _ => {}
@@ -291,16 +336,10 @@ pub fn run() {
                         ..
                     } = event
                     {
-                        open_app(tray.app_handle());
+                        focus_main_window(tray.app_handle());
                     }
                 })
                 .build(app)?;
-
-            #[cfg(target_os = "macos")]
-            {
-                use tauri::ActivationPolicy;
-                app.set_activation_policy(ActivationPolicy::Accessory);
-            }
 
             spawn_server(app.handle());
 
