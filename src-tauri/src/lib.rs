@@ -109,11 +109,23 @@ fn spawn_server(app: &AppHandle) {
     let server_dir = resource_dir.join("server");
     let server_js = server_dir.join("server.js");
 
-    if !server_js.exists() {
-        log::info!(
-            "no bundled server at {:?}; expecting external dev server on {FALLBACK_URL}",
-            server_js
-        );
+    // Debug builds always take the dev path, even if a stale prepared-server
+    // bundle is sitting in the resource dir from a previous `pnpm tauri build`.
+    // Otherwise we'd spawn the bundled Node sidecar against an out-of-date
+    // standalone bundle and run migrate.mjs against the wrong store.
+    let use_dev_path = cfg!(debug_assertions) || !server_js.exists();
+    if use_dev_path {
+        if !server_js.exists() {
+            log::info!(
+                "no bundled server at {:?}; expecting external dev server on {FALLBACK_URL}",
+                server_js
+            );
+        } else {
+            log::info!(
+                "debug build — ignoring bundled server at {:?}, using dev URL {FALLBACK_URL}",
+                server_js
+            );
+        }
         if let Ok(mut g) = app.state::<ServerState>().url.lock() {
             *g = Some(FALLBACK_URL.to_string());
         }
