@@ -284,11 +284,13 @@ This is intentional (saves $400/yr in cert fees). Documented in README. Will fix
 - API routes: `src/app/api/workspace/{export,import}/route.ts`. POST + multipart for import.
 - Dialogs: `src/components/workspaces/{export,import}-workspace-dialog.tsx`.
 
-### Library (UX Phase 3 partial)
+### Library (V2.1 shipped — polymorphic items)
 - Page: `src/app/(app)/library/page.tsx` (server) → `src/components/library/library-board.tsx` (client).
-- Filter chips: kind (copywriter/localizer) · voice · locale. Pure client-side filtering.
+- Source of truth: `listLibrary()` in `src/server/actions/library.ts` returns a polymorphic `LibraryItem` discriminated by `kind`: `variant` (Copywriter/Localizer agent variants), `chat_message` (saved chat replies), `document_selection` (saved highlights from the Tiptap editor).
+- Filter chips: kind (copywriter / localizer / chat saves / document selections) · voice · locale. Pure client-side filtering.
+- **Bulk select + bulk delete** via the toolbar that appears once any item is checked. `bulkDeleteLibraryItems({ variantIds, entryIds })` server action handles both shapes.
 - Export: `src/app/api/library/export/route.ts` — `?format=json|csv|md`.
-- Saving from chat / document selection: NOT yet implemented (V2.1 candidate). Requires `library_entries` polymorphic table — `copy_variant` is hard-coupled to `agent_run`.
+- New saves: chat → "Save to library" button on chat replies; document → highlight + bubble action.
 
 ---
 
@@ -387,6 +389,11 @@ Returns exit 0 on success, non-zero on failure. Wrap in `&` or use `Bash.run_in_
 - **react-joyride v3.** Latest stable. Dynamic-imported via `next/dynamic` because it pulls DOM APIs eagerly.
 - **Tour state in `user_prefs.tours_completed jsonb`.** Survives sign-out and reinstall (since it lives in the local DB).
 - **Per-surface `?` buttons deferred.** User-menu chooser is sufficient for V1; surface buttons are pure polish.
+
+### V2.1 — library polymorphism + native-app shell Phase 1 (shipped same push)
+- **`library_entries` table** carries non-variant saves (chat, document selection); `copy_variant` rows still represent agent-run variants. The `listLibrary()` server action unions them into a discriminated `LibraryItem`, giving the client a single uniform list.
+- **Tauri main window now visible (`visible: true`)** at 1280×800, centered. Boot flow: window opens on `dist/index.html` splash → Rust waits for the local server → `navigate_to_app()` redirects the webview to `http://127.0.0.1:<port>`. Tray menu keeps "Open in browser" as fallback for corporate-proxy / WebView2 cases. The app now feels like a real desktop app instead of a tray-launcher.
+- **NSIS installer hooks** wired via `bundle.windows.nsis.installerHooks: "windows/installer-hooks.nsh"` — close the running OpenCopy before extract so the orphan-node.exe file-lock issue (§ 5.12) is gone for good.
 
 ### Security audit
 - **drizzle-orm 0.38 → 0.45.2.** HIGH SQL injection patch.
