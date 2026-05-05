@@ -1,3 +1,9 @@
+import { drizzle as drizzlePg, type NodePgDatabase } from "drizzle-orm/node-postgres";
+import { drizzle as drizzlePglite } from "drizzle-orm/pglite";
+import { Pool } from "pg";
+import { PGlite } from "@electric-sql/pglite";
+import { vector } from "@electric-sql/pglite/vector";
+
 import * as schema from "./schema";
 
 declare global {
@@ -22,13 +28,11 @@ declare global {
  *
  * Both paths expose the same `db` and `pool` exports. Caller code should
  * treat `pool` as opaque — it's a `pg.Pool` in one mode and a `PGlite`
- * client in the other.
+ * client in the other. Eager-initialised so the module has no top-level
+ * await; both adapters are listed in `serverExternalPackages` so the
+ * unused one isn't bundled at runtime.
  */
-async function create(): Promise<{
-  db: unknown;
-  pool: unknown;
-  embedded: boolean;
-}> {
+function create(): { db: unknown; pool: unknown; embedded: boolean } {
   const useEmbedded = process.env.OPENCOPY_EMBEDDED_DB === "1";
 
   if (useEmbedded) {
@@ -38,31 +42,26 @@ async function create(): Promise<{
         "OPENCOPY_DATA_DIR must be set when OPENCOPY_EMBEDDED_DB=1",
       );
     }
-    const { PGlite } = await import("@electric-sql/pglite");
-    const { vector } = await import("@electric-sql/pglite/vector");
-    const { drizzle } = await import("drizzle-orm/pglite");
     const client = new PGlite(dataDir, { extensions: { vector } });
     return {
-      db: drizzle(client, { schema }),
+      db: drizzlePglite(client, { schema }),
       pool: client,
       embedded: true,
     };
   }
 
-  const { drizzle } = await import("drizzle-orm/node-postgres");
-  const { Pool } = await import("pg");
   const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
     max: 10,
   });
   return {
-    db: drizzle(pool, { schema }),
+    db: drizzlePg(pool, { schema }),
     pool,
     embedded: false,
   };
 }
 
-const cached = global.__opencopyDb ?? (await create());
+const cached = global.__opencopyDb ?? create();
 if (process.env.NODE_ENV !== "production") {
   global.__opencopyDb = cached;
 }
@@ -70,7 +69,6 @@ if (process.env.NODE_ENV !== "production") {
 // The two Drizzle adapters share the same query API but have different
 // generic types — cast through `unknown` so call-sites get the typed
 // node-postgres shape (which `@auth/drizzle-adapter` and our handlers use).
-import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 export const db = cached.db as NodePgDatabase<typeof schema>;
 export const pool = cached.pool;
 export const embedded = cached.embedded;
