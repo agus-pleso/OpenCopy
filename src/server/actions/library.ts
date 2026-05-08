@@ -6,13 +6,16 @@ import { z } from "zod";
 
 import { db } from "@/db/client";
 import {
+  channelEnum,
   chatMessages,
   chatThreads,
   copyVariants,
   documents,
   libraryEntries,
+  type Channel,
   type CopywriterBrief,
   type LibraryEntryKind,
+  type LibrarySource,
   type Locale,
   type LocalizerBrief,
 } from "@/db/schema";
@@ -29,7 +32,11 @@ import {
  * both into this single discriminated-union shape.
  * -------------------------------------------------------------------------- */
 
-export type LibraryItemKind = "variant" | "chat_message" | "document_selection";
+export type LibraryItemKind =
+  | "variant"
+  | "chat_message"
+  | "document_selection"
+  | "manual";
 
 export interface LibraryVariantItem {
   kind: "variant";
@@ -77,10 +84,29 @@ export interface LibraryDocumentSelectionItem {
   savedAt: Date;
 }
 
+/**
+ * Hand-curated reference exemplar (V2.4). Human-written best-example copy
+ * the team uses as a style anchor. Surfaces in the Library UI under its
+ * own filter and feeds the copywriter agent's exemplar retrieval lane.
+ */
+export interface LibraryManualItem {
+  kind: "manual";
+  id: string;
+  entryId: string;
+  content: string;
+  title: string | null;
+  locale: Locale;
+  channel: Channel | null;
+  tags: string[];
+  voice: { id: string; name: string } | null;
+  savedAt: Date;
+}
+
 export type LibraryItem =
   | LibraryVariantItem
   | LibraryChatMessageItem
-  | LibraryDocumentSelectionItem;
+  | LibraryDocumentSelectionItem
+  | LibraryManualItem;
 
 /* ----------------------------------------------------------------------------
  * Read — unified list                                                        */
@@ -90,6 +116,10 @@ export async function listLibrary(filter?: {
   voiceId?: string;
   locale?: Locale;
   kinds?: LibraryItemKind[];
+  /** Filter manual / generated. When unset, both surface. */
+  source?: LibrarySource;
+  /** Channel scope for manual entries. */
+  channel?: Channel;
 }): Promise<LibraryItem[]> {
   const { workspace } = await getCurrentWorkspace();
 
@@ -97,9 +127,14 @@ export async function listLibrary(filter?: {
   const wantsChat = !filter?.kinds || filter.kinds.includes("chat_message");
   const wantsDoc =
     !filter?.kinds || filter.kinds.includes("document_selection");
+  const wantsManual = !filter?.kinds || filter.kinds.includes("manual");
+
+  // Variants are always source=generated; suppress them when the caller
+  // explicitly filters to source=manual.
+  const includeVariants = wantsVariants && filter?.source !== "manual";
 
   // ---- copy variants (status = saved) ----
-  const variantRows = wantsVariants
+  const variantRows = includeVariants
     ? await (async () => {
         const conds = [
           eq(copyVariants.workspaceId, workspace.id),
@@ -119,10 +154,11 @@ export async function listLibrary(filter?: {
       })()
     : [];
 
-  // ---- library_entries (chat / doc selection) ----
+  // ---- library_entries (chat / doc selection / manual) ----
   const entryKinds: LibraryEntryKind[] = [];
   if (wantsChat) entryKinds.push("chat_message");
   if (wantsDoc) entryKinds.push("document_selection");
+  if (wantsManual) entryKinds.push("manual");
 
   const entryRows = entryKinds.length
     ? await (async () => {
@@ -132,6 +168,8 @@ export async function listLibrary(filter?: {
         ];
         if (filter?.voiceId) conds.push(eq(libraryEntries.voiceId, filter.voiceId));
         if (filter?.locale) conds.push(eq(libraryEntries.locale, filter.locale));
+        if (filter?.source) conds.push(eq(libraryEntries.source, filter.source));
+        if (filter?.channel) conds.push(eq(libraryEntries.channel, filter.channel));
         return db.query.libraryEntries.findMany({
           where: and(...conds),
           orderBy: [desc(libraryEntries.createdAt)],
@@ -195,6 +233,19 @@ export async function listLibrary(filter?: {
         documentId: e.documentId,
         documentTitle: e.document?.title ?? null,
         selectionAnchor: e.selectionAnchor,
+        savedAt: e.createdAt,
+      });
+    } else if (e.kind === "manual") {
+      items.push({
+        kind: "manual",
+        id: `entry:${e.id}`,
+        entryId: e.id,
+        content: e.content,
+        title: e.title,
+        locale: e.locale,
+        channel: e.channel,
+        tags: e.tags,
+        voice: e.voice,
         savedAt: e.createdAt,
       });
     }
@@ -301,6 +352,56 @@ export async function saveDocumentSelectionToLibrary(
       locale: doc.locale,
       documentId: doc.id,
       selectionAnchor: parsed.selectionAnchor ?? null,
+      savedByUserId: userId,
+    })
+    .returning({ id: libraryEntries.id });
+
+  revalidatePath("/library");
+  return { entryId: row.id };
+}
+
+/* ----------------------------------------------------------------------------
+ * Save — manual reference exemplar (V2.4)                                    */
+/* -------------------------------------------------------------------------- */
+
+const LocaleEnum = z.enum(["en", "pl", "ro", "uk"]);
+const ChannelEnum = z.enum(channelEnum.enumValues);
+
+const CreateManualEntrySchema = z.object({
+  content: z.string().min(1).max(20_000),
+  title: z.string().max(220).optional(),
+  voiceId: z.string().uuid().nullable().optional(),
+  channel: ChannelEnum.nullable().optional(),
+  locale: LocaleEnum.default("en"),
+  tags: z.array(z.string().min(1).max(40)).max(20).default([]),
+});
+
+/**
+ * Create a hand-curated reference exemplar in the Library. The copywriter
+ * agent retrieves these as style anchors during drafting (separate lane
+ * from KB chunks, which are factual). Filtered by workspace + channel +
+ * locale + (optional) voice scope.
+ */
+export async function createManualLibraryEntry(
+  input: unknown,
+): Promise<{ entryId: string }> {
+  const parsed = CreateManualEntrySchema.parse(input);
+  const { workspace } = await getCurrentWorkspace();
+  await requireRole(workspace.id, "editor");
+  const userId = await requireUserId();
+
+  const [row] = await db
+    .insert(libraryEntries)
+    .values({
+      workspaceId: workspace.id,
+      kind: "manual",
+      source: "manual",
+      content: parsed.content,
+      title: parsed.title ?? null,
+      voiceId: parsed.voiceId ?? null,
+      channel: parsed.channel ?? null,
+      locale: parsed.locale,
+      tags: parsed.tags,
       savedByUserId: userId,
     })
     .returning({ id: libraryEntries.id });

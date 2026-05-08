@@ -129,6 +129,29 @@ export async function startCopywriterRun(input: unknown): Promise<CopywriterStar
     }
   }
 
+  // Manual-library exemplar retrieval — separate lane from KB. These are
+  // stylistic anchors (human-written best examples), not factual grounding.
+  // No vector search; the corpus is curated and small. Always-on (no toggle):
+  // if there are exemplars matching this channel + voice + locale, the
+  // drafter uses them; otherwise nothing is injected.
+  let exemplars: string | undefined;
+  try {
+    const { retrieveExemplars, formatExemplarsForPrompt } = await import(
+      "@/lib/kb/exemplar-retrieval"
+    );
+    const hits = await retrieveExemplars({
+      workspaceId: workspace.id,
+      channel: brief.channel,
+      locale: brief.locale,
+      voiceId: voice.id,
+      maxCount: 4,
+    });
+    if (hits.length > 0) exemplars = formatExemplarsForPrompt(hits);
+  } catch (err) {
+    // Exemplar retrieval failure is non-fatal — log and proceed without.
+    console.warn("[copywriter] exemplar retrieval failed:", err);
+  }
+
   try {
     const result = await runCopywriter(
       {
@@ -144,6 +167,7 @@ export async function startCopywriterRun(input: unknown): Promise<CopywriterStar
         forbiddenTerms: brief.forbiddenTerms,
         examples: brief.examples,
         knowledge,
+        exemplars,
       },
       { workspaceId: workspace.id, userId },
     );

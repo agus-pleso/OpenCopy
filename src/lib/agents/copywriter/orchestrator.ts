@@ -22,6 +22,13 @@ export interface CopywriterOrchestratorInput {
   examples?: string;
   /** Pre-formatted knowledge excerpts (already retrieved by the caller). */
   knowledge?: string;
+  /**
+   * Pre-formatted reference exemplars from the team's manual library.
+   * Already retrieved by the caller (server action) using
+   * `retrieveExemplars` + `formatExemplarsForPrompt`. Injected into each
+   * drafter call as a STYLE reference (not a factual one). Optional.
+   */
+  exemplars?: string;
 }
 
 export interface CopywriterVariant {
@@ -108,6 +115,7 @@ export async function runCopywriter(
           avoid: angle.avoid,
         },
         knowledge: input.knowledge,
+        exemplars: input.exemplars,
       },
       { workspaceId: ctx.workspaceId, userId: ctx.userId },
     ),

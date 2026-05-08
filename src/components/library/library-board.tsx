@@ -4,6 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
+  BookmarkPlus,
   Bot,
   CheckSquare,
   Download,
@@ -36,6 +37,7 @@ import type {
   LibraryChatMessageItem,
   LibraryDocumentSelectionItem,
   LibraryItem,
+  LibraryManualItem,
   LibraryVariantItem,
 } from "@/server/actions/library";
 
@@ -51,7 +53,8 @@ type KindFilter =
   | "copywriter"
   | "localizer"
   | "chat_message"
-  | "document_selection";
+  | "document_selection"
+  | "manual";
 
 interface Props {
   items: LibraryItem[];
@@ -150,6 +153,7 @@ export function LibraryBoard({ items }: Props) {
           onSelect={(v) => setKindFilter(v as KindFilter)}
           options={[
             { value: "all", label: "All" },
+            { value: "manual", label: "Reference exemplars" },
             { value: "copywriter", label: "Copywriter variants" },
             { value: "localizer", label: "Localizer variants" },
             { value: "chat_message", label: "Chat saves" },
@@ -332,6 +336,18 @@ function exportSelected(items: LibraryItem[], selected: Set<string>) {
         savedAt: it.savedAt,
       };
     }
+    if (it.kind === "manual") {
+      return {
+        kind: "manual",
+        title: it.title,
+        channel: it.channel,
+        locale: it.locale,
+        voice: it.voice?.name ?? null,
+        content: it.content,
+        tags: it.tags,
+        savedAt: it.savedAt,
+      };
+    }
     return {
       kind: "document_selection",
       title: it.title,
@@ -362,6 +378,8 @@ function labelForKind(k: KindFilter): string {
   switch (k) {
     case "all":
       return "All";
+    case "manual":
+      return "Exemplars";
     case "copywriter":
       return "Copywriter";
     case "localizer":
@@ -408,8 +426,10 @@ function LibraryCard({ item, selected, onToggleSelect }: CardProps) {
             <VariantBody item={item} />
           ) : item.kind === "chat_message" ? (
             <ChatBody item={item} />
-          ) : (
+          ) : item.kind === "document_selection" ? (
             <DocumentBody item={item} />
+          ) : (
+            <ManualBody item={item} />
           )}
         </div>
       </div>
@@ -516,6 +536,56 @@ function ChatBody({ item }: { item: LibraryChatMessageItem }) {
             Open thread
           </Link>
         )}
+        <LibraryCopyButton content={item.content} />
+      </footer>
+    </>
+  );
+}
+
+function ManualBody({ item }: { item: LibraryManualItem }) {
+  return (
+    <>
+      <header className="flex items-center gap-3">
+        <BookmarkPlus className="h-4 w-4 text-[var(--color-primary)]" />
+        <span className="text-xs uppercase tracking-wider text-[var(--color-muted-foreground)]">
+          Reference exemplar
+        </span>
+        <h3 className="font-display text-base tracking-tight line-clamp-1">
+          {item.title ?? "Manual entry"}
+        </h3>
+        <div className="ml-auto flex items-center gap-1.5">
+          {item.channel && (
+            <Badge variant="outline" className="text-[10px] tracking-wider">
+              {item.channel.replace(/_/g, " ")}
+            </Badge>
+          )}
+          {item.voice && (
+            <Badge variant="outline" className="text-[10px] tracking-wider">
+              {item.voice.name}
+            </Badge>
+          )}
+          <Badge variant="muted" className="text-[10px] tracking-wider">
+            {LOCALE_LABEL[item.locale] ?? item.locale.toUpperCase()}
+          </Badge>
+        </div>
+      </header>
+      <p
+        className="mt-3 whitespace-pre-wrap text-[15px] leading-relaxed text-pretty line-clamp-4"
+        style={{ fontFamily: "ui-serif, Georgia, serif" }}
+      >
+        {item.content}
+      </p>
+      {item.tags.length > 0 && (
+        <div className="mt-2 flex flex-wrap gap-1">
+          {item.tags.map((t) => (
+            <Badge key={t} variant="muted" className="text-[10px] tracking-wider">
+              {t}
+            </Badge>
+          ))}
+        </div>
+      )}
+      <footer className="mt-3 flex items-center gap-3 text-xs text-[var(--color-muted-foreground)]">
+        <span>Added {formatDistanceShort(item.savedAt)}</span>
         <LibraryCopyButton content={item.content} />
       </footer>
     </>

@@ -1236,6 +1236,19 @@ export type InvitationStatus =
 export const libraryEntryKindEnum = pgEnum("library_entry_kind", [
   "chat_message",
   "document_selection",
+  /** User-curated reference exemplar (V2.4). Hand-picked human-written
+   * best-example copy that the copywriter agent retrieves as a *style*
+   * reference. Distinct from KB chunks (factual sources). */
+  "manual",
+]);
+
+/** Whether a library entry was AI-generated (saved off a chat / document
+ * selection / variant) or hand-written by a human as a reference. Used by
+ * the Library UI for filtering and by the copywriter agent for routing
+ * (manual = exemplar lane; generated = saved-output lane). */
+export const librarySourceEnum = pgEnum("library_entry_source", [
+  "manual",
+  "generated",
 ]);
 
 export const libraryEntries = pgTable(
@@ -1246,6 +1259,14 @@ export const libraryEntries = pgTable(
       .notNull()
       .references(() => workspaces.id, { onDelete: "cascade" }),
     kind: libraryEntryKindEnum("kind").notNull(),
+    /**
+     * Whether this entry is an AI-generated save (`generated`) or a
+     * human-written reference exemplar (`manual`). Defaults to `generated`
+     * so existing chat_message / document_selection rows backfill cleanly.
+     * Manual entries are surfaced separately in the Library UI and feed
+     * into the copywriter's exemplar retrieval lane.
+     */
+    source: librarySourceEnum("source").notNull().default("generated"),
     /** Snapshot of the content at save time. Survives source deletion. */
     content: text("content").notNull(),
     /** Optional short label ("from Q3 launch chat", "hero copy v2"). */
@@ -1254,8 +1275,17 @@ export const libraryEntries = pgTable(
       onDelete: "set null",
     }),
     locale: localeEnum("locale").notNull().default("en"),
+    /**
+     * Channel scope for retrieval. On manual entries this is the channel
+     * the exemplar belongs to ("email-marketing", "ig-post", ...). Null on
+     * generated entries that aren't channel-specific. Re-uses the same
+     * channel enum the campaign asset table uses.
+     */
+    channel: channelEnum("channel"),
     /** User-applied tags for filtering / grouping. */
     tags: jsonb("tags").$type<string[]>().notNull().default([]),
+    /** Free-form key/value metadata. Reserved for future use; defaults `{}`. */
+    metadata: jsonb("metadata").$type<Record<string, unknown>>().notNull().default({}),
     /** Source links — exactly one is populated based on kind. */
     chatMessageId: uuid("chat_message_id").references(() => chatMessages.id, {
       onDelete: "set null",
@@ -1282,6 +1312,17 @@ export const libraryEntries = pgTable(
     index("library_entry_voice_idx").on(t.voiceId),
     index("library_entry_chat_message_idx").on(t.chatMessageId),
     index("library_entry_document_idx").on(t.documentId),
+    /**
+     * Drives the manual-exemplar retrieval lane in the copywriter drafter:
+     * filter by (workspace, source=manual, channel, voice). Small corpus,
+     * curated — we don't vector-search this, we just list and limit.
+     */
+    index("library_entry_exemplar_idx").on(
+      t.workspaceId,
+      t.source,
+      t.channel,
+      t.voiceId,
+    ),
   ],
 );
 
@@ -1314,3 +1355,4 @@ export const libraryEntriesRelations = relations(libraryEntries, ({ one }) => ({
 
 export type LibraryEntry = typeof libraryEntries.$inferSelect;
 export type LibraryEntryKind = (typeof libraryEntryKindEnum.enumValues)[number];
+export type LibrarySource = (typeof librarySourceEnum.enumValues)[number];

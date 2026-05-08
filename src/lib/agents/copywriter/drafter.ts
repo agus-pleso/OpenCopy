@@ -44,6 +44,13 @@ export interface DrafterInput {
   };
   /** Pre-formatted knowledge-base excerpts. */
   knowledge?: string;
+  /**
+   * Pre-formatted reference exemplars from the team's manual library
+   * (V2.4). Distinct from `knowledge` — exemplars are STYLE references,
+   * knowledge is FACTUAL grounding. Both injected into the prompt; both
+   * optional. Format produced by `formatExemplarsForPrompt`.
+   */
+  exemplars?: string;
 }
 
 const SYSTEM = `You are a copywriter drafting one variant from a planned angle. Stay inside the
@@ -111,6 +118,17 @@ function buildPrompt(input: DrafterInput): string {
   }
   if (input.angle.avoid?.length) {
     lines.push(`Specifically avoid: ${input.angle.avoid.join(", ")}`);
+  }
+
+  if (input.exemplars?.trim()) {
+    lines.push("");
+    lines.push("---");
+    lines.push("");
+    lines.push(input.exemplars.trim());
+    lines.push("");
+    lines.push(
+      "Read the exemplars above as STYLE / TONE references. Match the cadence, sentence shape, and on-brand feel — do NOT copy phrasing, facts, or specifics from them.",
+    );
   }
 
   if (input.knowledge?.trim()) {
