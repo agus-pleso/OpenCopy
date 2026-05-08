@@ -105,6 +105,7 @@ export async function startCopywriterRun(input: unknown): Promise<CopywriterStar
     donts: voice.donts,
     requiredWords: voice.requiredWords,
     forbiddenWords: voice.forbiddenWords,
+    signaturePhrases: voice.signaturePhrases,
     localeNotes: voice.localeNotes,
   };
 
@@ -319,6 +320,7 @@ export async function startLocalizerRun(input: unknown): Promise<{ runId: string
         donts: voice.donts,
         requiredWords: voice.requiredWords,
         forbiddenWords: voice.forbiddenWords,
+        signaturePhrases: voice.signaturePhrases,
         localeNotes: voice.localeNotes,
       }
     : undefined;
@@ -480,6 +482,7 @@ export async function refineVariant(input: unknown): Promise<{
     donts: voice.donts,
     requiredWords: voice.requiredWords,
     forbiddenWords: voice.forbiddenWords,
+    signaturePhrases: voice.signaturePhrases,
     localeNotes: voice.localeNotes,
   };
 

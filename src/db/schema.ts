@@ -383,6 +383,16 @@ export const brandVoices = pgTable(
       .$type<string[]>()
       .notNull()
       .default([]),
+    /**
+     * Locale-tagged canonical phrases the brand uses. Distinct from
+     * `requiredWords` (single-token vocabulary). Populated by the
+     * Tone-of-Voice document extractor; manually editable.
+     * Shape: `{ en: [...], pl: [...], ro: [...], uk: [...] }`.
+     */
+    signaturePhrases: jsonb("signature_phrases")
+      .$type<Partial<Record<"en" | "pl" | "ro" | "uk", string[]>>>()
+      .notNull()
+      .default({}),
     localeNotes: jsonb("locale_notes")
       .$type<VoiceCardLocaleNotes>()
       .notNull()

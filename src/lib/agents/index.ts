@@ -28,6 +28,11 @@ export {
   type VoiceAnalyzerRunResult,
 } from "./voice-analyzer";
 export {
+  runDocumentExtractor,
+  type DocumentExtractorInput,
+  type DocumentExtractorRunResult,
+} from "./document-extractor";
+export {
   runVoiceAuditor,
   parseVoiceAuditMarkdown,
   type VoiceAudit,

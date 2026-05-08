@@ -1,0 +1,1 @@
+ALTER TABLE "brand_voice" ADD COLUMN "signature_phrases" jsonb DEFAULT '{}'::jsonb NOT NULL;

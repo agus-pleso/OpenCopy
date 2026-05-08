@@ -353,6 +353,7 @@ export function buildChatTools(ctx: ChatToolsContext) {
               donts: voice.donts,
               requiredWords: voice.requiredWords,
               forbiddenWords: voice.forbiddenWords,
+              signaturePhrases: voice.signaturePhrases,
               localeNotes: voice.localeNotes,
             };
           }

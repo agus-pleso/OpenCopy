@@ -78,6 +78,17 @@ export const VoiceCardSchema = z.object({
     .describe(
       "Words / phrases that violate the voice (jargon, banned competitor terms, AI tells like 'delve' or 'tapestry').",
     ),
+  signature_phrases: z
+    .object({
+      en: z.array(z.string().min(1).max(200)).max(30).default([]),
+      pl: z.array(z.string().min(1).max(200)).max(30).default([]),
+      ro: z.array(z.string().min(1).max(200)).max(30).default([]),
+      uk: z.array(z.string().min(1).max(200)).max(30).default([]),
+    })
+    .default({ en: [], pl: [], ro: [], uk: [] })
+    .describe(
+      "Locale-tagged signature phrases — full sentences or canonical expressions the brand uses. Distinct from required_words (single tokens). E.g. for a therapy brand: en=['Take a moment to notice', 'Small steps matter'], pl=['Pozwól sobie zauważyć', 'Małe kroki mają znaczenie']. Empty arrays if none for a given locale.",
+    ),
   rationale: z
     .string()
     .min(1)
@@ -88,6 +99,8 @@ export const VoiceCardSchema = z.object({
 });
 
 export type VoiceCard = z.infer<typeof VoiceCardSchema>;
+
+export type VoiceCardSignaturePhrases = Record<Locale, string[]>;
 
 /** Subset of voice-card fields used at audit / generation time. */
 export interface VoiceCardForPrompt {
@@ -100,6 +113,10 @@ export interface VoiceCardForPrompt {
   donts: { rule: string; why?: string | null }[];
   requiredWords: string[];
   forbiddenWords: string[];
+  /** Locale-tagged canonical phrases. Optional so existing call sites that
+   * pre-date this field continue to type-check; renderVoiceCard treats a
+   * missing value the same as `{}`. New call sites should pass `voice.signaturePhrases`. */
+  signaturePhrases?: Partial<VoiceCardSignaturePhrases>;
   localeNotes: Partial<Record<Locale, string>>;
 }
 
@@ -135,6 +152,22 @@ export function renderVoiceCard(v: VoiceCardForPrompt, locale?: Locale): string 
   }
   if (v.forbiddenWords.length) {
     lines.push(`\nForbidden vocabulary: ${v.forbiddenWords.join(", ")}`);
+  }
+  // Signature phrases are full canonical expressions, locale-tagged. Render the
+  // ones for the current target locale (the writer is in that locale's mode);
+  // if no specific locale given, render all so the auditor can see cross-locale
+  // consistency expectations.
+  const phraseLocales: Locale[] = locale ? [locale] : (["en", "pl", "ro", "uk"] as const);
+  const phraseLines: string[] = [];
+  for (const lc of phraseLocales) {
+    const phrases = v.signaturePhrases?.[lc];
+    if (phrases && phrases.length) {
+      phraseLines.push(`  ${lc.toUpperCase()}: ${phrases.map((p) => `"${p}"`).join(" · ")}`);
+    }
+  }
+  if (phraseLines.length) {
+    lines.push("\nSignature phrases (use these verbatim where they fit naturally):");
+    lines.push(...phraseLines);
   }
   if (locale && v.localeNotes[locale]) {
     lines.push(`\nLocale-specific notes (${locale}): ${v.localeNotes[locale]}`);

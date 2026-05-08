@@ -17,6 +17,8 @@ const SECTION_KEYS = [
   "donts",
   "required vocabulary",
   "forbidden vocabulary",
+  "signature phrases",
+  "kb hint",
   "rationale",
 ] as const;
 
@@ -109,6 +111,86 @@ function firstNonEmptyLine(body: string | undefined): string {
   return "";
 }
 
+/**
+ * Parse the "## Signature phrases" section.
+ *
+ * Expected format the model is asked for:
+ *
+ *     ## Signature phrases
+ *     ### EN
+ *     - "Take a moment to notice"
+ *     - "Small steps matter"
+ *     ### PL
+ *     - "Pozwól sobie zauważyć"
+ *     ### RO
+ *     (none)
+ *     ### UK
+ *     -
+ *
+ * We're tolerant: bullets optional, quotes optional, locale codes case-insensitive,
+ * empty subsections OK. Non-recognised locale codes are dropped.
+ */
+function parseSignaturePhrases(
+  body: string | undefined,
+): Partial<Record<"en" | "pl" | "ro" | "uk", string[]>> {
+  const out: Partial<Record<"en" | "pl" | "ro" | "uk", string[]>> = {};
+  if (!body) return out;
+
+  // Split on h3 / bold-locale / bare-locale-line headers.
+  const subHeaderRegex = /^(?:#{2,4}\s+|\*\*\s*)([a-zA-Z]{2})\s*\*?\*?\s*:?\s*$/gm;
+  type Section = { locale: string; start: number; end: number };
+  const sections: Section[] = [];
+  let m: RegExpExecArray | null;
+  while ((m = subHeaderRegex.exec(body))) {
+    sections.push({ locale: m[1].toLowerCase(), start: m.index, end: m.index + m[0].length });
+  }
+
+  if (sections.length === 0) {
+    return out;
+  }
+
+  for (let i = 0; i < sections.length; i++) {
+    const { locale, end } = sections[i];
+    const next = sections[i + 1]?.start ?? body.length;
+    const slice = body.slice(end, next).trim();
+    const phrases = slice
+      .split("\n")
+      .map((l) => l.replace(/^\s*[-*•]\s*/, "").trim())
+      .map((l) => l.replace(/^["“”]+|["“”]+$/g, "").trim())
+      .filter((l) => l.length > 0 && !/^\(?(none|n\/a|empty)\)?$/i.test(l) && l.length <= 200);
+    const dedup = Array.from(new Set(phrases)).slice(0, 30);
+    if (locale === "en" || locale === "pl" || locale === "ro" || locale === "uk") {
+      out[locale] = dedup;
+    }
+  }
+  return out;
+}
+
+/**
+ * Parse the optional "## KB hint" section. Format the agent is asked for:
+ *
+ *     ## KB hint
+ *     yes — Pages 4-7 list policy details that should live in Knowledge.
+ *     (or)
+ *     no
+ *
+ * Returns null when the agent says no / section absent.
+ */
+export function parseKbHint(body: string | undefined): { reason: string } | null {
+  if (!body) return null;
+  const first = firstNonEmptyLine(body).toLowerCase();
+  if (!first || /^(no|none|n\/a)\b/.test(first)) return null;
+  if (/^(yes|likely|probably)\b/.test(first)) {
+    // Take whatever comes after the yes (separator or next line)
+    const reason = body
+      .replace(/^\s*(yes|likely|probably)\b[\s\-—–:]*/i, "")
+      .trim();
+    return { reason: reason || "The document contains factual or policy content that may belong in the knowledge base." };
+  }
+  // If the model wrote a paragraph without yes/no, treat presence as a soft yes.
+  return { reason: body.trim() };
+}
+
 export function parseVoiceCardMarkdown(
   raw: string,
   context?: { sampleCount?: number },
@@ -132,6 +214,7 @@ export function parseVoiceCardMarkdown(
     findSection(sections, "forbidden vocabulary"),
     20,
   );
+  const sigPhrases = parseSignaturePhrases(findSection(sections, "signature phrases"));
   const rationale = (findSection(sections, "rationale") ?? "").trim();
 
   const sampleCount = context?.sampleCount ?? 0;
@@ -154,6 +237,20 @@ export function parseVoiceCardMarkdown(
         : [{ rule: "Avoid voice or tone the samples don't support." }],
     required_words: required,
     forbidden_words: forbidden,
+    signature_phrases: {
+      en: sigPhrases.en ?? [],
+      pl: sigPhrases.pl ?? [],
+      ro: sigPhrases.ro ?? [],
+      uk: sigPhrases.uk ?? [],
+    },
     rationale: fallbackRationale,
   };
+}
+
+/**
+ * Re-export the section splitter so the document-extractor agent can extract
+ * the optional "## KB hint" section without re-implementing the regex.
+ */
+export function splitVoiceCardSections(raw: string): Map<string, string> {
+  return splitSections(raw);
 }

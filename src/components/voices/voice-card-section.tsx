@@ -1,11 +1,12 @@
 "use client";
 
 import * as React from "react";
-import { Pencil, PencilLine } from "lucide-react";
+import { FileUp, Pencil, PencilLine } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { VoiceCardDisplay } from "./voice-card-display";
 import { VoiceCardEditor } from "./voice-card-editor";
 import { AnalyzeButton } from "./analyze-button";
+import { DocumentExtractorDialog } from "./document-extractor-dialog";
 import type { BrandVoice } from "@/db/schema";
 
 interface Props {
@@ -15,6 +16,7 @@ interface Props {
 
 export function VoiceCardSection({ voice, hasSamples }: Props) {
   const [editing, setEditing] = React.useState(false);
+  const [importOpen, setImportOpen] = React.useState(false);
   const isAnalyzed = !!voice.analyzedAt;
 
   return (
@@ -26,6 +28,16 @@ export function VoiceCardSection({ voice, hasSamples }: Props) {
             hasSamples={hasSamples}
             alreadyAnalyzed={isAnalyzed}
           />
+          <span className="text-xs text-[var(--color-muted-foreground)]">
+            or
+          </span>
+          <Button
+            variant="outline"
+            size="default"
+            onClick={() => setImportOpen(true)}
+          >
+            <FileUp className="h-4 w-4" /> Import from document
+          </Button>
           {!isAnalyzed && !editing && (
             <>
               <span className="text-xs text-[var(--color-muted-foreground)]">
@@ -47,6 +59,13 @@ export function VoiceCardSection({ voice, hasSamples }: Props) {
           </Button>
         )}
       </div>
+
+      <DocumentExtractorDialog
+        voice={voice}
+        open={importOpen}
+        onOpenChange={setImportOpen}
+      />
+
 
       {editing ? (
         <VoiceCardEditor

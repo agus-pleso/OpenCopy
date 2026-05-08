@@ -139,6 +139,7 @@ export async function POST(req: Request) {
         donts: voice.donts,
         requiredWords: voice.requiredWords,
         forbiddenWords: voice.forbiddenWords,
+        signaturePhrases: voice.signaturePhrases,
         localeNotes: voice.localeNotes,
       };
     }

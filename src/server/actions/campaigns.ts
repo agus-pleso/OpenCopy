@@ -107,6 +107,7 @@ export async function startCampaignRun(
         donts: voice.donts,
         requiredWords: voice.requiredWords,
         forbiddenWords: voice.forbiddenWords,
+        signaturePhrases: voice.signaturePhrases,
         localeNotes: voice.localeNotes,
       }
     : undefined;

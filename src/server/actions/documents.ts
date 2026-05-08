@@ -213,6 +213,7 @@ export async function runEditorCommand(
         donts: voice.donts,
         requiredWords: voice.requiredWords,
         forbiddenWords: voice.forbiddenWords,
+        signaturePhrases: voice.signaturePhrases,
         localeNotes: voice.localeNotes,
       };
     }

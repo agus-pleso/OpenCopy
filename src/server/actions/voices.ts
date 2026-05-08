@@ -117,6 +117,14 @@ const UpdateCardSchema = z.object({
   requiredWords: z.array(z.string().min(1).max(40)).max(30).optional(),
   forbiddenWords: z.array(z.string().min(1).max(40)).max(30).optional(),
   rationale: z.string().max(1500).nullable().optional(),
+  signaturePhrases: z
+    .object({
+      en: z.array(z.string().min(1).max(200)).max(30).optional(),
+      pl: z.array(z.string().min(1).max(200)).max(30).optional(),
+      ro: z.array(z.string().min(1).max(200)).max(30).optional(),
+      uk: z.array(z.string().min(1).max(200)).max(30).optional(),
+    })
+    .optional(),
   localeNotes: z
     .object({
       en: z.string().max(500).optional(),
@@ -159,6 +167,16 @@ export async function updateVoiceCard(input: unknown): Promise<void> {
         forbiddenWords: parsed.forbiddenWords,
       }),
       ...(parsed.rationale !== undefined && { rationale: parsed.rationale }),
+      ...(parsed.signaturePhrases !== undefined && {
+        // The DB column type accepts the partial-locale shape; normalise undefineds
+        // to empty arrays so a render-time `phrases.length` never explodes.
+        signaturePhrases: {
+          en: parsed.signaturePhrases.en ?? [],
+          pl: parsed.signaturePhrases.pl ?? [],
+          ro: parsed.signaturePhrases.ro ?? [],
+          uk: parsed.signaturePhrases.uk ?? [],
+        },
+      }),
       ...(parsed.localeNotes !== undefined && {
         localeNotes: parsed.localeNotes as VoiceCardLocaleNotes,
       }),
@@ -373,6 +391,7 @@ export async function analyzeVoice(input: unknown): Promise<AnalyzeResult> {
         donts: card.donts.map((d) => ({ rule: d.rule, why: d.why })),
         requiredWords: card.required_words,
         forbiddenWords: card.forbidden_words,
+        signaturePhrases: card.signature_phrases,
         rationale: card.rationale,
         analyzerModelId: result.modelId,
         analyzedAt: new Date(),
@@ -384,6 +403,138 @@ export async function analyzeVoice(input: unknown): Promise<AnalyzeResult> {
     return {
       ok: true,
       card,
+      durationMs: result.durationMs,
+      modelId: result.modelId,
+    };
+  } catch (err) {
+    return { ok: false, message: humanizeAgentError(err, "planning") };
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Tone-of-Voice document extractor                                           */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Sibling to `analyzeVoice`: instead of synthesising from raw writing samples,
+ * read an explicit Tone-of-Voice document the team already has and extract a
+ * VoiceCard. Does NOT persist — returns the extracted card so the user can
+ * review and accept per-field via the diff UI before calling `updateVoiceCard`.
+ *
+ * Input shape supports paste OR file upload. For file upload the client
+ * base64-encodes the bytes (Server Actions don't natively pass FormData files
+ * outside `<form action>`, and we're invoking via a button → useTransition).
+ *
+ * Accepted file kinds:
+ *   .docx → parsed via mammoth
+ *   .txt / .md → treated as plain text
+ *   .doc (legacy binary) → not supported, surfaces a friendly error
+ */
+const ExtractFromDocumentSchema = z
+  .object({
+    voiceId: z.string().uuid(),
+    pastedText: z.string().max(200_000).optional(),
+    file: z
+      .object({
+        name: z.string().min(1).max(260),
+        contentBase64: z.string().min(1),
+      })
+      .optional(),
+  })
+  .refine((v) => !!v.pastedText || !!v.file, {
+    message: "Provide either pasted text or a file.",
+    path: ["pastedText"],
+  });
+
+export interface ExtractFromDocumentResult {
+  ok: boolean;
+  card?: VoiceCard;
+  /** When non-null, the model thinks parts of the doc belong in Knowledge. */
+  kbHint?: { reason: string };
+  durationMs?: number;
+  modelId?: string;
+  message?: string;
+}
+
+export async function extractFromDocument(
+  input: unknown,
+): Promise<ExtractFromDocumentResult> {
+  const parsed = ExtractFromDocumentSchema.parse(input);
+  const { workspace } = await getCurrentWorkspace();
+  await requireRole(workspace.id, "editor");
+  const userId = await requireUserId();
+
+  const voice = await db.query.brandVoices.findFirst({
+    where: and(
+      eq(brandVoices.id, parsed.voiceId),
+      eq(brandVoices.workspaceId, workspace.id),
+    ),
+    columns: { id: true, name: true, description: true },
+  });
+  if (!voice) return { ok: false, message: "Voice not found." };
+
+  // Resolve doc text from whichever input shape we got.
+  let documentText: string;
+  try {
+    if (parsed.file) {
+      const { name, contentBase64 } = parsed.file;
+      const lower = name.toLowerCase();
+      const buffer = Buffer.from(contentBase64, "base64");
+      if (lower.endsWith(".docx")) {
+        const { parseDocxToText } = await import("@/lib/import/docx");
+        documentText = await parseDocxToText(buffer);
+      } else if (lower.endsWith(".txt") || lower.endsWith(".md")) {
+        documentText = buffer.toString("utf-8");
+      } else if (lower.endsWith(".doc")) {
+        return {
+          ok: false,
+          message:
+            "Legacy .doc files aren't supported — please save as .docx first, or paste the text directly.",
+        };
+      } else {
+        return {
+          ok: false,
+          message: `Unsupported file type. Accepted: .docx, .txt, .md (got ${name}).`,
+        };
+      }
+    } else {
+      const { normalisePastedText } = await import("@/lib/import/docx");
+      documentText = normalisePastedText(parsed.pastedText ?? "");
+    }
+  } catch (err) {
+    return {
+      ok: false,
+      message:
+        err instanceof Error
+          ? `Couldn't read the document: ${err.message}`
+          : "Couldn't read the document.",
+    };
+  }
+
+  if (documentText.length < 80) {
+    return {
+      ok: false,
+      message:
+        "The document is too short to extract a useful voice profile. Aim for at least a paragraph of substantive ToV content.",
+    };
+  }
+
+  try {
+    const { runDocumentExtractor } = await import(
+      "@/lib/agents/document-extractor"
+    );
+    const result = await runDocumentExtractor(
+      {
+        documentText,
+        name: voice.name,
+        description: voice.description ?? undefined,
+      },
+      { workspaceId: workspace.id, userId },
+    );
+    return {
+      ok: true,
+      card: result.output,
+      kbHint: result.kbHint ?? undefined,
       durationMs: result.durationMs,
       modelId: result.modelId,
     };
@@ -436,6 +587,7 @@ export async function runVoiceAudit(input: unknown): Promise<AuditResult> {
     donts: voice.donts,
     requiredWords: voice.requiredWords,
     forbiddenWords: voice.forbiddenWords,
+    signaturePhrases: voice.signaturePhrases,
     localeNotes: voice.localeNotes,
   };
 
