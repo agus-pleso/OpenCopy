@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import type { ToursCompleted } from "@/db/schema";
 import { TOUR_BY_ID } from "@/lib/tours/definitions";
 import { markTourCompleted, type TourId } from "@/server/actions/tours";
+import { buildJoyrideStyles } from "./tour-styles";
 
 // react-joyride pulls in DOM APIs eagerly — load it only on the client.
 // v3 ships a named `Joyride` export, no default. Cast to the loose
@@ -26,6 +27,10 @@ interface JoyrideProps {
   showProgress?: boolean;
   disableScrolling?: boolean;
   hideCloseButton?: boolean;
+  /** Allow clicks on the spotlighted element to pass through. */
+  spotlightClicks?: boolean;
+  /** Don't close the tour when the overlay is clicked. */
+  disableOverlayClose?: boolean;
   locale?: Record<string, string>;
   styles?: Record<string, unknown>;
   callback?: (data: { status?: string; action?: string }) => void;
@@ -124,6 +129,17 @@ export function TourRunner({ initialCompleted, children }: Props) {
           showProgress
           disableScrolling={false}
           hideCloseButton={false}
+          // Tours are informational, not blocking. Without these two props
+          // Joyride's full-viewport overlay (zIndex 60, dimmed black)
+          // captures every click on the page underneath — which is exactly
+          // why on a fresh install the AI Providers settings page rendered
+          // but every click was eaten by the invisible first-run overlay.
+          // `spotlightClicks` lets users click the spotlighted element
+          // (forward-compat for tours that want it). `disableOverlayClose`
+          // keeps the tour from being dismissed by an accidental click on
+          // the overlay (which is now non-blocking anyway, see styles.overlay).
+          spotlightClicks
+          disableOverlayClose
           locale={{
             back: "Back",
             close: "Close",
@@ -131,37 +147,7 @@ export function TourRunner({ initialCompleted, children }: Props) {
             next: "Next",
             skip: "Skip tour",
           }}
-          styles={{
-            options: {
-              primaryColor: "var(--color-primary)",
-              backgroundColor: "var(--color-card)",
-              textColor: "var(--color-foreground)",
-              arrowColor: "var(--color-card)",
-              overlayColor: "rgba(0, 0, 0, 0.45)",
-              zIndex: 60,
-            },
-            tooltip: {
-              borderRadius: 10,
-              padding: "16px 18px",
-              fontFamily:
-                "var(--font-sans, ui-sans-serif, system-ui, sans-serif)",
-            },
-            tooltipContainer: { textAlign: "left" },
-            buttonNext: {
-              borderRadius: 6,
-              padding: "6px 12px",
-              fontSize: 13,
-              fontWeight: 500,
-            },
-            buttonBack: {
-              color: "var(--color-muted-foreground)",
-              fontSize: 13,
-            },
-            buttonSkip: {
-              color: "var(--color-muted-foreground)",
-              fontSize: 13,
-            },
-          }}
+          styles={buildJoyrideStyles()}
           callback={(data: { status?: string; action?: string }) => {
             // Joyride's `status` strings; finished/skipped both close.
             if (
