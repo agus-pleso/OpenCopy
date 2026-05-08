@@ -160,25 +160,34 @@ jobs:
 
           # Compose the manifest with jq so quoting + newline handling is
           # bulletproof — the .sig contents include literal newlines.
-          # The earlier shape used `({} as $base) | ...` which jq rejects
-          # with "unexpected ')'" because `as` doesn't bind cleanly inside
-          # a parenthesized pipe head. Using inline `+` over object
-          # literals merges trivially: empty `{}` is the identity, so a
-          # missing platform just contributes nothing.
-          jq -n \
-            --arg version "$VERSION" \
-            --arg pub_date "$PUB_DATE" \
+          # History of the two parser errors that bit this step:
+          #   v1: `({} as $base) | ...` — `as` can't bind inside a paren'd pipe head.
+          #   v2: `(if...) + (if...)` directly after `platforms:` — jq's
+          #       object-literal RHS rejects bare `+` between paren'd
+          #       expressions ("expected '}'"). Need an outer paren wrap.
+          # Build the platforms object in a separate jq invocation, then
+          # splice it in via --argjson — sidesteps both syntactic edge
+          # cases entirely and keeps the main manifest jq trivially simple.
+          PLATFORMS=$(jq -n \
             --arg mac_url "$MAC_URL" \
             --arg mac_sig "$MAC_SIG" \
             --arg win_url "$WIN_URL" \
             --arg win_sig "$WIN_SIG" \
+            '
+              (if $mac_url != "" then {"darwin-aarch64": {signature: $mac_sig, url: $mac_url}} else {} end)
+              +
+              (if $win_url != "" then {"windows-x86_64": {signature: $win_sig, url: $win_url}} else {} end)
+            ')
+
+          jq -n \
+            --arg version "$VERSION" \
+            --arg pub_date "$PUB_DATE" \
+            --argjson platforms "$PLATFORMS" \
             '{
               version: $version,
               notes: "See the GitHub release for change notes.",
               pub_date: $pub_date,
-              platforms:
-                (if $mac_url != "" then {"darwin-aarch64": {signature: $mac_sig, url: $mac_url}} else {} end) +
-                (if $win_url != "" then {"windows-x86_64": {signature: $win_sig, url: $win_url}} else {} end)
+              platforms: $platforms
             }' > artifacts/latest.json
 
           echo "--- latest.json ---"
