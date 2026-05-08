@@ -32,6 +32,14 @@ const CHANNEL_META: Record<
   headline: { label: "Headlines", icon: Type },
   product_description: { label: "Product", icon: Package },
   other: { label: "Other", icon: FileText },
+  "email-marketing": { label: "Email · marketing", icon: Mail },
+  "email-transactional": { label: "Email · transactional", icon: Mail },
+  "ig-post": { label: "IG · post", icon: MessageSquare },
+  "ig-story": { label: "IG · story", icon: MessageSquare },
+  "fb-ad": { label: "FB · ad", icon: Megaphone },
+  "landing-hero": { label: "Landing · hero", icon: PanelTop },
+  sms: { label: "SMS", icon: MessageSquare },
+  push: { label: "Push", icon: MessageSquare },
 };
 
 type Filter = "all" | "saved" | Channel;

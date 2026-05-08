@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { KeyRound, Building2, Activity, Users } from "lucide-react";
+import { KeyRound, Building2, Activity, Users, Layers } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const SETTINGS_NAV = [
@@ -23,6 +23,12 @@ const SETTINGS_NAV = [
     href: "/settings/ai",
     icon: KeyRound,
     description: "Keys, embeddings, model defaults.",
+  },
+  {
+    label: "Channels",
+    href: "/settings/channels",
+    icon: Layers,
+    description: "Components per channel, drag-reorder.",
   },
   {
     label: "Usage",

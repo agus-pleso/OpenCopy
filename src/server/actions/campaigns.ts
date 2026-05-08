@@ -130,6 +130,30 @@ export async function startCampaignRun(
     }
   }
 
+  // V2.4 — fetch the workspace's channel definitions for every channel
+  // the brief targets. Lazy-seeds defaults for pre-V2.4 workspaces. The
+  // orchestrator routes channels with a schema through the multi-component
+  // drafter; channels without a schema fall through to the legacy single-shot
+  // drafter.
+  const componentSchemas: NonNullable<
+    CampaignOrchestratorInput["componentSchemas"]
+  > = {};
+  try {
+    const { getChannelDefinition } = await import(
+      "@/server/actions/channels"
+    );
+    for (const channelId of brief.requestedChannels) {
+      if (componentSchemas[channelId]) continue;
+      const def = await getChannelDefinition(workspace.id, channelId);
+      if (def && def.components.length > 0) {
+        componentSchemas[channelId] = def.components;
+      }
+    }
+  } catch (err) {
+    // Non-fatal: missing schemas just route through the legacy drafter.
+    console.warn("[campaign] channel definition lookup failed:", err);
+  }
+
   const orchestratorInput: CampaignOrchestratorInput = {
     voice: cardForPrompt,
     name: brief.name,
@@ -139,6 +163,7 @@ export async function startCampaignRun(
     locale: brief.locale,
     requestedChannels: brief.requestedChannels,
     knowledge,
+    componentSchemas,
   };
 
   try {
@@ -173,6 +198,9 @@ export async function startCampaignRun(
             label: a.label,
             strategy: a.strategy,
             content: a.content,
+            // V2.4 — when the channel had a component schema, persist the
+            // labelled map. Asset card prefers this over `content` when set.
+            components: a.components,
             rationale: a.rationale,
             auditScore: a.audit?.overall_score ?? null,
             auditSummary: a.audit?.summary ?? null,

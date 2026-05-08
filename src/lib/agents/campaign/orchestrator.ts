@@ -3,6 +3,7 @@ import { runAgent, type AgentContext } from "../core";
 import { runCopywriterDrafter } from "../copywriter/drafter";
 import { runVoiceAuditor, type VoiceAudit } from "../voice-auditor";
 import type { VoiceCardForPrompt, Locale } from "../voice-card";
+import type { Channel, ChannelComponent } from "@/db/schema";
 import {
   campaignPlanner,
   type CampaignPlannerOutput,
@@ -19,6 +20,15 @@ export interface CampaignOrchestratorInput {
   requestedChannels: CampaignPlannerInput["requestedChannels"];
   /** Pre-formatted KB excerpts (already retrieved by the caller). */
   knowledge?: string;
+  /**
+   * V2.4 — per-channel component schemas. Looked up by the caller from
+   * `channel_definition` and keyed by Channel id. When an asset's channel
+   * has a schema here, the drafter is asked for one labeled section per
+   * component instead of free-form copy. Channels without a schema in this
+   * map fall back to the legacy single-shot drafter (backward-compat for
+   * campaigns that target legacy channel ids without definitions).
+   */
+  componentSchemas?: Partial<Record<Channel, ChannelComponent[]>>;
 }
 
 export interface CampaignAssetResult {
@@ -27,6 +37,13 @@ export interface CampaignAssetResult {
   label: string;
   strategy: string;
   content: string;
+  /**
+   * V2.4 — when the channel had a component schema, this map carries the
+   * model's text per component id. Caller persists it to
+   * `campaign_asset.components`. Null when the channel had no schema (legacy
+   * single-shot drafter path) — the caller stores `content` only in that case.
+   */
+  components: Record<string, string> | null;
   rationale: string;
   audit: VoiceAudit | null;
   modelIds: { drafter: string; auditor: string | null };
@@ -82,8 +99,9 @@ export async function runCampaign(
   }
 
   // Step 2 — draft each asset in parallel.
-  const draftPromises = planned.map((asset) =>
-    runCopywriterDrafter(
+  const draftPromises = planned.map((asset) => {
+    const components = input.componentSchemas?.[asset.channel as Channel];
+    return runCopywriterDrafter(
       {
         voice: input.voice ?? {
           name: "(no voice)",
@@ -111,10 +129,11 @@ export async function runCampaign(
           hook: plan.hook,
         },
         knowledge: input.knowledge,
+        components,
       },
       { workspaceId: ctx.workspaceId, userId: ctx.userId },
-    ),
-  );
+    );
+  });
 
   const drafts = await Promise.all(draftPromises);
 
@@ -143,6 +162,7 @@ export async function runCampaign(
       label: asset.label,
       strategy: asset.angle,
       content: drafter.output.content,
+      components: drafter.output.components ?? null,
       rationale: drafter.output.rationale,
       audit: auditor?.output ?? null,
       modelIds: {

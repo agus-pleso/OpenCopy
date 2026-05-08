@@ -2,6 +2,7 @@ import "server-only";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import {
+  channelDefinitions,
   members,
   userPrefs,
   users,
@@ -10,6 +11,7 @@ import {
   type Workspace,
 } from "@/db/schema";
 import { slugify } from "@/lib/utils";
+import { DEFAULT_CHANNEL_DEFINITIONS } from "@/lib/channels/defaults";
 import { auth } from "./auth";
 
 const ROLE_RANK: Record<MemberRole, number> = {
@@ -74,6 +76,22 @@ export async function ensureWorkspaceForUser(
       target: userPrefs.userId,
       set: { currentWorkspaceId: workspace.id, updatedAt: new Date() },
     });
+
+  // V2.4 — seed Diana's customisable-channels defaults so Settings → Channels
+  // is non-empty on first launch and Campaign generation can pull a component
+  // schema for any of the 9 default channels immediately. Idempotent against
+  // re-runs because the unique (workspace, channel) index would block dupes
+  // — but ensureWorkspaceForUser only fires on first signin per user, so this
+  // shouldn't conflict in practice.
+  await db.insert(channelDefinitions).values(
+    DEFAULT_CHANNEL_DEFINITIONS.map((def, idx) => ({
+      workspaceId: workspace.id,
+      channelId: def.channelId,
+      label: def.label,
+      components: def.components,
+      ordering: idx,
+    })),
+  );
 
   return workspace;
 }

@@ -44,6 +44,15 @@ const CHANNEL_META: Record<
   headline: { label: "Headline", icon: Type },
   product_description: { label: "Product", icon: Package },
   other: { label: "Other", icon: FileText },
+  // V2.4 — Diana's customisable channels.
+  "email-marketing": { label: "Email — marketing", icon: Mail },
+  "email-transactional": { label: "Email — transactional", icon: Mail },
+  "ig-post": { label: "IG post", icon: MessageSquare },
+  "ig-story": { label: "IG story", icon: MessageSquare },
+  "fb-ad": { label: "FB ad", icon: Megaphone },
+  "landing-hero": { label: "Landing hero", icon: PanelTop },
+  sms: { label: "SMS", icon: MessageSquare },
+  push: { label: "Push", icon: MessageSquare },
 };
 
 const SEV_COLOR: Record<VoiceAuditIssue["severity"], string> = {
@@ -164,12 +173,16 @@ export function AssetCard({ asset: initial }: Props) {
         </p>
       )}
 
-      <article
-        className="prose-sm whitespace-pre-wrap px-5 py-5 text-[15px] leading-relaxed font-serif text-pretty"
-        style={{ fontFamily: "ui-serif, Georgia, serif" }}
-      >
-        {asset.content}
-      </article>
+      {asset.components && Object.keys(asset.components).length > 0 ? (
+        <AssetComponentBody components={asset.components} />
+      ) : (
+        <article
+          className="prose-sm whitespace-pre-wrap px-5 py-5 text-[15px] leading-relaxed font-serif text-pretty"
+          style={{ fontFamily: "ui-serif, Georgia, serif" }}
+        >
+          {asset.content}
+        </article>
+      )}
 
       <div className="flex flex-wrap items-center gap-2 border-t border-[var(--color-border)] px-5 py-3">
         <Button variant="ghost" size="sm" onClick={onCopy}>
@@ -283,4 +296,44 @@ export function AssetCard({ asset: initial }: Props) {
 
 function sevRank(s: VoiceAuditIssue["severity"]): number {
   return s === "high" ? 3 : s === "medium" ? 2 : 1;
+}
+
+/**
+ * Multi-component renderer for V2.4 assets. Splits the asset's body into
+ * one labelled block per component, preserving the channel definition's
+ * order. Component IDs are slug-formatted for display ("subject", "cta").
+ */
+function AssetComponentBody({
+  components,
+}: {
+  components: Record<string, string>;
+}) {
+  const entries = Object.entries(components).filter(([, v]) => v?.trim());
+  if (entries.length === 0) {
+    // The asset declared a component schema but the model produced empty
+    // sections. Surface a hint rather than an empty card.
+    return (
+      <p className="px-5 py-5 text-sm italic text-[var(--color-muted-foreground)]">
+        The drafter returned an empty result for this channel. Re-run, or
+        check the channel&apos;s component schema in Settings → Channels.
+      </p>
+    );
+  }
+  return (
+    <div className="flex flex-col divide-y divide-[var(--color-border)]/60">
+      {entries.map(([id, value]) => (
+        <div key={id} className="px-5 py-4">
+          <p className="mb-1.5 text-[10px] uppercase tracking-[0.18em] text-[var(--color-muted-foreground)]">
+            {id.replace(/_/g, " ")}
+          </p>
+          <article
+            className="prose-sm whitespace-pre-wrap text-[15px] leading-relaxed font-serif text-pretty"
+            style={{ fontFamily: "ui-serif, Georgia, serif" }}
+          >
+            {value}
+          </article>
+        </div>
+      ))}
+    </div>
+  );
 }

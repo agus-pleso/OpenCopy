@@ -2,13 +2,19 @@ import "server-only";
 import { generateText } from "ai";
 
 import { resolveModel } from "@/lib/ai/providers";
+import type { ChannelComponent } from "@/db/schema";
 import { renderVoiceCard, type VoiceCardForPrompt } from "../voice-card";
 import {
   parseDrafterOutput,
+  parseMultiComponentDrafterOutput,
   type DrafterOutput,
 } from "./drafter-parser";
 
-export { parseDrafterOutput, type DrafterOutput } from "./drafter-parser";
+export {
+  parseDrafterOutput,
+  parseMultiComponentDrafterOutput,
+  type DrafterOutput,
+} from "./drafter-parser";
 
 /**
  * Drafter.
@@ -51,6 +57,13 @@ export interface DrafterInput {
    * optional. Format produced by `formatExemplarsForPrompt`.
    */
   exemplars?: string;
+  /**
+   * V2.4 — when set, the drafter is asked for ONE labeled section per
+   * component instead of free-form copy. Used by the campaign flow with
+   * a `channel_definition`. The DrafterOutput returns a `components`
+   * keyed-by-id map. Copywriter (single-shot) leaves this undefined.
+   */
+  components?: ChannelComponent[];
 }
 
 const SYSTEM = `You are a copywriter drafting one variant from a planned angle. Stay inside the
@@ -142,9 +155,44 @@ function buildPrompt(input: DrafterInput): string {
     );
   }
 
-  lines.push(
-    "\nDraft the copy now. Output the copy itself, then '---' on its own line, then a brief rationale.",
-  );
+  if (input.components && input.components.length > 0) {
+    lines.push("");
+    lines.push("---");
+    lines.push("");
+    lines.push("# Required output components");
+    lines.push(
+      "This channel has a structured component schema. Output ONE labeled markdown section per component, in the order listed below. Use a level-1 heading (`# <id>`) with the EXACT id (no spaces, no hyphens). After all sections, write `---` on its own line, then a brief rationale.",
+    );
+    lines.push("");
+    for (const c of input.components) {
+      const constraints: string[] = [];
+      constraints.push(c.required ? "required" : "optional");
+      constraints.push(`type: ${c.type}`);
+      if (c.maxLength) constraints.push(`max ${c.maxLength} chars`);
+      lines.push(`- \`${c.id}\` (${c.label}) — ${constraints.join(", ")}.`);
+      if (c.hint) lines.push(`    Hint: ${c.hint}`);
+      if (c.prompt) lines.push(`    Per-component instruction: ${c.prompt}`);
+    }
+    lines.push("");
+    lines.push("Example shape (illustrative — match your channel's actual ids):");
+    lines.push("```");
+    lines.push("# subject");
+    lines.push("Stop guessing what's blocking activation");
+    lines.push("");
+    lines.push("# body");
+    lines.push("Multi-paragraph body…");
+    lines.push("");
+    lines.push("# cta");
+    lines.push("Read the playbook");
+    lines.push("");
+    lines.push("---");
+    lines.push("Lead reframes the activation metric…");
+    lines.push("```");
+  } else {
+    lines.push(
+      "\nDraft the copy now. Output the copy itself, then '---' on its own line, then a brief rationale.",
+    );
+  }
   return lines.join("\n");
 }
 
@@ -174,8 +222,18 @@ export async function runCopywriterDrafter(
     maxTokens: 3000,
   });
 
+  // Multi-component flow uses a different parser that maps named sections
+  // back to component ids. Single-shot legacy flow uses the existing parser.
+  const output =
+    input.components && input.components.length > 0
+      ? parseMultiComponentDrafterOutput(
+          result.text,
+          input.components.map((c) => c.id),
+        )
+      : parseDrafterOutput(result.text);
+
   return {
-    output: parseDrafterOutput(result.text),
+    output,
     modelId,
     provider,
     durationMs: Date.now() - start,

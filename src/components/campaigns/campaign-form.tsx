@@ -39,14 +39,27 @@ interface Props {
 }
 
 const CHANNELS: { value: Channel; label: string; hint: string }[] = [
-  { value: "blog", label: "Blog intro", hint: "100–150 words" },
-  { value: "landing", label: "Landing hero", hint: "headline + sub" },
-  { value: "email", label: "Email", hint: "subject + body" },
-  { value: "social", label: "Social post", hint: "1 paragraph" },
-  { value: "ad", label: "Ad", hint: "1–2 lines" },
-  { value: "headline", label: "Headline", hint: "≤ 80 chars" },
-  { value: "product_description", label: "Product description", hint: "60–100 words" },
-  { value: "other", label: "Other", hint: "as specified" },
+  // V2.4 — channels with custom component schemas. The drafter pulls the
+  // schema from `channel_definition` at run time and produces named sections
+  // (subject, body, cta, etc.) instead of a single block. Edit the schemas
+  // in Settings → Channels.
+  { value: "email-marketing", label: "Email · marketing", hint: "subject + preheader + body + CTA" },
+  { value: "email-transactional", label: "Email · transactional", hint: "subject + body + (optional CTA)" },
+  { value: "ig-post", label: "Instagram · post", hint: "caption + hashtags" },
+  { value: "ig-story", label: "Instagram · story", hint: "headline + subline + sticker" },
+  { value: "fb-ad", label: "Facebook ad", hint: "headline + primary text + description + CTA" },
+  { value: "landing-hero", label: "Landing · hero", hint: "headline + sub + 2 CTAs" },
+  { value: "blog", label: "Blog post", hint: "title + deck + body" },
+  { value: "sms", label: "SMS", hint: "≤ 160 chars" },
+  { value: "push", label: "Push notification", hint: "title + body" },
+  // Legacy single-shot channels — kept for back-compat with old campaigns.
+  { value: "landing", label: "Landing (legacy)", hint: "headline + sub" },
+  { value: "email", label: "Email (legacy)", hint: "subject + body" },
+  { value: "social", label: "Social (legacy)", hint: "1 paragraph" },
+  { value: "ad", label: "Ad (legacy)", hint: "1–2 lines" },
+  { value: "headline", label: "Headline (legacy)", hint: "≤ 80 chars" },
+  { value: "product_description", label: "Product description (legacy)", hint: "60–100 words" },
+  { value: "other", label: "Other (legacy)", hint: "as specified" },
 ];
 
 export function CampaignForm({ voices, sources }: Props) {

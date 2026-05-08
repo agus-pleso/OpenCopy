@@ -540,7 +540,15 @@ export const variantStatusEnum = pgEnum("variant_status", [
   "discarded",
 ]);
 
-/** Channel hint for copywriter briefs. Affects format expectations only. */
+/**
+ * Channel hint for copywriter briefs. Affects format expectations only.
+ *
+ * The first 8 values are legacy V1.x / V2.x identifiers, retained so existing
+ * campaigns continue to load. The 8 hyphen-namespaced values added in V2.4
+ * are Diana's customisable-channels set — they have richer component schemas
+ * defined in `channel_definition` (per-workspace, drag-reorderable, with
+ * optional per-component prompt overrides).
+ */
 export const channelEnum = pgEnum("channel", [
   "ad",
   "email",
@@ -550,7 +558,43 @@ export const channelEnum = pgEnum("channel", [
   "headline",
   "product_description",
   "other",
+  // V2.4 — Diana's customisable channels.
+  "email-marketing",
+  "email-transactional",
+  "ig-post",
+  "ig-story",
+  "fb-ad",
+  "landing-hero",
+  "sms",
+  "push",
 ]);
+
+/**
+ * Component types in a channel's schema. Tells the drafter how the component
+ * is shaped (so prompts can constrain output appropriately) and lets the UI
+ * pick the right input control:
+ *  - `short`: single-line, headline-shaped (subject, hook, CTA copy)
+ *  - `long`:  multi-paragraph, body-shaped (email body, blog excerpt)
+ *  - `cta`:   button copy / link text — usually < 5 words
+ */
+export type ChannelComponentType = "short" | "long" | "cta";
+
+/**
+ * One field inside a channel's component schema. Stable IDs (used as
+ * map keys in `campaign_asset.components`) so renaming the label doesn't
+ * orphan existing assets.
+ */
+export interface ChannelComponent {
+  id: string;
+  label: string;
+  type: ChannelComponentType;
+  required: boolean;
+  hint?: string;
+  maxLength?: number;
+  /** Optional per-component prompt override. When set, the drafter uses
+   *  this instead of its generic per-type instruction for this field. */
+  prompt?: string;
+}
 
 export interface CopywriterBrief {
   voiceId: string;
@@ -1099,6 +1143,17 @@ export const campaignAssets = pgTable(
     strategy: text("strategy"),
     content: text("content").notNull(),
     rationale: text("rationale"),
+    /**
+     * V2.4 multi-component output. When non-null, this asset was generated
+     * against a `channel_definition` schema and `content` is the legacy
+     * single-string fallback (for back-compat with older asset cards). New
+     * UI reads from this map first, keyed by the channel definition's
+     * component IDs (e.g. `subject`, `preheader`, `body`, `cta`). Pre-V2.4
+     * assets have NULL here and render via the `content` column.
+     */
+    components: jsonb("components")
+      .$type<Record<string, string> | null>()
+      .default(null),
     auditScore: integer("audit_score"),
     auditSummary: text("audit_summary"),
     auditStrengths: jsonb("audit_strengths").$type<string[]>().notNull().default([]),
@@ -1115,6 +1170,63 @@ export const campaignAssets = pgTable(
     index("campaign_asset_voice_idx").on(t.voiceId),
   ],
 );
+
+/* ----------------------------------------------------------------------------
+ * Channel definitions (V2.4) — per-workspace component schemas.
+ *
+ * Each row defines, for one (workspace × channel), the ordered list of
+ * components the drafter should produce. Pre-seeded with sensible defaults
+ * on workspace creation (see DEFAULT_CHANNEL_DEFINITIONS); editable by users
+ * in Settings → Channels (drag-reorder, add/remove, optional per-component
+ * prompt override).
+ * -------------------------------------------------------------------------- */
+export const channelDefinitions = pgTable(
+  "channel_definition",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    workspaceId: uuid("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    /**
+     * The channel identifier this definition applies to. References the
+     * channel enum so the existing planner / drafter / library_entry code
+     * stays type-safe with one canonical set of channel ids.
+     */
+    channelId: channelEnum("channel_id").notNull(),
+    /** Display name. Editable per workspace ("Newsletter" instead of
+     *  "Email marketing"). */
+    label: text("label").notNull(),
+    /** Ordered array of component definitions. */
+    components: jsonb("components").$type<ChannelComponent[]>().notNull().default([]),
+    /**
+     * Sort key for the channel listing in Settings → Channels and the
+     * campaign builder's channel picker. Lower = earlier.
+     */
+    ordering: integer("ordering").notNull().default(0),
+    createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
+  },
+  (t) => [
+    /** One definition per (workspace, channel). */
+    uniqueIndex("channel_definition_workspace_channel_unique").on(
+      t.workspaceId,
+      t.channelId,
+    ),
+    index("channel_definition_workspace_order_idx").on(t.workspaceId, t.ordering),
+  ],
+);
+
+export const channelDefinitionsRelations = relations(
+  channelDefinitions,
+  ({ one }) => ({
+    workspace: one(workspaces, {
+      fields: [channelDefinitions.workspaceId],
+      references: [workspaces.id],
+    }),
+  }),
+);
+
+export type ChannelDefinition = typeof channelDefinitions.$inferSelect;
 
 export const campaignsRelations = relations(campaigns, ({ one, many }) => ({
   workspace: one(workspaces, {

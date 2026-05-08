@@ -24,6 +24,14 @@ const CHANNEL_LABEL: Record<Channel, string> = {
   headline: "Headline",
   product_description: "Product",
   other: "Other",
+  "email-marketing": "Email · marketing",
+  "email-transactional": "Email · transactional",
+  "ig-post": "IG · post",
+  "ig-story": "IG · story",
+  "fb-ad": "FB · ad",
+  "landing-hero": "Landing · hero",
+  sms: "SMS",
+  push: "Push",
 };
 
 interface Props {
