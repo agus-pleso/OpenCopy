@@ -160,6 +160,11 @@ jobs:
 
           # Compose the manifest with jq so quoting + newline handling is
           # bulletproof — the .sig contents include literal newlines.
+          # The earlier shape used `({} as $base) | ...` which jq rejects
+          # with "unexpected ')'" because `as` doesn't bind cleanly inside
+          # a parenthesized pipe head. Using inline `+` over object
+          # literals merges trivially: empty `{}` is the identity, so a
+          # missing platform just contributes nothing.
           jq -n \
             --arg version "$VERSION" \
             --arg pub_date "$PUB_DATE" \
@@ -171,11 +176,9 @@ jobs:
               version: $version,
               notes: "See the GitHub release for change notes.",
               pub_date: $pub_date,
-              platforms: (
-                ({} as $base) |
-                (if $mac_url != "" then $base + {"darwin-aarch64": {signature: $mac_sig, url: $mac_url}} else $base end) |
-                (if $win_url != "" then . + {"windows-x86_64": {signature: $win_sig, url: $win_url}} else . end)
-              )
+              platforms:
+                (if $mac_url != "" then {"darwin-aarch64": {signature: $mac_sig, url: $mac_url}} else {} end) +
+                (if $win_url != "" then {"windows-x86_64": {signature: $win_sig, url: $win_url}} else {} end)
             }' > artifacts/latest.json
 
           echo "--- latest.json ---"
