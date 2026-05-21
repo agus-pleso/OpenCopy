@@ -28,6 +28,7 @@ import {
 import {
   runVoiceAnalyzer,
   runVoiceAuditor,
+  VOICE_CARD_LIMITS,
   type VoiceAudit,
   type VoiceCard,
   type VoiceCardForPrompt,
@@ -102,21 +103,21 @@ export async function updateVoiceMeta(input: unknown): Promise<void> {
 }
 
 const VoiceCardRuleSchema = z.object({
-  rule: z.string().min(2).max(220),
-  why: z.string().max(220).optional(),
+  rule: z.string().min(2).max(VOICE_CARD_LIMITS.rule),
+  why: z.string().max(VOICE_CARD_LIMITS.ruleWhy).optional(),
 });
 
 const UpdateCardSchema = z.object({
   voiceId: z.string().uuid(),
-  toneDescriptors: z.array(z.string().min(1).max(40)).max(15).optional(),
-  voicePersona: z.string().max(800).nullable().optional(),
-  audience: z.string().max(600).nullable().optional(),
-  readingLevel: z.string().max(60).nullable().optional(),
+  toneDescriptors: z.array(z.string().min(1).max(VOICE_CARD_LIMITS.word)).max(15).optional(),
+  voicePersona: z.string().max(VOICE_CARD_LIMITS.voicePersona).nullable().optional(),
+  audience: z.string().max(VOICE_CARD_LIMITS.audience).nullable().optional(),
+  readingLevel: z.string().max(VOICE_CARD_LIMITS.readingLevel).nullable().optional(),
   dos: z.array(VoiceCardRuleSchema).max(20).optional(),
   donts: z.array(VoiceCardRuleSchema).max(20).optional(),
-  requiredWords: z.array(z.string().min(1).max(40)).max(30).optional(),
-  forbiddenWords: z.array(z.string().min(1).max(40)).max(30).optional(),
-  rationale: z.string().max(1500).nullable().optional(),
+  requiredWords: z.array(z.string().min(1).max(VOICE_CARD_LIMITS.word)).max(30).optional(),
+  forbiddenWords: z.array(z.string().min(1).max(VOICE_CARD_LIMITS.word)).max(30).optional(),
+  rationale: z.string().max(VOICE_CARD_LIMITS.rationale).nullable().optional(),
   signaturePhrases: z
     .object({
       en: z.array(z.string().min(1).max(200)).max(30).optional(),

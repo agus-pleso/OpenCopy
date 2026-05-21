@@ -1,4 +1,4 @@
-import { type VoiceCard } from "./voice-card";
+import { VOICE_CARD_LIMITS, type VoiceCard } from "./voice-card";
 
 /**
  * Pure parser for the markdown the voice analyzer is asked to produce.
@@ -62,13 +62,25 @@ function findSection(
   return undefined;
 }
 
+/**
+ * Truncate a string to `max` characters. A model occasionally over-runs the
+ * section format — a paragraph where a short label was asked for, a whole
+ * clause listed as one vocabulary item — and the persistence schema
+ * (`UpdateCardSchema`) rejects over-long fields. Truncating keeps the value
+ * (which the user still reviews before saving) instead of failing the import.
+ */
+function clampLen(s: string, max: number): string {
+  return s.length <= max ? s : s.slice(0, max).trimEnd();
+}
+
 function parseCommaList(body: string | undefined, max: number): string[] {
   if (!body) return [];
   const items = body
     .split(/[,\n]/)
     .map((s) => s.replace(/^\s*[-*•]\s*/, "").trim())
     .map((s) => s.replace(/^["']|["']$/g, "").replace(/\.$/, "").trim())
-    .filter((s) => s.length > 0 && s.length <= 80);
+    .map((s) => clampLen(s, VOICE_CARD_LIMITS.word))
+    .filter((s) => s.length > 0);
   return Array.from(new Set(items)).slice(0, max);
 }
 
@@ -86,14 +98,14 @@ function parseRuleList(
   for (const line of lines) {
     const m = line.match(/^(.+?)\s+[—–-]\s+(.+)$/);
     if (m) {
-      const rule = m[1].replace(/\.$/, "").trim();
-      const why = m[2].replace(/\.$/, "").trim();
-      if (rule.length > 0 && rule.length <= 400) {
+      const rule = clampLen(m[1].replace(/\.$/, "").trim(), VOICE_CARD_LIMITS.rule);
+      const why = clampLen(m[2].replace(/\.$/, "").trim(), VOICE_CARD_LIMITS.ruleWhy);
+      if (rule.length > 0) {
         rules.push({ rule, why: why.length > 0 ? why : undefined });
       }
     } else {
-      const rule = line.replace(/\.$/, "").trim();
-      if (rule.length > 0 && rule.length <= 400) {
+      const rule = clampLen(line.replace(/\.$/, "").trim(), VOICE_CARD_LIMITS.rule);
+      if (rule.length > 0) {
         rules.push({ rule });
       }
     }
@@ -201,9 +213,18 @@ export function parseVoiceCardMarkdown(
     findSection(sections, "tone descriptors"),
     12,
   );
-  const persona = (findSection(sections, "persona") ?? "").trim();
-  const audience = (findSection(sections, "audience") ?? "").trim();
-  const readingLevel = firstNonEmptyLine(findSection(sections, "reading level"));
+  const persona = clampLen(
+    (findSection(sections, "persona") ?? "").trim(),
+    VOICE_CARD_LIMITS.voicePersona,
+  );
+  const audience = clampLen(
+    (findSection(sections, "audience") ?? "").trim(),
+    VOICE_CARD_LIMITS.audience,
+  );
+  const readingLevel = clampLen(
+    firstNonEmptyLine(findSection(sections, "reading level")),
+    VOICE_CARD_LIMITS.readingLevel,
+  );
   const dos = parseRuleList(findSection(sections, "do's", "dos"), 12);
   const donts = parseRuleList(findSection(sections, "don'ts", "donts"), 12);
   const required = parseCommaList(
@@ -215,7 +236,10 @@ export function parseVoiceCardMarkdown(
     20,
   );
   const sigPhrases = parseSignaturePhrases(findSection(sections, "signature phrases"));
-  const rationale = (findSection(sections, "rationale") ?? "").trim();
+  const rationale = clampLen(
+    (findSection(sections, "rationale") ?? "").trim(),
+    VOICE_CARD_LIMITS.rationale,
+  );
 
   const sampleCount = context?.sampleCount ?? 0;
   const fallbackRationale =

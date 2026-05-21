@@ -17,6 +17,7 @@ export type {
 export {
   VoiceCardSchema,
   VoiceCardRuleSchema,
+  VOICE_CARD_LIMITS,
   renderVoiceCard,
   type VoiceCard,
   type VoiceCardForPrompt,

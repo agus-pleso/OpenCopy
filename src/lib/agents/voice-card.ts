@@ -13,9 +13,39 @@ export type { Locale };
  *  - every downstream agent (Voice Auditor, Copywriter, Localizer — all read it)
  */
 
+/**
+ * Maximum string lengths (characters) for voice-card fields.
+ *
+ * Shared by the three layers that must agree on them:
+ *  - `VoiceCardSchema` below — the agent-output contract;
+ *  - `parseVoiceCardMarkdown` — clamps model output to these bounds;
+ *  - `UpdateCardSchema` in `server/actions/voices.ts` — the save-time gate.
+ *
+ * They must be defined once: when the parser accepts a longer string than the
+ * save schema allows, an extracted card can clear the review UI and then throw
+ * a ZodError on save. These bounds are the loosest of the historical per-layer
+ * limits, so tightening one here can reject a card a user already saved — only
+ * ever loosen.
+ */
+export const VOICE_CARD_LIMITS = {
+  /** Tone descriptors + required/forbidden vocabulary — short word-like items. */
+  word: 60,
+  voicePersona: 800,
+  audience: 600,
+  readingLevel: 60,
+  rule: 400,
+  ruleWhy: 400,
+  signaturePhrase: 200,
+  rationale: 1500,
+} as const;
+
 export const VoiceCardRuleSchema = z.object({
-  rule: z.string().min(1).max(400).describe("A short, declarative voice rule."),
-  why: z.string().max(400).optional().describe(
+  rule: z
+    .string()
+    .min(1)
+    .max(VOICE_CARD_LIMITS.rule)
+    .describe("A short, declarative voice rule."),
+  why: z.string().max(VOICE_CARD_LIMITS.ruleWhy).optional().describe(
     "One-sentence reason this rule exists. Strengthens auditor judgments.",
   ),
 });
@@ -31,7 +61,7 @@ export const VoiceCardRuleSchema = z.object({
  */
 export const VoiceCardSchema = z.object({
   tone_descriptors: z
-    .array(z.string().min(1).max(60))
+    .array(z.string().min(1).max(VOICE_CARD_LIMITS.word))
     .min(1)
     .max(12)
     .describe(
@@ -40,19 +70,19 @@ export const VoiceCardSchema = z.object({
   voice_persona: z
     .string()
     .min(1)
-    .max(600)
+    .max(VOICE_CARD_LIMITS.voicePersona)
     .describe(
       "1–3 sentences describing the implied speaker behind the copy. Include role, expertise, and posture.",
     ),
   audience: z
     .string()
     .min(1)
-    .max(500)
+    .max(VOICE_CARD_LIMITS.audience)
     .describe("Who this copy is written for. Be specific about role, sophistication, and goals."),
   reading_level: z
     .string()
     .min(1)
-    .max(60)
+    .max(VOICE_CARD_LIMITS.readingLevel)
     .describe(
       "Reading level / grade band (e.g. '8th grade', 'professional', 'expert'). Match the samples.",
     ),
@@ -67,23 +97,23 @@ export const VoiceCardSchema = z.object({
     .max(12)
     .describe("Aim for 3–10 concrete, observable rules — what NOT to do."),
   required_words: z
-    .array(z.string().min(1).max(60))
+    .array(z.string().min(1).max(VOICE_CARD_LIMITS.word))
     .max(20)
     .describe(
       "Words / phrases the brand consistently uses (product names, signature terms). Empty array if none stand out.",
     ),
   forbidden_words: z
-    .array(z.string().min(1).max(60))
+    .array(z.string().min(1).max(VOICE_CARD_LIMITS.word))
     .max(20)
     .describe(
       "Words / phrases that violate the voice (jargon, banned competitor terms, AI tells like 'delve' or 'tapestry').",
     ),
   signature_phrases: z
     .object({
-      en: z.array(z.string().min(1).max(200)).max(30).default([]),
-      pl: z.array(z.string().min(1).max(200)).max(30).default([]),
-      ro: z.array(z.string().min(1).max(200)).max(30).default([]),
-      uk: z.array(z.string().min(1).max(200)).max(30).default([]),
+      en: z.array(z.string().min(1).max(VOICE_CARD_LIMITS.signaturePhrase)).max(30).default([]),
+      pl: z.array(z.string().min(1).max(VOICE_CARD_LIMITS.signaturePhrase)).max(30).default([]),
+      ro: z.array(z.string().min(1).max(VOICE_CARD_LIMITS.signaturePhrase)).max(30).default([]),
+      uk: z.array(z.string().min(1).max(VOICE_CARD_LIMITS.signaturePhrase)).max(30).default([]),
     })
     .default({ en: [], pl: [], ro: [], uk: [] })
     .describe(
@@ -92,7 +122,7 @@ export const VoiceCardSchema = z.object({
   rationale: z
     .string()
     .min(1)
-    .max(1200)
+    .max(VOICE_CARD_LIMITS.rationale)
     .describe(
       "2–4 sentences explaining the voice characterization. Reference specific patterns observed in the samples.",
     ),
