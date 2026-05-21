@@ -24,19 +24,35 @@ const SECTION_KEYS = [
 
 type SectionKey = (typeof SECTION_KEYS)[number];
 
-function splitSections(md: string): Map<string, string> {
-  const out = new Map<string, string>();
-  const cleaned = md
+/** Strip an outer ```markdown fence the model sometimes wraps the whole reply in. */
+function stripCodeFence(md: string): string {
+  return md
     .replace(/^\s*```(?:markdown|md)?\s*\n([\s\S]*)\n?```\s*$/i, "$1")
     .trim();
+}
 
+interface Heading {
+  title: string;
+  start: number;
+  end: number;
+}
+
+/** Locate every markdown heading (h1-h4 or **bold**), lower-cased, in order. */
+function scanHeadings(cleaned: string): Heading[] {
   const headingRegex = /^(?:#{1,4}\s+(.+?)|\*\*(.+?)\*\*)\s*:?\s*$/gm;
-  const matches: Array<{ title: string; start: number; end: number }> = [];
+  const matches: Heading[] = [];
   let m: RegExpExecArray | null;
   while ((m = headingRegex.exec(cleaned))) {
     const title = (m[1] ?? m[2] ?? "").trim().toLowerCase();
     matches.push({ title, start: m.index, end: m.index + m[0].length });
   }
+  return matches;
+}
+
+function splitSections(md: string): Map<string, string> {
+  const out = new Map<string, string>();
+  const cleaned = stripCodeFence(md);
+  const matches = scanHeadings(cleaned);
   for (let i = 0; i < matches.length; i++) {
     const { title, end } = matches[i];
     const next = matches[i + 1]?.start ?? cleaned.length;
@@ -121,6 +137,35 @@ function firstNonEmptyLine(body: string | undefined): string {
     if (t) return t;
   }
   return "";
+}
+
+/**
+ * Isolate the raw "## Signature phrases" block, including its `### EN` /
+ * `### PL` ... locale subsections.
+ *
+ * `splitSections` treats every heading as a section boundary, so the locale
+ * subsections become their own (mis-parsed) entries and the "signature
+ * phrases" entry is left empty. A 2-letter locale code can never contain a
+ * section keyword, so the block safely runs from the "signature phrases"
+ * heading to the next heading that names a known top-level section
+ * (e.g. "rationale", "kb hint") — or to the end of the document.
+ */
+function sliceSignatureBlock(raw: string): string | undefined {
+  const cleaned = stripCodeFence(raw);
+  const headings = scanHeadings(cleaned);
+  const startIdx = headings.findIndex((h) =>
+    h.title.includes("signature phrases"),
+  );
+  if (startIdx === -1) return undefined;
+  let endPos = cleaned.length;
+  for (let i = startIdx + 1; i < headings.length; i++) {
+    const title = headings[i].title;
+    if (SECTION_KEYS.some((key) => title.includes(key))) {
+      endPos = headings[i].start;
+      break;
+    }
+  }
+  return cleaned.slice(headings[startIdx].end, endPos).trim();
 }
 
 /**
@@ -235,7 +280,7 @@ export function parseVoiceCardMarkdown(
     findSection(sections, "forbidden vocabulary"),
     20,
   );
-  const sigPhrases = parseSignaturePhrases(findSection(sections, "signature phrases"));
+  const sigPhrases = parseSignaturePhrases(sliceSignatureBlock(raw));
   const rationale = clampLen(
     (findSection(sections, "rationale") ?? "").trim(),
     VOICE_CARD_LIMITS.rationale,
