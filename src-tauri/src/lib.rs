@@ -53,19 +53,24 @@ fn open_app(app: &AppHandle) {
 /// Check the configured updater endpoint for a newer signed bundle and,
 /// if one exists, prompt the user to install + restart.
 ///
-/// Spawned from the tray menu's "Check for updates…" item. Failures and
-/// "no update" outcomes both surface as native dialogs so the user gets
-/// feedback regardless of result.
-async fn check_for_updates(app: AppHandle) {
+/// Runs once on launch (`silent = true`) and from the tray menu's
+/// "Check for updates…" item (`silent = false`). When silent, the
+/// "already up to date" and check-failure outcomes stay quiet — only an
+/// actual available update surfaces a dialog — so the launch check never
+/// nags. The manual tray check reports every outcome so the user always
+/// gets feedback.
+async fn check_for_updates(app: AppHandle, silent: bool) {
     let updater = match app.updater() {
         Ok(u) => u,
         Err(e) => {
             log::error!("updater plugin unavailable: {e}");
-            app.dialog()
-                .message(format!("Update check failed: {e}"))
-                .kind(MessageDialogKind::Error)
-                .title("OpenCopy update")
-                .blocking_show();
+            if !silent {
+                app.dialog()
+                    .message(format!("Update check failed: {e}"))
+                    .kind(MessageDialogKind::Error)
+                    .title("OpenCopy update")
+                    .blocking_show();
+            }
             return;
         }
     };
@@ -73,22 +78,27 @@ async fn check_for_updates(app: AppHandle) {
     let update = match updater.check().await {
         Ok(Some(u)) => u,
         Ok(None) => {
-            app.dialog()
-                .message("OpenCopy is up to date.")
-                .kind(MessageDialogKind::Info)
-                .title("No updates")
-                .blocking_show();
+            log::info!("update check: already on the latest version");
+            if !silent {
+                app.dialog()
+                    .message("OpenCopy is up to date.")
+                    .kind(MessageDialogKind::Info)
+                    .title("No updates")
+                    .blocking_show();
+            }
             return;
         }
         Err(e) => {
             log::error!("update check failed: {e}");
-            app.dialog()
-                .message(format!(
-                    "Couldn't check for updates: {e}\n\nSee the logs for details."
-                ))
-                .kind(MessageDialogKind::Error)
-                .title("OpenCopy update")
-                .blocking_show();
+            if !silent {
+                app.dialog()
+                    .message(format!(
+                        "Couldn't check for updates: {e}\n\nSee the logs for details."
+                    ))
+                    .kind(MessageDialogKind::Error)
+                    .title("OpenCopy update")
+                    .blocking_show();
+            }
             return;
         }
     };
@@ -412,7 +422,7 @@ pub fn run() {
                     "check_update" => {
                         let app = app.clone();
                         tauri::async_runtime::spawn(async move {
-                            check_for_updates(app).await;
+                            check_for_updates(app, false).await;
                         });
                     }
                     "restart" => app.restart(),
@@ -440,6 +450,18 @@ pub fn run() {
             }
 
             spawn_server(app.handle());
+
+            // Auto-check for updates a few seconds after launch. The tray's
+            // "Check for updates…" item is easy to miss when the app itself
+            // opens in the browser, so without this the install prompt never
+            // reaches the user. Silent unless an update is actually found.
+            {
+                let update_handle = app.handle().clone();
+                tauri::async_runtime::spawn(async move {
+                    tokio::time::sleep(Duration::from_secs(5)).await;
+                    check_for_updates(update_handle, true).await;
+                });
+            }
 
             Ok(())
         })
