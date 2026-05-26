@@ -1,8 +1,9 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { useTransition } from "react";
-import { Trash2, MoreHorizontal } from "lucide-react";
+import { Trash2, MoreHorizontal, Search } from "lucide-react";
 import { toast } from "sonner";
 import { isRedirectError } from "@/lib/utils";
 
@@ -126,6 +127,11 @@ export function DocumentShell({ document, voices }: Props) {
       <div className="flex items-center justify-end">
         <div className="flex items-center gap-3">
           <AutosaveIndicator state={saveState} lastSavedAt={lastSavedAt} />
+          <Button variant="outline" size="sm" asChild>
+            <Link href={`/audit/${document.id}`}>
+              <Search className="h-3.5 w-3.5" /> Audit SEO
+            </Link>
+          </Button>
           <ExportButton kind="document" id={document.id} />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
