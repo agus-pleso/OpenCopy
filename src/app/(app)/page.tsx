@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 import {
   ArrowRight,
   ScanText,
@@ -17,6 +19,7 @@ import { db } from "@/db/client";
 import {
   agentRuns,
   apiKeys,
+  brandProfiles,
   brandVoices,
   copyVariants,
   modelDefaults,
@@ -27,6 +30,10 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { formatDistanceShort } from "@/lib/utils";
 import type { CopywriterBrief, LocalizerBrief } from "@/db/schema";
+
+/** Cookie set when the marketer dismisses the brand-onboarding CTA. Allows
+ *  "continue later" without re-triggering the redirect on every page load. */
+const ONBOARDING_DEFERRED_COOKIE = "opencopy_onboarding_deferred";
 
 const STATUS_VARIANT = {
   succeeded: "success",
@@ -43,8 +50,37 @@ const LOCALE_LABEL: Record<string, string> = {
   uk: "UA",
 };
 
-export default async function DashboardPage() {
+interface DashboardSearchParams {
+  setup?: string;
+}
+
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<DashboardSearchParams>;
+}) {
   const { workspace } = await getCurrentWorkspace();
+  const sp = await searchParams;
+
+  // Look up brand profile state up front — drives the auto-trigger + CTA.
+  const profileRow = await db.query.brandProfiles.findFirst({
+    where: eq(brandProfiles.workspaceId, workspace.id),
+    columns: { id: true, onboardingComplete: true },
+  });
+
+  // Deferral cookie lets the marketer continue later without looping back into
+  // /onboarding on every render. Scoped to the workspace id so switching
+  // workspaces re-runs the prompt.
+  const cookieStore = await cookies();
+  const deferred =
+    cookieStore.get(ONBOARDING_DEFERRED_COOKIE)?.value === workspace.id;
+
+  // Auto-trigger: nudge the marketer to /onboarding if they haven't finished
+  // and haven't deferred. `?setup=1` is the existing escape hatch the legacy
+  // setup banner uses — preserve it so deep-linking still works.
+  if (!deferred && (!profileRow || !profileRow.onboardingComplete) && !sp.setup) {
+    redirect("/onboarding");
+  }
 
   const [
     openrouterRows,
@@ -167,6 +203,10 @@ export default async function DashboardPage() {
         </div>
       </div>
 
+      {(!profileRow || !profileRow.onboardingComplete) && (
+        <BrandOnboardingCta />
+      )}
+
       {!showWidgets ? (
         <FullChecklist
           checklist={checklist}
@@ -201,6 +241,47 @@ export default async function DashboardPage() {
           title="You own the stack"
           body="Self-hostable, MIT, Postgres-backed. Plug any model via OpenRouter, direct keys, or local Ollama."
         />
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Brand-onboarding CTA — surfaces above the existing checklist when the
+ * marketer hasn't completed their profile. Two CTAs: chat onboarding (the
+ * primary path) and URL extraction (the fast path).
+ *
+ * Dismissal is intentionally not wired here in V1: the dashboard's auto-trigger
+ * redirect already happens, so the CTA is only visible when the marketer came
+ * back to `/` deliberately. Repeatedly hitting `?setup=1` puts them in a state
+ * where the CTA acts as a permanent "come back to me" pill until they actually
+ * finish.
+ */
+function BrandOnboardingCta() {
+  return (
+    <div className="mt-8 rounded-xl border border-[var(--color-primary)]/25 bg-[var(--color-primary)]/5 p-5">
+      <div className="flex items-start gap-3">
+        <span className="mt-0.5 flex h-9 w-9 items-center justify-center rounded-full bg-[var(--color-primary)] text-[var(--color-primary-foreground)]">
+          <Sparkles className="h-4 w-4" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="font-display text-lg tracking-tight">Set up your brand</p>
+          <p className="mt-1 max-w-2xl text-pretty text-sm text-[var(--color-muted-foreground)]">
+            Every agent reads from one structured brand profile — voice, audience,
+            positioning, product knowledge. Spend 5-10 minutes here so everything
+            else just works.
+          </p>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <Button asChild size="sm">
+              <Link href="/onboarding">
+                Chat onboarding <ArrowRight className="h-3.5 w-3.5" />
+              </Link>
+            </Button>
+            <Button asChild size="sm" variant="outline">
+              <Link href="/onboarding/extract">Or paste a URL</Link>
+            </Button>
+          </div>
+        </div>
       </div>
     </div>
   );

@@ -12,6 +12,7 @@ import { SessionProvider } from "@/components/shell/session-provider";
 import { NavProgress } from "@/components/shell/nav-progress";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { TourRunner } from "@/components/tours/tour-runner";
+import { NlCommandPalette } from "@/components/brand-profile/nl-command-palette";
 
 export default async function AppLayout({
   children,
@@ -96,6 +97,7 @@ export default async function AppLayout({
               <main className="flex-1 overflow-y-auto">{children}</main>
             </div>
             <CommandPalette />
+            <NlCommandPalette />
           </div>
         </TourRunner>
       </TooltipProvider>

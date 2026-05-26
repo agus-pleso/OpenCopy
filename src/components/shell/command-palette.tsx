@@ -62,6 +62,10 @@ export function CommandPalette() {
             <Sparkles className="h-4 w-4" /> Dashboard
             <CommandShortcut>G H</CommandShortcut>
           </CommandItem>
+          <CommandItem onSelect={() => go("/brand-profile")}>
+            <Sparkles className="h-4 w-4" /> Brand profile
+            <CommandShortcut>G B</CommandShortcut>
+          </CommandItem>
           <CommandItem onSelect={() => go("/voices")}>
             <ScanText className="h-4 w-4" /> Brand voices
             <CommandShortcut>G V</CommandShortcut>
