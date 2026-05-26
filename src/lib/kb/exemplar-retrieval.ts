@@ -11,7 +11,7 @@ import {
 /**
  * Retrieve hand-curated reference exemplars for the copywriter agent.
  *
- * These are MANUAL library entries (V2.4) — human-written best examples the
+ * These are MANUAL library entries — human-written best examples the
  * team has hand-picked as style anchors. Distinct from the KB retrieval lane
  * (which uses pgvector similarity over factual sources). The corpus here is
  * intentionally small and curated, so we don't embed/vector-search; we just

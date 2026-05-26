@@ -1,4 +1,4 @@
-// End-to-end smoke test for V1.9 export/import.
+// End-to-end smoke test for workspace export/import.
 //
 // Spins up two ephemeral PGlite stores in-process — neither uses the project's
 // `client.ts` — and exports from one into the other. Validates UUID remap,

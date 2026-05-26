@@ -20,8 +20,8 @@ import { decryptSecret } from "@/lib/crypto";
 /* ----------------------------------------------------------------------------
  * Provider registry
  *
- * V1.5: every provider in the apiKeys enum has a factory. OpenRouter remains
- * the default gateway (one key, every model), but power users can route
+ * Every provider in the apiKeys enum has a factory. OpenRouter is the
+ * default gateway (one key, every model), but power users can route
  * specific roles through direct keys to skip OpenRouter's markup, or through
  * Ollama for fully air-gapped self-host.
  * -------------------------------------------------------------------------- */

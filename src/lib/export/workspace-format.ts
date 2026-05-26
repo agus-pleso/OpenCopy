@@ -1,4 +1,4 @@
-// .opencopy file-format spec for workspace export/import (V1.9).
+// .opencopy file-format spec for workspace export/import.
 // Shared by both the server-side exporter/importer and any UI that needs
 // to introspect an .opencopy file (e.g. the import preview dialog).
 //

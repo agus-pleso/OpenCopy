@@ -5,15 +5,15 @@
 
 export interface DrafterOutput {
   /**
-   * Single-string copy view. For legacy single-shot drafts this is the
-   * model's actual output. For multi-component drafts (V2.4) this is a
-   * deterministic concatenation of `components` so existing UI / library
-   * paths (which expect a single string) keep working.
+   * Single-string copy view. For single-shot drafts this is the model's
+   * actual output. For multi-component drafts this is a deterministic
+   * concatenation of `components` so existing UI / library paths (which
+   * expect a single string) keep working.
    */
   content: string;
   rationale: string;
   /**
-   * V2.4 — present iff the drafter was asked for labeled component sections
+   * Present iff the drafter was asked for labeled component sections
    * (campaign flow with a channel_definition). Keys are component ids the
    * drafter was asked for; values are the model's text for each. Missing
    * required components surface as empty strings here so downstream code
@@ -56,7 +56,7 @@ export function parseDrafterOutput(raw: string): DrafterOutput {
 }
 
 /**
- * Parse a multi-component drafter response (V2.4 channel-definition flow).
+ * Parse a multi-component drafter response (channel-definition flow).
  *
  * Expected output shape (the drafter is asked for this in `buildPrompt` when
  * `components` is provided on input):

@@ -113,8 +113,8 @@ export const credentials = pgTable("credentials", {
 
 /* ----------------------------------------------------------------------------
  * Multi-tenant: workspaces + memberships
- * Every domain resource carries `workspace_id`. UI for inviting/managing teams
- * lands post-V1.0, but the data model and access layer enforce scoping today.
+ * Every domain resource carries `workspace_id`. The data model and access
+ * layer enforce scoping.
  * -------------------------------------------------------------------------- */
 
 export const workspaces = pgTable("workspace", {
@@ -324,8 +324,8 @@ export type ModelDefault = typeof modelDefaults.$inferSelect;
 
 /* ----------------------------------------------------------------------------
  * Brand voices — the spine that every agent reads from.
- * V0.2 introduces the primitive; Copywriter and Localizer agents in V1.0
- * inject the structured voice card into their system prompts.
+ * Copywriter and Localizer agents inject the structured voice card into
+ * their system prompts.
  * -------------------------------------------------------------------------- */
 
 export const voiceStatusEnum = pgEnum("voice_status", [
@@ -509,7 +509,7 @@ export type VoiceAudit = typeof voiceAudits.$inferSelect;
 export type VoiceStatus = (typeof voiceStatusEnum.enumValues)[number];
 
 /* ----------------------------------------------------------------------------
- * Agent runs (V1.0) — Copywriter + Localizer multi-agent orchestrations.
+ * Agent runs — Copywriter + Localizer multi-agent orchestrations.
  * Every run has many steps (one per agent invocation in the flow). Approved
  * outputs land in `copy_variants` (the workspace library).
  * -------------------------------------------------------------------------- */
@@ -543,11 +543,11 @@ export const variantStatusEnum = pgEnum("variant_status", [
 /**
  * Channel hint for copywriter briefs. Affects format expectations only.
  *
- * The first 8 values are legacy V1.x / V2.x identifiers, retained so existing
- * campaigns continue to load. The 8 hyphen-namespaced values added in V2.4
- * are Diana's customisable-channels set — they have richer component schemas
- * defined in `channel_definition` (per-workspace, drag-reorderable, with
- * optional per-component prompt overrides).
+ * The first 8 values are legacy identifiers, retained for back-compat. The
+ * hyphen-namespaced values are Diana's customisable-channels set — they
+ * have richer component schemas defined in `channel_definition`
+ * (per-workspace, drag-reorderable, with optional per-component prompt
+ * overrides).
  */
 export const channelEnum = pgEnum("channel", [
   "ad",
@@ -558,7 +558,7 @@ export const channelEnum = pgEnum("channel", [
   "headline",
   "product_description",
   "other",
-  // V2.4 — Diana's customisable channels.
+  // Diana's customisable channels.
   "email-marketing",
   "email-transactional",
   "ig-post",
@@ -781,7 +781,7 @@ export type VariantStatus = (typeof variantStatusEnum.enumValues)[number];
 export type Channel = (typeof channelEnum.enumValues)[number];
 
 /* ----------------------------------------------------------------------------
- * Documents (V1.1) — long-form writing surface with inline AI commands.
+ * Documents — long-form writing surface with inline AI commands.
  * Tiptap editor on top, brand-voice-aware slash commands underneath.
  * -------------------------------------------------------------------------- */
 
@@ -841,7 +841,7 @@ export type Document = typeof documents.$inferSelect;
 export type DocumentStatus = (typeof documentStatusEnum.enumValues)[number];
 
 /* ----------------------------------------------------------------------------
- * Knowledge base (V1.2) — workspace-scoped sources + pgvector chunks.
+ * Knowledge base — workspace-scoped sources + pgvector chunks.
  * Copywriter, Localizer, and editor commands can pull relevant chunks at
  * generation time so output is grounded in the user's actual product/brand
  * facts, not just the brief.
@@ -855,10 +855,7 @@ export const kbSourceStatusEnum = pgEnum("kb_source_status", [
 ]);
 
 /** Embedding dimensions are tied to the chosen embedding model.
- *  Default: OpenAI text-embedding-3-small @ 1536 dims.
- *  When V1.5 introduces alternate providers (Voyage, Cohere, local), each
- *  workspace's chunks must use a single model — we'll add a workspace-level
- *  embedding-model column to enforce that. */
+ *  Default: OpenAI text-embedding-3-small @ 1536 dims. */
 export const KB_EMBEDDING_DIMENSIONS = 1536;
 
 export const kbSources = pgTable(
@@ -946,7 +943,7 @@ export type KbChunk = typeof kbChunks.$inferSelect;
 export type KbSourceStatus = (typeof kbSourceStatusEnum.enumValues)[number];
 
 /* ----------------------------------------------------------------------------
- * Chat (V1.3) — threaded conversations with voice + KB grounding.
+ * Chat — threaded conversations with voice + KB grounding.
  * Composes everything: voice card injected into the system prompt, KB chunks
  * retrieved per-message and woven in, model resolved through the same
  * provider abstraction as agent runs.
@@ -1050,7 +1047,7 @@ export type ChatMessage = typeof chatMessages.$inferSelect;
 export type ChatRole = (typeof chatRoleEnum.enumValues)[number];
 
 /* ----------------------------------------------------------------------------
- * Campaigns (V1.4) — a campaign produces multiple linked assets in one
+ * Campaigns — a campaign produces multiple linked assets in one
  * orchestrated run (blog + social + email + ad variants), all sharing voice
  * and KB. Each asset is auditable and savable independently.
  * -------------------------------------------------------------------------- */
@@ -1144,11 +1141,11 @@ export const campaignAssets = pgTable(
     content: text("content").notNull(),
     rationale: text("rationale"),
     /**
-     * V2.4 multi-component output. When non-null, this asset was generated
-     * against a `channel_definition` schema and `content` is the legacy
+     * Multi-component output. When non-null, this asset was generated
+     * against a `channel_definition` schema and `content` is the
      * single-string fallback (for back-compat with older asset cards). New
      * UI reads from this map first, keyed by the channel definition's
-     * component IDs (e.g. `subject`, `preheader`, `body`, `cta`). Pre-V2.4
+     * component IDs (e.g. `subject`, `preheader`, `body`, `cta`). Legacy
      * assets have NULL here and render via the `content` column.
      */
     components: jsonb("components")
@@ -1172,7 +1169,7 @@ export const campaignAssets = pgTable(
 );
 
 /* ----------------------------------------------------------------------------
- * Channel definitions (V2.4) — per-workspace component schemas.
+ * Channel definitions — per-workspace component schemas.
  *
  * Each row defines, for one (workspace × channel), the ordered list of
  * components the drafter should produce. Pre-seeded with sensible defaults
@@ -1266,10 +1263,10 @@ export type CampaignAssetStatus =
   (typeof campaignAssetStatusEnum.enumValues)[number];
 
 /* ----------------------------------------------------------------------------
- * Workspace invitations (V1.6) — invite-by-link flow that activates the
- * multi-tenant data model that's been in place since V0.1. Auth.js handles
- * sign-in; once authed, the recipient hits /invitations/[token] and lands as
- * a member with the role the inviter chose.
+ * Workspace invitations — invite-by-link flow on top of the multi-tenant
+ * data model. Auth.js handles sign-in; once authed, the recipient hits
+ * /invitations/[token] and lands as a member with the role the inviter
+ * chose.
  * -------------------------------------------------------------------------- */
 
 export const invitationStatusEnum = pgEnum("invitation_status", [
@@ -1331,9 +1328,9 @@ export type InvitationStatus =
   (typeof invitationStatusEnum.enumValues)[number];
 
 /* ----------------------------------------------------------------------------
- * Library entries (V2.1) — polymorphic catalog of saved snippets.
+ * Library entries — polymorphic catalog of saved snippets.
  *
- * Saved copy variants (V1.0) live in `copy_variants` with `status='saved'`;
+ * Saved copy variants live in `copy_variants` with `status='saved'`;
  * this table extends the library to other surfaces — chat messages and
  * Tiptap document selections. Each entry snapshots the content at save time
  * (so source deletion or edit doesn't lose the saved snippet) and links back
@@ -1348,7 +1345,7 @@ export type InvitationStatus =
 export const libraryEntryKindEnum = pgEnum("library_entry_kind", [
   "chat_message",
   "document_selection",
-  /** User-curated reference exemplar (V2.4). Hand-picked human-written
+  /** User-curated reference exemplar. Hand-picked human-written
    * best-example copy that the copywriter agent retrieves as a *style*
    * reference. Distinct from KB chunks (factual sources). */
   "manual",

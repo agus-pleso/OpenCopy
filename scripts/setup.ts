@@ -295,7 +295,7 @@ async function main() {
           `  ${warn("pgvector unavailable")} ${dim(`— ${result.message ?? "extension creation failed"}`)}`,
         );
         console.log(
-          `  ${dim("  Switch to Neon / Supabase / pgvector image — V1.2+ features need it.")}`,
+          `  ${dim("  Switch to Neon / Supabase / pgvector image — knowledge base features need it.")}`,
         );
       }
       dbOk = true;

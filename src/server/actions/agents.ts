@@ -93,7 +93,7 @@ export async function startCopywriterRun(input: unknown): Promise<CopywriterStar
     })
     .returning({ id: agentRuns.id });
 
-  // Run the orchestration synchronously. (V1.1 will add streaming via API route.)
+  // Run the orchestration synchronously.
   const cardForPrompt: VoiceCardForPrompt & { id: string } = {
     id: voice.id,
     name: voice.name,

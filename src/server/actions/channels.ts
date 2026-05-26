@@ -18,12 +18,12 @@ import {
 import { DEFAULT_CHANNEL_DEFINITIONS } from "@/lib/channels/defaults";
 
 /* ----------------------------------------------------------------------------
- * Lazy seed for pre-V2.4 workspaces.
+ * Lazy seed for legacy workspaces missing channel definitions.
  *
- * `ensureWorkspaceForUser` seeds the defaults on workspace creation, but
- * workspaces created BEFORE V2.4 don't have channel definitions. Settings
- * → Channels and the campaign builder both call this on entry, idempotent:
- * if any definition exists for the workspace, do nothing; otherwise seed.
+ * `ensureWorkspaceForUser` seeds the defaults on workspace creation; this
+ * covers older workspaces that pre-date that seeding. Settings → Channels
+ * and the campaign builder both call this on entry, idempotent: if any
+ * definition exists for the workspace, do nothing; otherwise seed.
  * -------------------------------------------------------------------------- */
 
 export async function ensureChannelDefinitions(workspaceId: string): Promise<void> {

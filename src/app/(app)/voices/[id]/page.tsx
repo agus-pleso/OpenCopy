@@ -172,8 +172,8 @@ export default async function VoiceDetailPage({
             <div className="mt-6 flex items-center gap-3 rounded-lg border border-dashed border-[var(--color-border)] bg-[var(--color-muted)]/40 px-4 py-3 text-sm text-[var(--color-muted-foreground)]">
               <Bot className="h-4 w-4 text-[var(--color-primary)]" />
               <span>
-                This voice will plug into Copywriter and Localizer agents in
-                V1.0. Activate it once the card reads true.
+                This voice plugs into Copywriter and Localizer agents.
+                Activate it once the card reads true.
               </span>
             </div>
           )}

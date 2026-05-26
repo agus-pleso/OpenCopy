@@ -222,7 +222,7 @@ export default async function UsagePage({ searchParams }: PageProps) {
         Cost is an estimate, not a bill. OpenRouter pricing is live; direct
         provider rates are from a hardcoded table refreshed periodically.
         Embeddings, editor commands, and campaign asset drafting aren&apos;t
-        tracked here yet — that lands in V1.6.
+        tracked here yet.
       </p>
     </div>
   );

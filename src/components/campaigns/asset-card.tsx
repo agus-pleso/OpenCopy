@@ -44,7 +44,7 @@ const CHANNEL_META: Record<
   headline: { label: "Headline", icon: Type },
   product_description: { label: "Product", icon: Package },
   other: { label: "Other", icon: FileText },
-  // V2.4 — Diana's customisable channels.
+  // Diana's customisable channels.
   "email-marketing": { label: "Email — marketing", icon: Mail },
   "email-transactional": { label: "Email — transactional", icon: Mail },
   "ig-post": { label: "IG post", icon: MessageSquare },
@@ -299,7 +299,7 @@ function sevRank(s: VoiceAuditIssue["severity"]): number {
 }
 
 /**
- * Multi-component renderer for V2.4 assets. Splits the asset's body into
+ * Multi-component renderer for component-schema assets. Splits the body into
  * one labelled block per component, preserving the channel definition's
  * order. Component IDs are slug-formatted for display ("subject", "cta").
  */

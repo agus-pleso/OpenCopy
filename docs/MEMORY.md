@@ -2,7 +2,7 @@
 
 > The mini-details that get lost between sessions. Read this once before touching anything; saves an hour of re-discovery.
 >
-> Companion to [PLAN.md](./PLAN.md). PLAN says *what to do next*; MEMORY says *how things actually work + why we made the calls we made*.
+> Scope: how things actually work + why we made the calls we made. The product roadmap is being reworked from scratch and lives elsewhere when it exists; do not infer it from this file.
 
 ---
 
@@ -11,7 +11,7 @@
 OpenCopy is a self-hosted Jasper-AI replica, MIT-licensed, focused on agentic copywriting agents driven by a structured Brand Voice primitive. Two distribution paths:
 
 - **Source / dev**: clone repo → `pnpm install` → `pnpm bootstrap` (interactive setup) → `pnpm dev`. Connects to user-supplied Postgres via `DATABASE_URL`. Most contributors run it this way.
-- **Desktop installer (V1.8+)**: `OpenCopy_x.y.z_x64-setup.exe` (Windows) / `_aarch64.dmg` (Mac ARM). One file, double-click, app boots in the system tray, browser opens at a random local port. Bundles **Node 20 + Next.js standalone server + PGlite (WASM Postgres)** — fully self-contained, no DB to provision, no terminal.
+- **Desktop installer**: `OpenCopy_x.y.z_x64-setup.exe` (Windows) / `_aarch64.dmg` (Mac ARM). One file, double-click, app boots in the system tray, browser opens at a random local port. Bundles **Node 20 + Next.js standalone server + PGlite (WASM Postgres)** — fully self-contained, no DB to provision, no terminal.
 
 The agentic engine is plain async-TS over the Vercel AI SDK — no LangGraph / Mastra. Single `Agent` primitive composed into multi-step flows (Copywriter, Localizer, Voice Auditor, etc.). See `src/lib/agents/`.
 
@@ -99,13 +99,13 @@ src-tauri/
 
 **`scripts/test-pglite-migrate.mjs`** — keep on hand. Spins up an ephemeral PGlite, applies all `drizzle/*.sql` migrations, smokes the `vector` extension. First line of defence when adding migrations.
 
-**`scripts/test-workspace-roundtrip.ts`** — V1.9 export/import end-to-end smoke. Exports an encrypted `.opencopy`, imports into a fresh PGlite, verifies UUID remap + embedding fidelity + pgvector cosine-similarity query against imported data.
+**`scripts/test-workspace-roundtrip.ts`** — workspace export/import end-to-end smoke. Exports an encrypted `.opencopy`, imports into a fresh PGlite, verifies UUID remap + embedding fidelity + pgvector cosine-similarity query against imported data.
 
 ---
 
 ## 5. The Things That Bit Us (don't repeat these)
 
-In rough chronological order from the V1.8 → V2.0 push. **All fixed**, but the lessons stick.
+Hard-won lessons from the installer + multi-feature push. **All fixed**, but the lessons stick.
 
 ### 5.1 Windows + pnpm + Next standalone = symlink EPERM
 
@@ -141,7 +141,7 @@ PGlite's WASM loader does `fs.readFile(fsBundleUrl)` where `fsBundleUrl` is a `f
 
 Next's runtime calls `require.resolve('xxx')` from deep inside `next/dist/...`. Node's resolution walks up looking for `node_modules/xxx`. pnpm's flat `node_modules/` only contains direct deps as top-level entries — transitive peers live under `.pnpm/...`, invisible to that walk.
 
-**Fix sequence (V1.8 → V2.0):** kept adding individual packages to a `PEER_DEPS_TO_HOIST` list. Each fix surfaced the next missing one. The whack-a-mole ended with a comprehensive solution in `prepare-server.mjs`:
+**Fix sequence:** kept adding individual packages to a `PEER_DEPS_TO_HOIST` list. Each fix surfaced the next missing one. The whack-a-mole ended with a comprehensive solution in `prepare-server.mjs`:
 
 ```js
 cpSync(standalone, dest, { recursive: true, dereference: true });
@@ -212,7 +212,7 @@ Get-CimInstance Win32_Process -Filter "Name='node.exe'" |
 Remove-Item -Recurse -Force "$env:LOCALAPPDATA\OpenCopy"
 ```
 
-**Tracked in PLAN.md** as a one-hour fix for the next release: NSIS pre-install hook that detects + closes the running instance before extract.
+The fix that shipped: NSIS pre-install hook that detects + closes the running instance before extract. See `src-tauri/windows/installer-hooks.nsh`.
 
 ---
 
@@ -268,23 +268,23 @@ This is intentional (saves $400/yr in cert fees). Documented in README. Will fix
 - `src/components/ui/*` — shadcn primitives. Don't rewrite, extend.
 - `src/components/<feature>/*` — feature-specific components.
 - `src/components/shell/sidebar.tsx` + `topbar.tsx` — the app frame. Sidebar groups: BRAND / WORK / COMPOSE / footer.
-- Sidebar nav links carry `data-tour="nav-<href>"` for the V2.0 first-run tour.
+- Sidebar nav links carry `data-tour="nav-<href>"` for the first-run tour.
 
-### Tours (V2.0)
+### Tours
 - Definitions: `src/lib/tours/definitions.tsx`. JSX content per step.
 - State: `user_prefs.tours_completed jsonb` (one bool per `TourId`).
 - Server actions: `src/server/actions/tours.ts` (`getToursCompleted`, `markTourCompleted`, `resetTours`).
 - Runner: `src/components/tours/tour-runner.tsx` — wraps the app layout, exposes `useTours()` hook.
 - Adding a new tour: extend `TourId` in tours.ts, add definition, add to `ALL_TOURS`. User menu chooser auto-picks it up.
 
-### Workspace export/import (V1.9)
+### Workspace export/import
 - File format spec: `src/lib/export/workspace-format.ts`. Constants + Zod schemas.
 - Exporter: `src/lib/export/workspace-export.ts` — takes `db` as parameter (testable).
 - Importer: `src/lib/export/workspace-import.ts` — same.
 - API routes: `src/app/api/workspace/{export,import}/route.ts`. POST + multipart for import.
 - Dialogs: `src/components/workspaces/{export,import}-workspace-dialog.tsx`.
 
-### Library (V2.1 shipped — polymorphic items)
+### Library — polymorphic items
 - Page: `src/app/(app)/library/page.tsx` (server) → `src/components/library/library-board.tsx` (client).
 - Source of truth: `listLibrary()` in `src/server/actions/library.ts` returns a polymorphic `LibraryItem` discriminated by `kind`: `variant` (Copywriter/Localizer agent variants), `chat_message` (saved chat replies), `document_selection` (saved highlights from the Tiptap editor).
 - Filter chips: kind (copywriter / localizer / chat saves / document selections) · voice · locale. Pure client-side filtering.
@@ -343,9 +343,9 @@ $env:NODE_ENV="production"
 ### Hot-patch a missing module into an installed bundle
 ```powershell
 $pkg = "react-dom"  # change as needed
-$src = "C:\Users\ahrod\Desktop\Pleso\AI COPY\node_modules\$pkg"
+$src = "C:\Users\ahrod\Desktop\Pleso\opencopy\node_modules\$pkg"
 if (-not (Test-Path $src)) {
-  $src = Get-ChildItem -Path "C:\Users\ahrod\Desktop\Pleso\AI COPY\node_modules\.pnpm" -Recurse -Filter $pkg -Directory |
+  $src = Get-ChildItem -Path "C:\Users\ahrod\Desktop\Pleso\opencopy\node_modules\.pnpm" -Recurse -Filter $pkg -Directory |
          Select-Object -First 1 -ExpandProperty FullName
 }
 Copy-Item -Recurse -Force $src "$env:LOCALAPPDATA\OpenCopy\server\node_modules\$pkg"
@@ -373,24 +373,24 @@ Returns exit 0 on success, non-zero on failure. Wrap in `&` or use `Bash.run_in_
 
 ## 9. Decision log (the meta — why we did things)
 
-### V1.8 — installer
+### Installer
 - **PGlite over native Postgres + pgvector binaries.** Plan said native; we swapped because pgvector cross-compile in CI is fragile and per-platform binaries balloon the installer ~3×. PGlite covers our schema (vector(1536), cosineDistance), smoke test confirms. Single dep tree, single bundle.
 - **No code signing.** $99 (Apple) + $300 (Windows) per year, deliberately skipped to keep distribution free. Colleagues click through OS warnings once. Documented.
-- **No Tauri webview wizard, no in-app UI.** Plan envisioned a wizard inside the Tauri shell. Shipped: app opens in default browser; Tauri stays minimal (tray + sidecar supervisor). PLAN.md tracks "native-app shell" as the next step to flip this.
+- **No Tauri webview wizard, no in-app UI.** Earlier plan envisioned a wizard inside the Tauri shell. Shipped: the Tauri main window navigates to the local server itself (see "Library polymorphism + native-app shell" below), and the tray menu keeps an "Open in browser" fallback for corporate-proxy / WebView2-quirk cases.
 - **Mac ARM only in CI.** macOS-13 (Intel) dropped due to free-tier queue starvation.
 
-### V1.9 — workspace export/import
+### Workspace export/import
 - **Single zip with optional encrypted wrapper.** First byte tells the parser which mode (`P` = bare zip, `{` = encrypted-wrapper). Inside is the same structure either way.
 - **Embeddings in a separate compact binary.** `embeddings/chunks.bin` with `OCEMB1` magic + dim + per-row UUID + float32-LE. ~3× smaller than JSON-of-floats; matches pgvector's float32 internal precision (no information loss).
 - **Member rows exported as labels only.** Preserves the no-cross-install-identity invariant. Importer becomes sole owner; re-invites teammates.
 - **API keys never exported.** Separate concern; security-sensitive.
 
-### V2.0 — guided tours
+### Guided tours
 - **react-joyride v3.** Latest stable. Dynamic-imported via `next/dynamic` because it pulls DOM APIs eagerly.
 - **Tour state in `user_prefs.tours_completed jsonb`.** Survives sign-out and reinstall (since it lives in the local DB).
 - **Per-surface `?` buttons deferred.** User-menu chooser is sufficient for V1; surface buttons are pure polish.
 
-### V2.1 — library polymorphism + native-app shell Phase 1 (shipped same push)
+### Library polymorphism + native-app shell
 - **`library_entries` table** carries non-variant saves (chat, document selection); `copy_variant` rows still represent agent-run variants. The `listLibrary()` server action unions them into a discriminated `LibraryItem`, giving the client a single uniform list.
 - **Tauri main window now visible (`visible: true`)** at 1280×800, centered. Boot flow: window opens on `dist/index.html` splash → Rust waits for the local server → `navigate_to_app()` redirects the webview to `http://127.0.0.1:<port>`. Tray menu keeps "Open in browser" as fallback for corporate-proxy / WebView2 cases. The app now feels like a real desktop app instead of a tray-launcher.
 - **NSIS installer hooks** wired via `bundle.windows.nsis.installerHooks: "windows/installer-hooks.nsh"` — close the running OpenCopy before extract so the orphan-node.exe file-lock issue (§ 5.12) is gone for good.
@@ -399,7 +399,7 @@ Returns exit 0 on success, non-zero on failure. Wrap in `&` or use `Bash.run_in_
 - **drizzle-orm 0.38 → 0.45.2.** HIGH SQL injection patch.
 - **next-auth beta.25 → beta.31.** Email misdelivery patch.
 - **postcss override `^8.5.10`.** Build-time XSS patch via `pnpm.overrides`.
-- **`ai` SDK 4 → 5 deferred.** Major version, breaks across many files. Two remaining low/moderate CVEs (`jsondiffpatch` XSS internal-only, `ai` filetype bypass on uploads we don't take). Real exposure ~zero.
+- **`ai` SDK 4 → 6 migration shipped.** Bumped past v5 (already superseded), swapped `ollama-ai-provider@1.2.0` for the community fork `ollama-ai-provider-v2`. Chat path (route + `useChat`) rewritten around the v6 transport + `UIMessage[]` API; agent stack updated to the v6 model/message types. The two prior `ai` low/moderate CVEs are closed as a side effect.
 - **Node SHA256 verification** added to `download-node.mjs`. Closes the "compromised mirror over valid TLS" supply-chain hole.
 - **SLSA build provenance** wired but `continue-on-error` (private-repo limitation). Will start working when repo flips public.
 
@@ -407,25 +407,24 @@ Returns exit 0 on success, non-zero on failure. Wrap in `&` or use `Bash.run_in_
 
 ## 10. Known stale memories (from older session contexts)
 
-When something contradicts the codebase, **trust the codebase**. Two memories from older sessions are stale:
+When something contradicts the codebase, **trust the codebase**. One persistent anti-pattern worth flagging:
 
-- **"Auth.js was removed 2026-04-30, Firebase Auth is sole IdP"** — false. Auth.js v5 (`next-auth@5.0.0-beta.31`) still ships, no Firebase deps anywhere.
-- **"V1.0 = agents only, no KB / chat / campaigns / etc."** — outdated. V1.0 → V2.0 all shipped, full feature set per [PLAN.md](./PLAN.md).
+- **"Auth.js was removed, Firebase Auth is sole IdP"** — false. Auth.js v5 (`next-auth@5.0.0-beta.31`) still ships, no Firebase deps anywhere. The Firebase pivot was floated and rejected.
 
-If a future session loads memory that conflicts with reality, prefer this file + the actual code over the older memory.
+If a future session loads a memory that conflicts with reality, prefer this file + the actual code over the older memory.
 
 ---
 
 ## 11. Quick "where do I start" checklist for a new session
 
-1. **Read this file (you are here)** + skim [PLAN.md](./PLAN.md).
+1. **Read this file** + `CLAUDE.md`.
 2. `git pull && git log --oneline -10` — see what's new.
 3. `pnpm install` — sync deps if `pnpm-lock.yaml` changed.
 4. `pnpm typecheck` — confirm the tree compiles before touching anything.
-5. Pick a tracked item from PLAN.md § 6 ("Other tracks worth surfacing") or PLAN.md § 5 (UX phases).
+5. Take direction from the maintainer; the roadmap is being reset and no in-repo planning doc currently lists "next up."
 6. For installer-touching changes: run `node scripts/test-pglite-migrate.mjs` after schema changes; run `pnpm tsx scripts/test-workspace-roundtrip.ts` after touching `src/lib/export/`.
 7. Tag a release only when something user-visible has shipped — every tag burns ~30 min of CI minutes.
 
 ---
 
-*Last updated: end of the V1.8 → V2.0 multi-feature push session. Future-you: keep this file alive; add a § for each new gnarly thing you discover.*
+*Future-you: keep this file alive; add a § for each new gnarly thing you discover.*

@@ -11,8 +11,8 @@ import { SourceListCard } from "@/components/knowledge/source-list-card";
 export default async function KnowledgePage() {
   const { workspace } = await getCurrentWorkspace();
 
-  // Resolve embedding readiness. Workspaces created before V1.6 have a NULL
-  // `embeddingProvider`, in which case we fall back to OpenAI (legacy default).
+  // Resolve embedding readiness. Workspaces with a NULL `embeddingProvider`
+  // fall back to OpenAI (legacy default).
   const embeddingProvider = workspace.embeddingProvider ?? "openai";
 
   const [sources, providerKeys] = await Promise.all([

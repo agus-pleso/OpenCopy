@@ -94,7 +94,7 @@ node scripts/download-node.mjs   # one-time: ~30 MB sidecar binary for your OS
 pnpm tauri:build                  # produces .exe / .dmg in src-tauri/target/release/bundle/
 ```
 
-On Windows + pnpm, Next.js's standalone build needs symlink permission — enable Developer Mode (Settings → For developers → Developer Mode) and rebuild. CI runners (`windows-latest` / `macos-13` / `macos-14`) work without this.
+On Windows + pnpm, Next.js's standalone build needs symlink permission — enable Developer Mode (Settings → For developers → Developer Mode) and rebuild. CI runners (`windows-latest` / `macos-14`) work without this.
 
 ### Running the developer build (no installer)
 
@@ -130,7 +130,7 @@ Per-role provider override under **Model defaults** routes specific roles throug
 
 ## Locales
 
-V1.0 ships **EN · PL · RO · UA**. The Localizer's Cultural Adapter understands the formality / honorifics distinctions across these (Pan/Pani in PL, dumneavoastră/tu in RO, ви/ти in UA + war-context language sensitivity).
+Ships with **EN · PL · RO · UA**. The Localizer's Cultural Adapter understands the formality / honorifics distinctions across these (Pan/Pani in PL, dumneavoastră/tu in RO, ви/ти in UA + war-context language sensitivity).
 
 ## Scripts
 
@@ -145,10 +145,6 @@ V1.0 ships **EN · PL · RO · UA**. The Localizer's Cultural Adapter understand
 | `pnpm db:generate` | Generate new SQL migrations from schema diffs |
 | `pnpm db:migrate` | Apply pending migrations |
 | `pnpm db:studio` | Drizzle Studio (DB browser) |
-
-## Roadmap
-
-Versioned roadmap, the eight-phase UX reorganization, and out-of-scope items all live in **[docs/PLAN.md](docs/PLAN.md)** — single source of truth.
 
 ## License
 

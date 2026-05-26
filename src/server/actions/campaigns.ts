@@ -130,8 +130,8 @@ export async function startCampaignRun(
     }
   }
 
-  // V2.4 — fetch the workspace's channel definitions for every channel
-  // the brief targets. Lazy-seeds defaults for pre-V2.4 workspaces. The
+  // Fetch the workspace's channel definitions for every channel the brief
+  // targets; lazy-seeds defaults for legacy workspaces missing them. The
   // orchestrator routes channels with a schema through the multi-component
   // drafter; channels without a schema fall through to the legacy single-shot
   // drafter.
@@ -198,8 +198,8 @@ export async function startCampaignRun(
             label: a.label,
             strategy: a.strategy,
             content: a.content,
-            // V2.4 — when the channel had a component schema, persist the
-            // labelled map. Asset card prefers this over `content` when set.
+            // When the channel had a component schema, persist the labelled
+            // map. Asset card prefers this over `content` when set.
             components: a.components,
             rationale: a.rationale,
             auditScore: a.audit?.overall_score ?? null,

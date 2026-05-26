@@ -165,9 +165,6 @@ export default async function DashboardPage() {
             Agentic AI copywriters and localizers, trained on your brand voice.
           </p>
         </div>
-        <Badge variant="outline" className="hidden md:inline-flex">
-          V1.5 · provider polish
-        </Badge>
       </div>
 
       {!showWidgets ? (

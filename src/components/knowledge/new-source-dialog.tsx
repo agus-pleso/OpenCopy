@@ -148,7 +148,7 @@ export function NewSourceDialog({ variant = "default" }: Props) {
               maxLength={500_000}
             />
             <p className="text-[11px] text-[var(--color-muted-foreground)]">
-              Plain text or markdown. PDF / file uploads land in V1.5.
+              Plain text or markdown.
             </p>
           </div>
 

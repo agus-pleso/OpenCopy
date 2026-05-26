@@ -1,5 +1,5 @@
 /**
- * Default channel definitions seeded on workspace creation (V2.4).
+ * Default channel definitions seeded on workspace creation.
  *
  * Each entry maps to a `channel_definition` row and tells the drafter what
  * named fields to produce per channel. IDs of the components are STABLE —

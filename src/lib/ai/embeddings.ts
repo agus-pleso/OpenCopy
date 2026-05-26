@@ -35,8 +35,8 @@ interface EmbeddingResolution {
 
 /**
  * Resolve which embedding provider + model to use for a workspace. Falls back
- * to OpenAI for backward compatibility — workspaces created before V1.6 have
- * NULL `embedding_provider` and behave as before.
+ * to OpenAI for backward compatibility — workspaces with NULL
+ * `embedding_provider` behave as before.
  */
 async function resolveEmbeddingConfig(
   workspaceId: string,

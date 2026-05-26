@@ -11,7 +11,9 @@ teammate who tests the macOS desktop build.
 
 - **Never push to GitHub or create tags without explicit confirmation.**
 - **Don't propose Firebase or live-multiplayer features** — that path was
-  abandoned. `docs/PLAN.md` is the single source of truth for the roadmap.
+  abandoned.
+- The roadmap is being reset; do not invent future versions or "Phase N"
+  planning until the maintainer publishes a new one.
 - The UI must feel like a premium marketing tool (Linear / Vercel / Jasper-grade
   polish), not stock shadcn.
 - A solved bug is one you can first replicate with a test, then make the test
@@ -42,7 +44,7 @@ browser. Auto-updater via Tauri's signed channel (Ed25519). Built by GH Actions
 matrix (`.github/workflows/release.yml`) on `v*` tag push — Windows NSIS + MSI,
 macOS aarch64 DMG.
 
-## Build gotchas (hard-won — see docs/MEMORY.md + git history)
+## Build gotchas (hard-won — see `docs/MEMORY.md` + git history)
 
 - **`db/client.ts` MUST cache its client on `globalThis` unconditionally.**
   The standalone bundler duplicates the module across webpack chunks; a

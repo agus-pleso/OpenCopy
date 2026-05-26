@@ -1,4 +1,4 @@
-// Smoke test for the manual-library exemplar lane (V2.4).
+// Smoke test for the manual-library exemplar lane.
 //
 // Spins up a fresh PGlite, migrates, seeds manual library entries with
 // different channel/locale/voice combos, then exercises retrieveExemplars

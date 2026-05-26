@@ -10,7 +10,7 @@ import { tryParseAndValidate } from "./json-repair";
  * Agent core — the primitive every OpenCopy agent is built on.
  *
  * Design principle: keep this thin. No framework dependency, no graph DSL.
- * Multi-agent flows (V1.0 Copywriter, Localizer) compose plain async-TS
+ * Multi-agent flows (Copywriter, Localizer) compose plain async-TS
  * pipelines on top of `runAgent` — that keeps OpenRouter ↔ direct ↔ Ollama
  * swaps trivial and side-steps the entire LangGraph/Mastra/CrewAI surface.
  */
@@ -18,7 +18,7 @@ import { tryParseAndValidate } from "./json-repair";
 export interface AgentContext {
   workspaceId: string;
   userId: string;
-  /** Telemetry hook — used by the live agent timeline UI in V1.0. */
+  /** Telemetry hook — used by the live agent timeline UI. */
   onEvent?: (event: AgentEvent) => void;
 }
 

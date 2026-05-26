@@ -50,9 +50,7 @@ const TYPE_OPTIONS: { value: ChannelComponentType; label: string }[] = [
 /**
  * Settings → Channels editor. Two layers:
  *
- *  - Outer list: reorder channels (up/down buttons) — drag-and-drop is
- *    deferred to a polish pass, this ships the user-visible behavior with
- *    less surface area.
+ *  - Outer list: reorder channels (up/down buttons).
  *  - Per-channel expand: edit the label and the component schema. Each
  *    component card lets the user rewrite the id, label, type, required
  *    flag, hint, maxLength, and optional per-component prompt override.

@@ -85,9 +85,9 @@ export interface LibraryDocumentSelectionItem {
 }
 
 /**
- * Hand-curated reference exemplar (V2.4). Human-written best-example copy
- * the team uses as a style anchor. Surfaces in the Library UI under its
- * own filter and feeds the copywriter agent's exemplar retrieval lane.
+ * Hand-curated reference exemplar. Human-written best-example copy the team
+ * uses as a style anchor. Surfaces in the Library UI under its own filter
+ * and feeds the copywriter agent's exemplar retrieval lane.
  */
 export interface LibraryManualItem {
   kind: "manual";
@@ -361,7 +361,7 @@ export async function saveDocumentSelectionToLibrary(
 }
 
 /* ----------------------------------------------------------------------------
- * Save — manual reference exemplar (V2.4)                                    */
+ * Save — manual reference exemplar                                          */
 /* -------------------------------------------------------------------------- */
 
 const LocaleEnum = z.enum(["en", "pl", "ro", "uk"]);

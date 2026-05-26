@@ -39,8 +39,8 @@ interface Props {
 }
 
 const CHANNELS: { value: Channel; label: string; hint: string }[] = [
-  // V2.4 — channels with custom component schemas. The drafter pulls the
-  // schema from `channel_definition` at run time and produces named sections
+  // Channels with custom component schemas. The drafter pulls the schema
+  // from `channel_definition` at run time and produces named sections
   // (subject, body, cta, etc.) instead of a single block. Edit the schemas
   // in Settings → Channels.
   { value: "email-marketing", label: "Email · marketing", hint: "subject + preheader + body + CTA" },

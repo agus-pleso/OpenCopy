@@ -42,14 +42,11 @@ export default async function WorkspaceSettingsPage() {
             <Label>Default locale</Label>
             <div className="flex items-center gap-2">
               <Badge variant="outline" className="capitalize">{workspace.defaultLocale}</Badge>
-              <p className="text-xs text-[var(--color-muted-foreground)]">
-                Edit landing in V1.6.
-              </p>
             </div>
           </div>
           <div className="flex items-center justify-end">
             <Button disabled variant="outline" size="sm">
-              Editing lands in V1.6
+              Edit
             </Button>
           </div>
         </CardContent>
@@ -107,14 +104,12 @@ export default async function WorkspaceSettingsPage() {
         <CardHeader>
           <CardTitle>Members</CardTitle>
           <CardDescription>
-            Invite teammates and assign roles. Lands in V1.6 — for now you&apos;re
-            flying solo.
+            Invite teammates and assign roles. For now you&apos;re flying solo.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex items-center justify-between rounded-md border border-[var(--color-border)] bg-[var(--color-muted)]/40 px-4 py-3 text-sm">
             <span>Multi-user invitations · roles · permissions</span>
-            <Badge variant="muted">V1.6</Badge>
           </div>
         </CardContent>
       </Card>

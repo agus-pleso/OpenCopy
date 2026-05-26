@@ -1,4 +1,4 @@
-// Smoke test for the V2.4 multi-component drafter parser.
+// Smoke test for the multi-component drafter parser.
 //
 // The drafter is asked to output one labeled markdown section per component
 // in the channel's schema. The parser maps section bodies back to component

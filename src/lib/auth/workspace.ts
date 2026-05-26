@@ -77,8 +77,8 @@ export async function ensureWorkspaceForUser(
       set: { currentWorkspaceId: workspace.id, updatedAt: new Date() },
     });
 
-  // V2.4 — seed Diana's customisable-channels defaults so Settings → Channels
-  // is non-empty on first launch and Campaign generation can pull a component
+  // Seed Diana's customisable-channels defaults so Settings → Channels is
+  // non-empty on first launch and Campaign generation can pull a component
   // schema for any of the 9 default channels immediately. Idempotent against
   // re-runs because the unique (workspace, channel) index would block dupes
   // — but ensureWorkspaceForUser only fires on first signin per user, so this

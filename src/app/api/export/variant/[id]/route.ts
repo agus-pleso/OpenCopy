@@ -24,8 +24,8 @@ interface Params {
 const VALID_FORMATS: ExportFormat[] = ["md", "html", "docx"];
 
 /**
- * Library-variant export. Looks up the id first in copy_variants (V1.0),
- * then in campaign_assets (V1.4) so a single endpoint serves both surfaces.
+ * Library-variant export. Looks up the id first in copy_variants, then in
+ * campaign_assets so a single endpoint serves both surfaces.
  */
 export async function GET(req: Request, { params }: Params) {
   const { id } = await params;

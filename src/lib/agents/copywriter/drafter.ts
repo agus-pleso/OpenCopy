@@ -51,16 +51,16 @@ export interface DrafterInput {
   /** Pre-formatted knowledge-base excerpts. */
   knowledge?: string;
   /**
-   * Pre-formatted reference exemplars from the team's manual library
-   * (V2.4). Distinct from `knowledge` — exemplars are STYLE references,
+   * Pre-formatted reference exemplars from the team's manual library.
+   * Distinct from `knowledge` — exemplars are STYLE references,
    * knowledge is FACTUAL grounding. Both injected into the prompt; both
    * optional. Format produced by `formatExemplarsForPrompt`.
    */
   exemplars?: string;
   /**
-   * V2.4 — when set, the drafter is asked for ONE labeled section per
-   * component instead of free-form copy. Used by the campaign flow with
-   * a `channel_definition`. The DrafterOutput returns a `components`
+   * When set, the drafter is asked for ONE labeled section per component
+   * instead of free-form copy. Used by the campaign flow with a
+   * `channel_definition`. The DrafterOutput returns a `components`
    * keyed-by-id map. Copywriter (single-shot) leaves this undefined.
    */
   components?: ChannelComponent[];

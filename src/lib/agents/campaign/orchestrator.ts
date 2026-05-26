@@ -21,12 +21,12 @@ export interface CampaignOrchestratorInput {
   /** Pre-formatted KB excerpts (already retrieved by the caller). */
   knowledge?: string;
   /**
-   * V2.4 — per-channel component schemas. Looked up by the caller from
+   * Per-channel component schemas. Looked up by the caller from
    * `channel_definition` and keyed by Channel id. When an asset's channel
    * has a schema here, the drafter is asked for one labeled section per
    * component instead of free-form copy. Channels without a schema in this
-   * map fall back to the legacy single-shot drafter (backward-compat for
-   * campaigns that target legacy channel ids without definitions).
+   * map fall back to the single-shot drafter (back-compat for campaigns
+   * that target legacy channel ids without definitions).
    */
   componentSchemas?: Partial<Record<Channel, ChannelComponent[]>>;
 }
@@ -38,10 +38,11 @@ export interface CampaignAssetResult {
   strategy: string;
   content: string;
   /**
-   * V2.4 — when the channel had a component schema, this map carries the
-   * model's text per component id. Caller persists it to
-   * `campaign_asset.components`. Null when the channel had no schema (legacy
-   * single-shot drafter path) — the caller stores `content` only in that case.
+   * When the channel had a component schema, this map carries the model's
+   * text per component id. Caller persists it to
+   * `campaign_asset.components`. Null when the channel had no schema
+   * (single-shot drafter path) — the caller stores `content` only in that
+   * case.
    */
   components: Record<string, string> | null;
   rationale: string;
