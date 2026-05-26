@@ -45,6 +45,10 @@ jobs:
             artifact-glob: |
               src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.exe
               src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.exe.sig
+            # Portable .zip — same payload as the installer, no install
+            # step required. Produced by scripts/build-portable.mjs from
+            # the prepared server tree + bundled Node sidecar.
+            portable-glob: src-tauri/target/portable/OpenCopy-*-windows-portable.zip
           - os: macos-14
             target: aarch64-apple-darwin
             node-target: darwin-arm64
@@ -55,6 +59,10 @@ jobs:
               src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/*.dmg
               src-tauri/target/aarch64-apple-darwin/release/bundle/macos/*.app.tar.gz
               src-tauri/target/aarch64-apple-darwin/release/bundle/macos/*.app.tar.gz.sig
+            # Portable .tar.gz — same payload as the .dmg, no install step
+            # required. Produced by scripts/build-portable.mjs from the
+            # prepared server tree + bundled Node sidecar.
+            portable-glob: src-tauri/target/portable/OpenCopy-*-macos-aarch64-portable.tar.gz
 
     steps:
       - uses: actions/checkout@v6
@@ -94,6 +102,13 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
 
+      - name: Build portable archive
+        # Reuses src-tauri/server/ (populated by `tauri build` via
+        # beforeBuildCommand → prepare-server.mjs) and src-tauri/binaries/
+        # (populated by the Download Node sidecar step), so this is a
+        # cheap repack — no second next-build, no second node download.
+        run: node scripts/build-portable.mjs --target=${{ matrix.node-target }}
+
       - name: Attest build provenance
         # SLSA build provenance is only available for public repos (or
         # paid organisation plans). On a free-tier private repo this
@@ -110,6 +125,17 @@ jobs:
         with:
           name: opencopy-${{ matrix.target }}
           path: ${{ matrix.artifact-glob }}
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload portable archive
+        # Same retention as the installer; the release job picks it up
+        # via download-artifact@v8 + merge-multiple and uploads it to
+        # the draft release alongside the .exe / .dmg.
+        uses: actions/upload-artifact@v7
+        with:
+          name: opencopy-portable-${{ matrix.target }}
+          path: ${{ matrix.portable-glob }}
           if-no-files-found: error
           retention-days: 14
 
@@ -221,6 +247,8 @@ jobs:
             artifacts/**/*.dmg
             artifacts/**/*.app.tar.gz
             artifacts/**/*.app.tar.gz.sig
+            artifacts/**/OpenCopy-*-windows-portable.zip
+            artifacts/**/OpenCopy-*-macos-aarch64-portable.tar.gz
             artifacts/latest.json
           fail_on_unmatched_files: false
         env:
