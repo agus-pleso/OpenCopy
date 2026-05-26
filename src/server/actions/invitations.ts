@@ -238,6 +238,19 @@ export async function acceptInvitation(token: string): Promise<{
   });
   if (!invitation) return { ok: false, message: "Invitation not found." };
 
+  // Security guard: the invitation row carries the email it was issued to.
+  // Without this check anyone holding the token could accept the invite as
+  // themselves, bypassing the email-gated membership flow.
+  if (
+    !me.email ||
+    invitation.email.toLowerCase() !== me.email.toLowerCase()
+  ) {
+    return {
+      ok: false,
+      message: "This invitation is for a different email address.",
+    };
+  }
+
   if (invitation.status !== "pending") {
     return { ok: false, message: `Invitation is ${invitation.status}.` };
   }
