@@ -67,18 +67,22 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Install pnpm
-        # Pinned to v6.0.7 because v6.0.8's archive started 404'ing on
-        # codeload.github.com mid-release-cycle (every other v6 archive
-        # works; this one specific SHA is unreachable). Bump back to @v6
-        # once GitHub clears the bad archive.
-        uses: pnpm/action-setup@v6.0.7
-
       - name: Install Node
         uses: actions/setup-node@v6
         with:
           node-version: 20
-          cache: pnpm
+
+      - name: Enable pnpm via corepack
+        # Bypassing pnpm/action-setup because codeload.github.com 404'd
+        # every recent SHA of that repo mid-session (actions/checkout
+        # and other actions still downloaded fine — the outage was
+        # isolated to pnpm/action-setup). Corepack ships with Node 20
+        # and reads `packageManager: pnpm@10.0.0` from package.json,
+        # so we get the exact same pnpm version with one fewer
+        # third-party action in the supply chain. Kept after the
+        # codeload outage cleared because the dependency reduction is
+        # a net win.
+        run: corepack enable
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
