@@ -84,6 +84,7 @@ function getOrCreateParent(
 }
 
 function cloneJson<T>(v: T): T {
+  if (v === undefined) return undefined as T;
   // structuredClone is widely available in Node 18+, but JSON-clone is fine
   // for our jsonb-shaped data (no Dates, no functions).
   return JSON.parse(JSON.stringify(v)) as T;

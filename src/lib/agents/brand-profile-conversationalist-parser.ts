@@ -56,7 +56,11 @@ function normalizeAxis(raw: string | undefined): ConversationalistAxis | null {
   for (const v of CONVERSATIONALIST_AXES) {
     if (tightened === v) return v;
   }
-  // Looser substring match (e.g., "competitor" → "competitors", "complete" → "done").
+  // Looser substring match. Order matters: "done"/"complete" check first so
+  // "complete" doesn't get caught by the "comp" → "competitors" rule below.
+  if (tightened.startsWith("done") || tightened.startsWith("complete") || tightened.startsWith("finish")) {
+    return "done";
+  }
   if (tightened.startsWith("voice")) return "voice";
   if (tightened.startsWith("knowledge") || tightened.startsWith("know")) return "knowledge";
   if (tightened.startsWith("audience") || tightened.startsWith("aud")) return "audience";
@@ -64,9 +68,6 @@ function normalizeAxis(raw: string | undefined): ConversationalistAxis | null {
   if (tightened.startsWith("competit") || tightened.startsWith("comp")) return "competitors";
   if (tightened.startsWith("sample")) return "samples";
   if (tightened.startsWith("locale") || tightened.startsWith("lang")) return "locales";
-  if (tightened.startsWith("done") || tightened.startsWith("complete") || tightened.startsWith("finish")) {
-    return "done";
-  }
   return null;
 }
 
