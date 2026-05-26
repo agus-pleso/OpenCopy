@@ -399,7 +399,19 @@ if (target.archiveExt === "zip") {
     for (const item of readdirSync(dir, { withFileTypes: true })) {
       const abs = join(dir, item.name);
       const rel = prefix ? `${prefix}/${item.name}` : item.name;
-      if (item.isDirectory()) {
+      // pnpm on Windows creates `node_modules/<pkg>` as junctions pointing
+      // into `.pnpm/<pkg>@<ver>/...`. Junction dirents report as symlinks,
+      // not directories — readFileSync on one returns EISDIR. Resolve via
+      // statSync to get the real type.
+      let isDir = item.isDirectory();
+      if (!isDir && item.isSymbolicLink()) {
+        try {
+          isDir = statSync(abs).isDirectory();
+        } catch {
+          isDir = false;
+        }
+      }
+      if (isDir) {
         walk(abs, rel);
       } else {
         // Use forward slashes inside the zip — Windows Explorer + every
