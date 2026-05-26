@@ -34,16 +34,17 @@ jobs:
           - os: windows-latest
             target: x86_64-pc-windows-msvc
             node-target: win32-x64
-            # Tauri 2.x produces NSIS `.exe` + MSI `.msi` for distribution
-            # and (with `bundle.createUpdaterArtifacts: true`) signs each
-            # with a sibling `.sig`. The auto-updater consumes the `.exe`
-            # directly + its `.sig` — there is no `.nsis.zip` wrapper in
-            # Tauri 2.x (that was a Tauri 1.x convention).
+            # Tauri 2.x produces an NSIS `-setup.exe` for distribution and
+            # (with `bundle.createUpdaterArtifacts: true`) signs it with a
+            # sibling `.sig`. The auto-updater consumes the `.exe` directly
+            # + its `.sig` — there is no `.nsis.zip` wrapper in Tauri 2.x
+            # (that was a Tauri 1.x convention). MSI was dropped in 2.5.1
+            # to halve the per-release upload size (199 MB → 105 MB for the
+            # same payload); `bundle.windows.targets` in tauri.conf.json now
+            # restricts the Windows build to NSIS only.
             artifact-glob: |
               src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.exe
               src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.exe.sig
-              src-tauri/target/x86_64-pc-windows-msvc/release/bundle/msi/*.msi
-              src-tauri/target/x86_64-pc-windows-msvc/release/bundle/msi/*.msi.sig
           - os: macos-14
             target: aarch64-apple-darwin
             node-target: darwin-arm64
@@ -217,8 +218,6 @@ jobs:
           files: |
             artifacts/**/*.exe
             artifacts/**/*.exe.sig
-            artifacts/**/*.msi
-            artifacts/**/*.msi.sig
             artifacts/**/*.dmg
             artifacts/**/*.app.tar.gz
             artifacts/**/*.app.tar.gz.sig
