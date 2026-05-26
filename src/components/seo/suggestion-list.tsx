@@ -33,6 +33,7 @@ import { Badge } from "@/components/ui/badge";
 import { DiffPreviewModal } from "./diff-preview-modal";
 import {
   applySeoSuggestion,
+  generateSuggestionRewrite,
   rejectSeoSuggestion,
 } from "@/server/actions/audit-seo";
 import { cn } from "@/lib/utils";
@@ -60,6 +61,9 @@ export function SuggestionList({ reportId, initialSuggestions }: Props) {
     React.useState<SeoSuggestion[]>(initialSuggestions);
   const [openId, setOpenId] = React.useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  /** Tracks suggestions currently being rewritten by the copywriter agent.
+   *  Lets us avoid double-firing if the marketer opens/closes the modal fast. */
+  const generatingRef = React.useRef<Set<string>>(new Set());
 
   // Re-sync when fresh server data arrives (e.g., revalidatePath after run).
   React.useEffect(() => {
@@ -70,6 +74,37 @@ export function SuggestionList({ reportId, initialSuggestions }: Props) {
 
   const visible = suggestions.filter((s) => s.status !== "rejected");
   const pendingCount = suggestions.filter((s) => s.status === "pending").length;
+
+  /**
+   * Open the modal and lazily generate the rewrite via the copywriter
+   * sub-agent if it doesn't exist yet. Idempotent on the server too (the
+   * action returns early if `proposed` is already set), so a fast
+   * open/close/open round-trip stays cheap.
+   */
+  const openSuggestion = (suggestion: SeoSuggestion) => {
+    setOpenId(suggestion.id);
+    if (suggestion.proposed && suggestion.proposed.trim().length > 0) return;
+    if (generatingRef.current.has(suggestion.id)) return;
+    generatingRef.current.add(suggestion.id);
+    (async () => {
+      try {
+        const { proposed } = await generateSuggestionRewrite({
+          reportId,
+          suggestionId: suggestion.id,
+        });
+        setSuggestions((prev) =>
+          prev.map((s) => (s.id === suggestion.id ? { ...s, proposed } : s)),
+        );
+      } catch (err) {
+        if (isRedirectError(err)) throw err;
+        toast.error(
+          `Couldn't generate a rewrite: ${(err as Error).message}`,
+        );
+      } finally {
+        generatingRef.current.delete(suggestion.id);
+      }
+    })();
+  };
 
   if (visible.length === 0) {
     return (
@@ -220,7 +255,7 @@ export function SuggestionList({ reportId, initialSuggestions }: Props) {
                       </Button>
                       <Button
                         size="sm"
-                        onClick={() => setOpenId(s.id)}
+                        onClick={() => openSuggestion(s)}
                         disabled={pending}
                       >
                         {pending ? (
