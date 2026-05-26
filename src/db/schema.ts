@@ -1465,3 +1465,244 @@ export const libraryEntriesRelations = relations(libraryEntries, ({ one }) => ({
 export type LibraryEntry = typeof libraryEntries.$inferSelect;
 export type LibraryEntryKind = (typeof libraryEntryKindEnum.enumValues)[number];
 export type LibrarySource = (typeof librarySourceEnum.enumValues)[number];
+
+/* ----------------------------------------------------------------------------
+ * SEO post-hoc audit — score + suggestions + applied rewrites.
+ *
+ * On-demand audit of a document. Each run produces a full snapshot row in
+ * `seo_audit_report` (history is retained — enables re-audit comparison and
+ * future trend tracking without schema change). Suggestions live inside the
+ * report's jsonb column; an apply lifts them through the copywriter agent.
+ *
+ * SERP scrape results are cached for 24h in `seo_serp_cache`, keyed by
+ * (workspace, keyword, locale-domain). Workspace-scoped per the multi-tenant
+ * model even though the underlying data is public.
+ *
+ * Per-locale heuristics (e.g., Polish users use longer queries) ship as TS
+ * constants in `src/lib/seo/locale-heuristics.ts`. Workspaces can override
+ * per-locale via `seo_locale_heuristics_override`; absent rows fall back to
+ * the constant defaults.
+ * -------------------------------------------------------------------------- */
+
+export const seoIntentEnum = pgEnum("seo_intent", [
+  "informational",
+  "commercial",
+  "transactional",
+  "navigational",
+]);
+
+export const seoSuggestionTypeEnum = pgEnum("seo_suggestion_type", [
+  "rewrite_paragraph",
+  "add_section",
+  "tighten_section",
+  "add_lsi_keyword",
+  "add_heading",
+]);
+
+export const seoSuggestionStatusEnum = pgEnum("seo_suggestion_status", [
+  "pending",
+  "applied",
+  "rejected",
+]);
+
+/** Per-criterion score detail. `score` is 0-100; `details` is criterion-shaped
+ *  (e.g., density returns `{ count, ratio, target }`; readability returns
+ *  `{ flesch, gradeLevel }`). UI shows the score + a tooltip with details. */
+export interface SeoCriterionScore {
+  score: number;
+  details: Record<string, unknown>;
+}
+
+/** Full per-criterion breakdown stored on each audit report. Seven axes; one
+ *  pure plumbing pattern across them so adding criteria later is a one-line
+ *  schema change (just a new key). */
+export interface SeoCriterionScores {
+  density: SeoCriterionScore;
+  semantic: SeoCriterionScore;
+  intent: SeoCriterionScore;
+  structure: SeoCriterionScore;
+  length: SeoCriterionScore;
+  readability: SeoCriterionScore;
+  contentGap: SeoCriterionScore;
+}
+
+/** A single suggestion produced by the audit. `proposed` is filled lazily —
+ *  the scorer emits suggestion shells (type + excerpt + description), the
+ *  copywriter agent fills `proposed` when the marketer clicks "apply". */
+export interface SeoSuggestion {
+  id: string;
+  type: (typeof seoSuggestionTypeEnum.enumValues)[number];
+  status: (typeof seoSuggestionStatusEnum.enumValues)[number];
+  excerpt?: string;
+  description: string;
+  proposed?: string;
+  appliedAt?: string;
+  rejectedAt?: string;
+}
+
+export const seoAuditReports = pgTable(
+  "seo_audit_report",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    workspaceId: uuid("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    documentId: uuid("document_id")
+      .notNull()
+      .references(() => documents.id, { onDelete: "cascade" }),
+    voiceId: uuid("voice_id").references(() => brandVoices.id, {
+      onDelete: "set null",
+    }),
+    locale: localeEnum("locale").notNull(),
+    primaryKeyword: text("primary_keyword").notNull(),
+    /** Was the primary keyword AI-inferred or marketer-supplied? */
+    primaryKeywordInferred: boolean("primary_keyword_inferred")
+      .notNull()
+      .default(false),
+    secondaryKeywords: jsonb("secondary_keywords")
+      .$type<string[]>()
+      .notNull()
+      .default([]),
+    /** Search intent inferred for the doc. Compared against the SERP intent
+     *  fit for the `intent` criterion. */
+    detectedIntent: seoIntentEnum("detected_intent"),
+    /** Composite 0-100 across all criteria. Weighted equal in V1; the
+     *  per-criterion column is the audit-able source of truth. */
+    compositeScore: integer("composite_score").notNull(),
+    criterionScores: jsonb("criterion_scores")
+      .$type<SeoCriterionScores>()
+      .notNull(),
+    suggestions: jsonb("suggestions")
+      .$type<SeoSuggestion[]>()
+      .notNull()
+      .default([]),
+    /** Snapshot of the doc text at audit time, so re-audit comparison and
+     *  the diff-modal apply path don't drift if the doc edits during. */
+    docTextSnapshot: text("doc_text_snapshot").notNull(),
+    auditorModelId: text("auditor_model_id"),
+    copywriterModelId: text("copywriter_model_id"),
+    /** Total wall-clock duration of the audit (including SERP fetch). */
+    durationMs: integer("duration_ms"),
+    createdByUserId: text("created_by_user_id")
+      .notNull()
+      .references(() => users.id),
+    createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("seo_audit_report_workspace_idx").on(t.workspaceId, t.createdAt),
+    index("seo_audit_report_document_idx").on(t.documentId, t.createdAt),
+  ],
+);
+
+/** 24h cache of SERP scrape results, keyed on (workspace, keyword, locale).
+ *  Each row stores up to top-10 results with title + H1 + H2 outline + a
+ *  truncated full-text body (~5000 chars) for the content-gap scorer. */
+export const seoSerpCache = pgTable(
+  "seo_serp_cache",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    workspaceId: uuid("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    keyword: text("keyword").notNull(),
+    locale: localeEnum("locale").notNull(),
+    /** Array of top-N (N≤10) search results, oldest-rank first. */
+    results: jsonb("results")
+      .$type<
+        Array<{
+          rank: number;
+          url: string;
+          title: string;
+          h1?: string;
+          h2: string[];
+          fullText: string;
+        }>
+      >()
+      .notNull(),
+    fetchedAt: timestamp("fetched_at", { mode: "date" }).notNull().defaultNow(),
+    expiresAt: timestamp("expires_at", { mode: "date" }).notNull(),
+  },
+  (t) => [
+    uniqueIndex("seo_serp_cache_unique").on(t.workspaceId, t.keyword, t.locale),
+    index("seo_serp_cache_expires_idx").on(t.expiresAt),
+  ],
+);
+
+/** Structured locale heuristics that influence audit prompts and intent
+ *  classification. Keys map to handlers in the scorer / intent classifier. */
+export interface SeoLocaleHeuristics {
+  /** Average query length in tokens for this locale; informs intent fit. */
+  avgQueryTokens?: number;
+  /** Locale-specific commercial-intent trigger words (e.g., "cena", "kupić" in pl). */
+  commercialIntentTriggers?: string[];
+  /** Locale-specific informational-intent trigger words ("jak", "co to" in pl). */
+  informationalIntentTriggers?: string[];
+  /** Free-form notes that get appended to the auditor agent's system prompt. */
+  notes?: string;
+}
+
+/** Per-workspace override of the default TS heuristics. Absent rows fall
+ *  back to the constants in `src/lib/seo/locale-heuristics.ts`. */
+export const seoLocaleHeuristicsOverride = pgTable(
+  "seo_locale_heuristics_override",
+  {
+    workspaceId: uuid("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    locale: localeEnum("locale").notNull(),
+    heuristics: jsonb("heuristics")
+      .$type<SeoLocaleHeuristics>()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.workspaceId, t.locale] })],
+);
+
+export const seoAuditReportsRelations = relations(
+  seoAuditReports,
+  ({ one }) => ({
+    workspace: one(workspaces, {
+      fields: [seoAuditReports.workspaceId],
+      references: [workspaces.id],
+    }),
+    document: one(documents, {
+      fields: [seoAuditReports.documentId],
+      references: [documents.id],
+    }),
+    voice: one(brandVoices, {
+      fields: [seoAuditReports.voiceId],
+      references: [brandVoices.id],
+    }),
+    createdBy: one(users, {
+      fields: [seoAuditReports.createdByUserId],
+      references: [users.id],
+    }),
+  }),
+);
+
+export const seoSerpCacheRelations = relations(seoSerpCache, ({ one }) => ({
+  workspace: one(workspaces, {
+    fields: [seoSerpCache.workspaceId],
+    references: [workspaces.id],
+  }),
+}));
+
+export const seoLocaleHeuristicsOverrideRelations = relations(
+  seoLocaleHeuristicsOverride,
+  ({ one }) => ({
+    workspace: one(workspaces, {
+      fields: [seoLocaleHeuristicsOverride.workspaceId],
+      references: [workspaces.id],
+    }),
+  }),
+);
+
+export type SeoAuditReport = typeof seoAuditReports.$inferSelect;
+export type SeoSerpCacheRow = typeof seoSerpCache.$inferSelect;
+export type SeoLocaleHeuristicsOverrideRow =
+  typeof seoLocaleHeuristicsOverride.$inferSelect;
+export type SeoIntent = (typeof seoIntentEnum.enumValues)[number];
+export type SeoSuggestionType =
+  (typeof seoSuggestionTypeEnum.enumValues)[number];
+export type SeoSuggestionStatus =
+  (typeof seoSuggestionStatusEnum.enumValues)[number];
