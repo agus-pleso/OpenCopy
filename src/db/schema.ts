@@ -1706,3 +1706,463 @@ export type SeoSuggestionType =
   (typeof seoSuggestionTypeEnum.enumValues)[number];
 export type SeoSuggestionStatus =
   (typeof seoSuggestionStatusEnum.enumValues)[number];
+
+/* ----------------------------------------------------------------------------
+ * Brand profile — conversational config + website extractor onboarding.
+ *
+ * A workspace has at most one brand_profile. The profile is mostly jsonb to
+ * keep iteration cheap; rows in `brand_voices` (the original voice-analyzer
+ * table) are not replaced — the existing copywriter / localizer agents still
+ * read from there during the migration period. When the conversationalist
+ * runs voice-analyzer on sample copy, it persists the resulting voice card
+ * in BOTH places (brand_profile.voice[locale] is the canonical reading;
+ * brand_voices keeps legacy code working).
+ *
+ * Snapshot history lives in `brand_profile_revisions` — full jsonb copies,
+ * not deltas. Each save (manual, NL command, deep-dive, crawl extract,
+ * roll-back) writes a new revision so the marketer can undo without
+ * round-tripping through diff logic.
+ *
+ * Chats and crawls are stored as their own threads so re-open works.
+ * -------------------------------------------------------------------------- */
+
+export const brandProfileChatKindEnum = pgEnum("brand_profile_chat_kind", [
+  "onboarding",
+  "seo_deep_dive",
+  "localizer_deep_dive",
+]);
+
+export const brandProfileChatStatusEnum = pgEnum(
+  "brand_profile_chat_status",
+  ["active", "completed", "abandoned"],
+);
+
+export const brandProfileRevisionTypeEnum = pgEnum(
+  "brand_profile_revision_type",
+  [
+    "initial",
+    "manual_save",
+    "nl_command",
+    "deep_dive_save",
+    "crawl_extract",
+    "roll_back",
+    "voice_analyzer",
+  ],
+);
+
+export const brandProfileCrawlStatusEnum = pgEnum(
+  "brand_profile_crawl_status",
+  ["pending", "ready", "failed"],
+);
+
+/** Per-locale voice variant. Wraps the existing VoiceCardForPrompt shape
+ *  with spec extras: formality (1-10 dial), emotional register, sample
+ *  pieces[]. `renderVoiceCard` from voice-card.ts can read the overlap
+ *  fields directly. */
+export interface BrandProfileVoiceVariant {
+  toneDescriptors: string[];
+  voicePersona: string;
+  audience: string;
+  readingLevel: string;
+  formality: number;
+  emotionalRegister: string;
+  dos: VoiceCardRule[];
+  donts: VoiceCardRule[];
+  vocabularyPreferences: string[];
+  requiredWords: string[];
+  forbiddenWords: string[];
+  samplePieces: string[];
+  /** Set when the voice-analyzer agent fed real samples through. UI shows
+   *  a confidence indicator based on this. */
+  fromSampleAnalysis: boolean;
+}
+
+export interface BrandProfileOffering {
+  name: string;
+  description: string;
+  category?: string;
+}
+
+export interface BrandProfileFact {
+  fact: string;
+  category?: string;
+}
+
+export interface BrandProfileFAQ {
+  question: string;
+  answer: string;
+}
+
+export interface BrandProfileKnowledge {
+  offerings: BrandProfileOffering[];
+  facts: BrandProfileFact[];
+  faqs: BrandProfileFAQ[];
+}
+
+export interface BrandProfileAudience {
+  /** Stable identifier — survives renames + re-orderings so deep-dive
+   *  chats can refer to the same audience across edits. */
+  id: string;
+  name: string;
+  demographics: string;
+  psychographics: string;
+  painPoints: string[];
+  jobsToBeDone: string[];
+  decisionCriteria: string[];
+}
+
+export interface BrandProfileCompetitor {
+  id: string;
+  name: string;
+  url?: string;
+  positioning?: string;
+  whyTheyWin: string[];
+  whyWeWin: string[];
+}
+
+export interface BrandProfilePositioning {
+  differentiators: string[];
+  brandValues: string[];
+  standsFor: string[];
+  standsAgainst: string[];
+}
+
+export const brandProfiles = pgTable(
+  "brand_profile",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    workspaceId: uuid("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    tagline: text("tagline"),
+    mission: text("mission"),
+    /** Top-level brand values (e.g., "transparency", "craft"). 3-8 typical. */
+    values: jsonb("values").$type<string[]>().notNull().default([]),
+    /** Locales the brand actually operates in. Subset of [en, pl, ro, uk]. */
+    locales: jsonb("locales")
+      .$type<Array<(typeof localeEnum.enumValues)[number]>>()
+      .notNull()
+      .default(["en"]),
+    /** Per-locale voice. Marketers see one variant per locale they operate in. */
+    voice: jsonb("voice")
+      .$type<
+        Partial<
+          Record<
+            (typeof localeEnum.enumValues)[number],
+            BrandProfileVoiceVariant
+          >
+        >
+      >()
+      .notNull()
+      .default({}),
+    knowledge: jsonb("knowledge")
+      .$type<BrandProfileKnowledge>()
+      .notNull()
+      .default({ offerings: [], facts: [], faqs: [] }),
+    /** Per-locale audience array — different markets, different ICPs. */
+    audiences: jsonb("audiences")
+      .$type<
+        Partial<
+          Record<
+            (typeof localeEnum.enumValues)[number],
+            BrandProfileAudience[]
+          >
+        >
+      >()
+      .notNull()
+      .default({}),
+    positioning: jsonb("positioning")
+      .$type<BrandProfilePositioning>()
+      .notNull()
+      .default({
+        differentiators: [],
+        brandValues: [],
+        standsFor: [],
+        standsAgainst: [],
+      }),
+    competitors: jsonb("competitors")
+      .$type<BrandProfileCompetitor[]>()
+      .notNull()
+      .default([]),
+    /** True once the marketer marks the initial onboarding complete. Used
+     *  by the dashboard auto-trigger to know whether to nudge them. */
+    onboardingComplete: boolean("onboarding_complete").notNull().default(false),
+    createdByUserId: text("created_by_user_id")
+      .notNull()
+      .references(() => users.id),
+    createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
+  },
+  (t) => [
+    /** One profile per workspace (single-brand-per-workspace per roadmap). */
+    uniqueIndex("brand_profile_workspace_unique").on(t.workspaceId),
+  ],
+);
+
+/** Full snapshot of a brand_profile at one point in time. Simpler than
+ *  diffing; we just persist the whole jsonb blob each revision. */
+export const brandProfileRevisions = pgTable(
+  "brand_profile_revision",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    profileId: uuid("profile_id")
+      .notNull()
+      .references(() => brandProfiles.id, { onDelete: "cascade" }),
+    workspaceId: uuid("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    /** Full profile snapshot at this revision. */
+    snapshot: jsonb("snapshot")
+      .$type<typeof brandProfiles.$inferSelect>()
+      .notNull(),
+    revisionType: brandProfileRevisionTypeEnum("revision_type").notNull(),
+    /** Optional human-readable note ("after NL command: make Polish voice more formal"). */
+    note: text("note"),
+    createdByUserId: text("created_by_user_id")
+      .notNull()
+      .references(() => users.id),
+    createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("brand_profile_revision_profile_idx").on(t.profileId, t.createdAt),
+    index("brand_profile_revision_workspace_idx").on(t.workspaceId, t.createdAt),
+  ],
+);
+
+/** A chat thread — onboarding or per-tool deep-dive. Re-open replays the
+ *  literal transcript. */
+export const brandProfileChats = pgTable(
+  "brand_profile_chat",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    profileId: uuid("profile_id")
+      .notNull()
+      .references(() => brandProfiles.id, { onDelete: "cascade" }),
+    workspaceId: uuid("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    kind: brandProfileChatKindEnum("kind").notNull(),
+    title: text("title").notNull().default("Onboarding"),
+    status: brandProfileChatStatusEnum("status").notNull().default("active"),
+    /** Optional axis identifier the chat focuses on (voice, knowledge,
+     *  audience, positioning, samples, or null for the main onboarding). */
+    axis: text("axis"),
+    locale: localeEnum("locale"),
+    turnsRemaining: integer("turns_remaining").notNull().default(25),
+    lastTurnAt: timestamp("last_turn_at", { mode: "date" }),
+    createdByUserId: text("created_by_user_id")
+      .notNull()
+      .references(() => users.id),
+    createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("brand_profile_chat_profile_idx").on(t.profileId, t.kind),
+    index("brand_profile_chat_workspace_idx").on(t.workspaceId, t.updatedAt),
+  ],
+);
+
+export const brandProfileChatMessages = pgTable(
+  "brand_profile_chat_message",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    chatId: uuid("chat_id")
+      .notNull()
+      .references(() => brandProfileChats.id, { onDelete: "cascade" }),
+    workspaceId: uuid("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    role: chatRoleEnum("role").notNull(),
+    content: text("content").notNull(),
+    /** When the assistant turn captures a structured field, the extracted
+     *  patch lands here. Replay can recompute "what was captured at turn N"
+     *  by folding messages in order. */
+    structuredPatch: jsonb("structured_patch").$type<
+      Record<string, unknown> | null
+    >(),
+    modelId: text("model_id"),
+    provider: text("provider"),
+    inputTokens: integer("input_tokens"),
+    outputTokens: integer("output_tokens"),
+    durationMs: integer("duration_ms"),
+    createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+  },
+  (t) => [index("brand_profile_chat_message_chat_idx").on(t.chatId, t.createdAt)],
+);
+
+/** Cached output of a website extraction crawl. Keyed on (workspace, url,
+ *  jsRendered) so a marketer can compare static-vs-JS extraction. */
+export const brandProfileCrawls = pgTable(
+  "brand_profile_crawl",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    workspaceId: uuid("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    /** Original URL the marketer pasted. */
+    url: text("url").notNull(),
+    /** URL after redirects + canonicalization. */
+    finalUrl: text("final_url"),
+    /** Pages visited + their extracted content. Each page may carry a
+     *  locale annotation when multi-language detection fires. */
+    extractedContent: jsonb("extracted_content")
+      .$type<{
+        pages: Array<{
+          url: string;
+          locale?: (typeof localeEnum.enumValues)[number];
+          title: string;
+          text: string;
+          headings: { h1: string[]; h2: string[]; h3: string[] };
+        }>;
+        detectedLocales: Array<(typeof localeEnum.enumValues)[number]>;
+        sitemapFound: boolean;
+        robotsBlocked: boolean;
+      } | null>(),
+    status: brandProfileCrawlStatusEnum("status").notNull().default("pending"),
+    /** True if Playwright was used to render JS for this crawl. */
+    jsRendered: boolean("js_rendered").notNull().default(false),
+    /** Optional reference to the BYOK cookie used for the crawl. */
+    cookieProfileId: uuid("cookie_profile_id"),
+    error: text("error"),
+    crawledAt: timestamp("crawled_at", { mode: "date" }),
+    expiresAt: timestamp("expires_at", { mode: "date" }),
+    createdByUserId: text("created_by_user_id")
+      .notNull()
+      .references(() => users.id),
+    createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("brand_profile_crawl_unique").on(
+      t.workspaceId,
+      t.url,
+      t.jsRendered,
+    ),
+    index("brand_profile_crawl_workspace_idx").on(t.workspaceId, t.createdAt),
+  ],
+);
+
+/** BYOK cookie store for crawling login-gated content. Encrypted at rest
+ *  via the same AES-256-GCM helper as api_keys. */
+export const brandProfileCookies = pgTable(
+  "brand_profile_cookie",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    workspaceId: uuid("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    /** Cookie domain scope, e.g. "example.com" or "*.example.com". */
+    domain: text("domain").notNull(),
+    /** Human-friendly label ("My Notion workspace"). */
+    label: text("label").notNull(),
+    /** AES-256-GCM ciphertext (base64). Plaintext is the full
+     *  cookie-header string the marketer pasted. */
+    ciphertext: text("ciphertext").notNull(),
+    /** Last 4 chars of the plaintext, for UI display. */
+    last4: text("last4").notNull(),
+    createdByUserId: text("created_by_user_id")
+      .notNull()
+      .references(() => users.id),
+    createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+  },
+  (t) => [index("brand_profile_cookie_workspace_idx").on(t.workspaceId)],
+);
+
+export const brandProfilesRelations = relations(
+  brandProfiles,
+  ({ one, many }) => ({
+    workspace: one(workspaces, {
+      fields: [brandProfiles.workspaceId],
+      references: [workspaces.id],
+    }),
+    createdBy: one(users, {
+      fields: [brandProfiles.createdByUserId],
+      references: [users.id],
+    }),
+    revisions: many(brandProfileRevisions),
+    chats: many(brandProfileChats),
+  }),
+);
+
+export const brandProfileRevisionsRelations = relations(
+  brandProfileRevisions,
+  ({ one }) => ({
+    profile: one(brandProfiles, {
+      fields: [brandProfileRevisions.profileId],
+      references: [brandProfiles.id],
+    }),
+    createdBy: one(users, {
+      fields: [brandProfileRevisions.createdByUserId],
+      references: [users.id],
+    }),
+  }),
+);
+
+export const brandProfileChatsRelations = relations(
+  brandProfileChats,
+  ({ one, many }) => ({
+    profile: one(brandProfiles, {
+      fields: [brandProfileChats.profileId],
+      references: [brandProfiles.id],
+    }),
+    messages: many(brandProfileChatMessages),
+    createdBy: one(users, {
+      fields: [brandProfileChats.createdByUserId],
+      references: [users.id],
+    }),
+  }),
+);
+
+export const brandProfileChatMessagesRelations = relations(
+  brandProfileChatMessages,
+  ({ one }) => ({
+    chat: one(brandProfileChats, {
+      fields: [brandProfileChatMessages.chatId],
+      references: [brandProfileChats.id],
+    }),
+  }),
+);
+
+export const brandProfileCrawlsRelations = relations(
+  brandProfileCrawls,
+  ({ one }) => ({
+    workspace: one(workspaces, {
+      fields: [brandProfileCrawls.workspaceId],
+      references: [workspaces.id],
+    }),
+    createdBy: one(users, {
+      fields: [brandProfileCrawls.createdByUserId],
+      references: [users.id],
+    }),
+  }),
+);
+
+export const brandProfileCookiesRelations = relations(
+  brandProfileCookies,
+  ({ one }) => ({
+    workspace: one(workspaces, {
+      fields: [brandProfileCookies.workspaceId],
+      references: [workspaces.id],
+    }),
+    createdBy: one(users, {
+      fields: [brandProfileCookies.createdByUserId],
+      references: [users.id],
+    }),
+  }),
+);
+
+export type BrandProfile = typeof brandProfiles.$inferSelect;
+export type BrandProfileRevision = typeof brandProfileRevisions.$inferSelect;
+export type BrandProfileChat = typeof brandProfileChats.$inferSelect;
+export type BrandProfileChatMessage =
+  typeof brandProfileChatMessages.$inferSelect;
+export type BrandProfileCrawl = typeof brandProfileCrawls.$inferSelect;
+export type BrandProfileCookie = typeof brandProfileCookies.$inferSelect;
+export type BrandProfileChatKind =
+  (typeof brandProfileChatKindEnum.enumValues)[number];
+export type BrandProfileChatStatus =
+  (typeof brandProfileChatStatusEnum.enumValues)[number];
+export type BrandProfileRevisionType =
+  (typeof brandProfileRevisionTypeEnum.enumValues)[number];
+export type BrandProfileCrawlStatus =
+  (typeof brandProfileCrawlStatusEnum.enumValues)[number];
