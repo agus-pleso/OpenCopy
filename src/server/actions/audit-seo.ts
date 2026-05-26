@@ -370,11 +370,69 @@ export async function generateSuggestionRewrite(input: {
 /* applySeoSuggestion                                                         */
 /* -------------------------------------------------------------------------- */
 
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
 /**
- * Replace the suggestion's `excerpt` in the doc's HTML/text with the rewrite,
- * mark the suggestion `applied`, and persist both. Phase 2 enriches the
- * suggestion's `proposed` field via `generateSuggestionRewrite` before this
- * is called — the apply path itself doesn't change.
+ * Turn a rewriter's proposed text into Tiptap-shaped HTML for an `add_*`
+ * suggestion. The rewriter sometimes prefixes headings with markdown `##`
+ * markers (per its system prompt), sometimes emits a bare heading line —
+ * both shapes get normalized here.
+ *
+ *  - `add_heading`: single heading element. Markdown level → h{n}; bare text
+ *    defaults to h1 because the auditor's strongest signal when there's no
+ *    heading hierarchy at all is "give the doc an H1."
+ *  - `add_section` / `add_lsi_keyword`: split on blank lines into blocks;
+ *    each block becomes either a heading (if `##` prefixed) or a paragraph.
+ */
+function proposedToTiptapHtml(
+  proposed: string,
+  type: SeoSuggestion["type"],
+): string {
+  const trimmed = proposed.trim();
+  if (!trimmed) return "";
+
+  const renderBlock = (block: string, defaultTag: "p" | "h1"): string => {
+    const headingMatch = block.match(/^(#{1,6})\s+(.+)$/);
+    if (headingMatch) {
+      const level = Math.min(headingMatch[1].length, 6);
+      return `<h${level}>${escapeHtml(headingMatch[2].trim())}</h${level}>`;
+    }
+    return `<${defaultTag}>${escapeHtml(block)}</${defaultTag}>`;
+  };
+
+  if (type === "add_heading") {
+    return renderBlock(trimmed, "h1");
+  }
+  // add_section + add_lsi_keyword: paragraph-shaped, possibly with a leading
+  // heading line.
+  return trimmed
+    .split(/\n\s*\n/)
+    .map((block) => renderBlock(block.trim(), "p"))
+    .join("\n");
+}
+
+/**
+ * Apply a suggestion's rewrite to the live document.
+ *
+ * Three placement strategies depending on suggestion type:
+ *
+ *  1. `rewrite_paragraph` / `tighten_section`: the suggestion carries an
+ *     excerpt; we literal-string replace it with the rewrite. If the excerpt
+ *     no longer matches the doc (e.g. marketer edited the doc since the
+ *     audit ran), we fall back to appending the rewrite — better than
+ *     silently no-op'ing.
+ *  2. `add_heading`: prepend the new heading to the top of the doc. The
+ *     auditor's first suggestion for a heading-less doc is almost always
+ *     a keyword-rich H1, so the top is the right anchor.
+ *  3. `add_section` / `add_lsi_keyword`: append to the end of the doc.
+ *     Marketers can drag-reorder in Tiptap if they want it elsewhere; V1
+ *     just makes sure the apply path actually mutates the doc instead of
+ *     marking applied while silently doing nothing.
  *
  * Fallback `[placeholder rewrite]` is preserved so that if the modal ever
  * apply-clicks before generation completes (race), the round-trip stays
@@ -429,19 +487,43 @@ export async function applySeoSuggestion(input: {
       : s,
   );
 
-  // Apply the rewrite to the live doc. STUB strategy: literal-string replace
-  // of `excerpt` (if present) — Phase 2 likely refines this to a structural
-  // patch, but the contract here is "the doc reflects the applied change".
   let newHtml = doc.contentHtml;
   let newText = doc.contentText;
-  if (target.excerpt && target.excerpt.length > 0) {
-    if (newHtml.includes(target.excerpt)) {
+
+  const hasExcerptMatch =
+    !!target.excerpt &&
+    target.excerpt.length > 0 &&
+    (newHtml.includes(target.excerpt) || newText.includes(target.excerpt));
+
+  if (hasExcerptMatch) {
+    // Excerpt-driven (rewrite_paragraph / tighten_section, and any add_*
+    // where the model surprised us by including an excerpt).
+    if (target.excerpt && newHtml.includes(target.excerpt)) {
       newHtml = newHtml.split(target.excerpt).join(rewrite);
     }
-    if (newText.includes(target.excerpt)) {
+    if (target.excerpt && newText.includes(target.excerpt)) {
       newText = newText.split(target.excerpt).join(rewrite);
     }
+  } else if (
+    target.type === "add_heading" ||
+    target.type === "add_section" ||
+    target.type === "add_lsi_keyword"
+  ) {
+    // Excerpt-less add_*: convert the proposed text to Tiptap HTML and
+    // either prepend (add_heading) or append (everything else).
+    const proposedHtml = proposedToTiptapHtml(rewrite, target.type);
+    if (target.type === "add_heading") {
+      newHtml = `${proposedHtml}\n${newHtml}`;
+      newText = `${rewrite}\n\n${newText}`;
+    } else {
+      const sep = newHtml.endsWith("\n") ? "" : "\n";
+      newHtml = `${newHtml}${sep}${proposedHtml}`;
+      newText = `${newText}\n\n${rewrite}`;
+    }
   }
+  // else: rewrite_paragraph / tighten_section with no matching excerpt —
+  // log nothing, mark applied, and let the marketer paste manually from
+  // the modal. The "Applied" badge already documents intent.
 
   await db.transaction(async (tx) => {
     await tx
