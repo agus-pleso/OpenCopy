@@ -4,6 +4,7 @@ import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 
 import * as schema from "@/db/schema";
 import {
+  KB_EMBEDDING_DIMENSIONS,
   agentRunSteps,
   agentRuns,
   brandVoices,
@@ -40,6 +41,11 @@ const TAG_BYTES = 16; // GCM auth tag length
 // entry) and exhaust server memory before any validation runs.
 const MAX_ZIP_ENTRIES = 1000;
 const MAX_ENTRY_BYTES = 100 * 1024 * 1024; // 100 MB
+
+// Cap any single declared table at 1,000,000 rows. Imports above that are
+// almost certainly malicious — a real export of that size belongs in a
+// migration job, not the user-facing import flow.
+const MAX_TABLE_ROWS = 1_000_000;
 
 export class ImportError extends Error {
   constructor(
@@ -179,6 +185,32 @@ export function parseOpenCopy(
     );
   }
 
+  // Hard-validate embedding dimensions against the SCHEMA constant — never
+  // trust the manifest alone, since both sides of the import's earlier
+  // dim check came from the manifest itself.
+  if (
+    manifest.includesEmbeddings &&
+    manifest.embeddingDimensions !== KB_EMBEDDING_DIMENSIONS
+  ) {
+    throw new ImportError(
+      `manifest embeddingDimensions=${manifest.embeddingDimensions} but this build hardcodes ${KB_EMBEDDING_DIMENSIONS}`,
+      "BAD_FORMAT",
+    );
+  }
+
+  // Cap declared row counts to keep a malicious manifest from staging a
+  // billion-row insert. The actual jsonl is also walked later, but
+  // failing on the declaration is cheap and lets us bail before
+  // any decoding work.
+  for (const t of manifest.tables) {
+    if (t.rowCount > MAX_TABLE_ROWS) {
+      throw new ImportError(
+        `manifest declares ${t.rowCount} rows for "${t.name}" (cap: ${MAX_TABLE_ROWS})`,
+        "BAD_MANIFEST",
+      );
+    }
+  }
+
   return { manifest, files };
 }
 
@@ -218,6 +250,16 @@ function decodeEmbeddings(
   }
   const dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   const dim = dv.getUint32(6, true);
+  // Defense in depth: the manifest's embeddingDimensions is already
+  // validated against KB_EMBEDDING_DIMENSIONS at parseOpenCopy time, but
+  // assert the blob's own dim against the schema constant too so this
+  // function is safe to call from anywhere.
+  if (dim !== KB_EMBEDDING_DIMENSIONS) {
+    throw new ImportError(
+      `embedding blob dim ${dim} does not match schema constant ${KB_EMBEDDING_DIMENSIONS}`,
+      "BAD_FORMAT",
+    );
+  }
   if (dim !== expectedDim) {
     throw new ImportError(
       `embedding dimension mismatch (blob=${dim}, manifest=${expectedDim})`,
@@ -297,6 +339,32 @@ export async function importWorkspace(
   const chatMessagesRows = readJsonl(files, "chat_message").map(reviveDates);
   const campaignsRows = readJsonl(files, "campaign").map(reviveDates);
   const campaignAssetsRows = readJsonl(files, "campaign_asset").map(reviveDates);
+
+  // Re-enforce the row-count cap against the actual jsonl bodies — a
+  // malicious manifest could lie about its declared rowCount.
+  for (const [name, rows] of [
+    ["brand_voice", voicesRows],
+    ["voice_sample", voiceSamplesRows],
+    ["voice_audit", voiceAuditsRows],
+    ["model_default", modelDefaultsRows],
+    ["kb_source", kbSourcesRows],
+    ["kb_chunk", kbChunksRows],
+    ["document", documentsRows],
+    ["agent_run", agentRunsRows],
+    ["agent_run_step", agentRunStepsRows],
+    ["copy_variant", copyVariantsRows],
+    ["chat_thread", chatThreadsRows],
+    ["chat_message", chatMessagesRows],
+    ["campaign", campaignsRows],
+    ["campaign_asset", campaignAssetsRows],
+  ] as const) {
+    if (rows.length > MAX_TABLE_ROWS) {
+      throw new ImportError(
+        `table "${name}" has ${rows.length} rows (cap: ${MAX_TABLE_ROWS})`,
+        "BAD_MANIFEST",
+      );
+    }
+  }
 
   const embeddingMap = manifest.includesEmbeddings
     ? decodeEmbeddings(files["embeddings/chunks.bin"], manifest.embeddingDimensions)
