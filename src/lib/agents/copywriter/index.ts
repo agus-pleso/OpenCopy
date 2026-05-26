@@ -19,4 +19,10 @@ export {
   type RefinerInput,
   type RefinerOutput,
 } from "./refiner";
+export {
+  seoSuggestionRewriter,
+  SeoRewriteOutputSchema,
+  type SeoRewriteOutput,
+  type SeoSuggestionRewriterInput,
+} from "./seo-suggestion-rewriter";
 export { runCopywriter, type CopywriterRunResult } from "./orchestrator";
