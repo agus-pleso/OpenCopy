@@ -11,9 +11,19 @@ function getKey(): Buffer {
       "ENCRYPTION_KEY env var is required (32-byte base64 string).",
     );
   }
-  // Accept either base64 32-byte material or any string we hash to 32 bytes.
   const decoded = Buffer.from(raw, "base64");
   if (decoded.length === 32) return decoded;
+  // In production, refuse to stretch a too-short or non-base64 key — the
+  // silent SHA-256 fallback used to mask deployments with effectively zero
+  // entropy (e.g. ENCRYPTION_KEY="secret"). Bail loudly so the operator
+  // notices. Outside production the legacy stretching path remains so dev
+  // and test runs with arbitrary key strings keep working.
+  if (process.env.NODE_ENV === "production") {
+    throw new Error(
+      "ENCRYPTION_KEY must decode to exactly 32 bytes from base64 in production " +
+        `(got ${decoded.length} bytes). Generate one with \`openssl rand -base64 32\`.`,
+    );
+  }
   return createHash("sha256").update(raw, "utf8").digest();
 }
 
