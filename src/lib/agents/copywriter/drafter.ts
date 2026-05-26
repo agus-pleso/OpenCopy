@@ -219,7 +219,7 @@ export async function runCopywriterDrafter(
     system: SYSTEM,
     prompt: buildPrompt(input),
     temperature: 0.85,
-    maxTokens: 3000,
+    maxOutputTokens: 3000,
   });
 
   // Multi-component flow uses a different parser that maps named sections
@@ -238,8 +238,8 @@ export async function runCopywriterDrafter(
     provider,
     durationMs: Date.now() - start,
     usage: {
-      inputTokens: result.usage?.promptTokens,
-      outputTokens: result.usage?.completionTokens,
+      inputTokens: result.usage?.inputTokens,
+      outputTokens: result.usage?.outputTokens,
     },
   };
 }

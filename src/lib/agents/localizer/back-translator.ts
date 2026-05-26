@@ -94,7 +94,7 @@ export async function runBackTranslator(
     system: SYSTEM,
     prompt: buildPrompt(input),
     temperature: 0.2,
-    maxTokens: 3500,
+    maxOutputTokens: 3500,
   });
 
   return {
@@ -103,8 +103,8 @@ export async function runBackTranslator(
     provider,
     durationMs: Date.now() - start,
     usage: {
-      inputTokens: result.usage?.promptTokens,
-      outputTokens: result.usage?.completionTokens,
+      inputTokens: result.usage?.inputTokens,
+      outputTokens: result.usage?.outputTokens,
     },
   };
 }

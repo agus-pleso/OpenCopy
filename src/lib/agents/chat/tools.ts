@@ -49,7 +49,7 @@ export function buildChatTools(ctx: ChatToolsContext) {
     list_brand_voices: tool({
       description:
         "List the brand voices in this workspace. Returns id, name, status, and whether each has been analyzed. Use this when the user asks about voices, wants to switch context, or asks to edit a voice without naming the id.",
-      parameters: z.object({}),
+      inputSchema: z.object({}),
       execute: async () => {
         const rows = await db.query.brandVoices.findMany({
           where: eq(brandVoices.workspaceId, ctx.workspaceId),
@@ -78,7 +78,7 @@ export function buildChatTools(ctx: ChatToolsContext) {
     get_brand_voice: tool({
       description:
         "Read the full voice card for a brand voice. Use this BEFORE update_brand_voice so you can return a meaningful diff to the user.",
-      parameters: z.object({
+      inputSchema: z.object({
         voiceId: z
           .string()
           .uuid()
@@ -126,7 +126,7 @@ export function buildChatTools(ctx: ChatToolsContext) {
     update_brand_voice: tool({
       description:
         "Patch fields on a brand voice. Pass only the fields you want to change — omitted fields are left as-is. Use this when the user asks to make the voice more X, add a Do, drop a forbidden word, etc.",
-      parameters: z.object({
+      inputSchema: z.object({
         voiceId: z
           .string()
           .uuid()
@@ -221,7 +221,7 @@ export function buildChatTools(ctx: ChatToolsContext) {
     list_recent_variants: tool({
       description:
         "List the most recent copy variants in the library (saved and drafts). Use this when the user asks to edit, refine, or comment on copy without naming a specific variant id.",
-      parameters: z.object({
+      inputSchema: z.object({
         voiceId: z.string().uuid().optional(),
         locale: LocaleEnum.optional(),
         savedOnly: z.boolean().optional(),
@@ -265,7 +265,7 @@ export function buildChatTools(ctx: ChatToolsContext) {
     rewrite_copy_variant: tool({
       description:
         "Replace a copy variant's content with a new version. Use this when the user asks to refine, shorten, lengthen, or otherwise edit a specific variant. Pass the full new content — partial replacements aren't supported.",
-      parameters: z.object({
+      inputSchema: z.object({
         variantId: z.string().uuid(),
         content: z
           .string()
@@ -310,7 +310,7 @@ export function buildChatTools(ctx: ChatToolsContext) {
     localize_text: tool({
       description:
         "Localize a piece of text from one locale to another. Returns the localized copy plus a back-translation and any cultural notes. Use when the user asks to translate / localize / adapt copy in chat.",
-      parameters: z.object({
+      inputSchema: z.object({
         sourceText: z.string().min(20).max(20_000),
         sourceLocale: LocaleEnum,
         targetLocale: LocaleEnum,

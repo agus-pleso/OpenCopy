@@ -1,7 +1,8 @@
 "use client";
 
 import * as React from "react";
-import { useChat, type Message } from "@ai-sdk/react";
+import { useChat } from "@ai-sdk/react";
+import { DefaultChatTransport, type UIMessage } from "ai";
 import { toast } from "sonner";
 
 import { ChatMessage, type ChatMessageView, type ChatToolInvocation } from "./message";
@@ -41,20 +42,25 @@ export function ChatShell({
   const [voiceName, setVoiceName] = React.useState<string | null>(initialVoiceName);
   const [activeSourceIds, setActiveSourceIds] =
     React.useState<string[]>(initialSourceIds);
+  // v6: useChat no longer manages the composer input — we own it locally.
+  const [input, setInput] = React.useState("");
 
-  const seeded: Message[] = initialMessages
+  // v6: messages are UIMessage[] (parts-based) rather than v4's { content }.
+  const seeded: UIMessage[] = initialMessages
     .filter((m) => m.role !== "system")
     .map((m) => ({
       id: m.id,
       role: m.role as "user" | "assistant",
-      content: m.content,
+      parts: [{ type: "text" as const, text: m.content }],
     }));
 
-  const { messages, input, setInput, append, status, stop } = useChat({
-    api: "/api/chat",
+  const { messages, sendMessage, status, stop } = useChat({
     id: threadId,
-    body: { threadId },
-    initialMessages: seeded,
+    messages: seeded,
+    transport: new DefaultChatTransport({
+      api: "/api/chat",
+      body: { threadId },
+    }),
     onError: (err) => {
       toast.error(err.message || "Chat request failed.");
     },
@@ -64,7 +70,7 @@ export function ChatShell({
 
   const onSubmit = () => {
     if (!input.trim() || isStreaming) return;
-    void append({ role: "user", content: input.trim() });
+    void sendMessage({ text: input.trim() });
     setInput("");
   };
 
@@ -88,7 +94,7 @@ export function ChatShell({
     return {
       id: m.id,
       role: m.role as "user" | "assistant" | "system",
-      content: m.content,
+      content: extractText(m),
       modelId: dbMeta?.modelId ?? null,
       durationMs: dbMeta?.durationMs ?? null,
       retrievedSourceIds: dbMeta?.retrievedSourceIds ?? null,
@@ -166,35 +172,53 @@ export function ChatShell({
   );
 }
 
+/** v6: concatenate the text parts of a UIMessage. Ignores tool/data parts. */
+function extractText(m: UIMessage): string {
+  return m.parts
+    .filter((p): p is { type: "text"; text: string } => p.type === "text")
+    .map((p) => p.text)
+    .join("");
+}
+
 /**
- * Pull tool-invocation entries out of an AI SDK UI message. The streaming
- * client populates `parts` with mixed text/tool entries; we keep only the
- * tool ones so the view can render small status pills.
+ * v6: tool calls appear in `m.parts` as `{ type: "tool-${toolName}", state, input, output }`
+ * — not as the v4 `tool-invocation` wrapper. We flatten them into the legacy
+ * `ChatToolInvocation` shape so the existing message renderer keeps working.
+ * State mapping: `input-streaming → partial-call`, `input-available → call`,
+ * `output-available | output-error → result`.
  */
-function extractToolInvocations(m: Message): ChatToolInvocation[] | undefined {
-  const parts = (m as { parts?: unknown[] }).parts;
-  if (!Array.isArray(parts)) return undefined;
+function extractToolInvocations(m: UIMessage): ChatToolInvocation[] | undefined {
   const out: ChatToolInvocation[] = [];
-  for (const p of parts) {
-    if (
-      p &&
-      typeof p === "object" &&
-      "type" in p &&
-      (p as { type: unknown }).type === "tool-invocation"
-    ) {
-      const inv = (p as unknown as { toolInvocation: unknown }).toolInvocation as {
-        toolCallId: string;
-        toolName: string;
-        state: "partial-call" | "call" | "result";
-        result?: unknown;
-      };
-      out.push({
-        toolCallId: inv.toolCallId,
-        toolName: inv.toolName,
-        state: inv.state,
-        result: inv.result,
-      });
-    }
+  for (const p of m.parts) {
+    if (typeof p.type !== "string" || !p.type.startsWith("tool-")) continue;
+    const part = p as unknown as {
+      type: string;
+      toolCallId?: string;
+      state?:
+        | "input-streaming"
+        | "input-available"
+        | "output-available"
+        | "output-error";
+      input?: unknown;
+      output?: unknown;
+      errorText?: string;
+    };
+    const toolName = part.type.slice("tool-".length);
+    const legacyState: ChatToolInvocation["state"] =
+      part.state === "input-streaming"
+        ? "partial-call"
+        : part.state === "input-available"
+          ? "call"
+          : "result";
+    out.push({
+      toolCallId: part.toolCallId ?? `${m.id}-${toolName}`,
+      toolName,
+      state: legacyState,
+      result:
+        part.state === "output-error"
+          ? { error: part.errorText ?? "Tool error" }
+          : part.output,
+    });
   }
   return out.length > 0 ? out : undefined;
 }

@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 import { and, asc, eq } from "drizzle-orm";
-import { streamText, type CoreMessage } from "ai";
+import {
+  streamText,
+  stepCountIs,
+  convertToModelMessages,
+  type UIMessage,
+} from "ai";
 import { z } from "zod";
 
 import { db } from "@/db/client";
@@ -23,15 +28,38 @@ import type { VoiceCardForPrompt } from "@/lib/agents/voice-card";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const RequestSchema = z.object({
-  threadId: z.string().uuid(),
-  messages: z.array(
-    z.object({
-      role: z.enum(["system", "user", "assistant"]),
-      content: z.string().max(40_000),
-    }),
-  ),
+// v6 wire format: DefaultChatTransport sends a body with `messages: UIMessage[]`
+// plus an `id`, `trigger`, and whatever custom fields we configure (here:
+// `threadId`). Permissive schema so transport-injected extras don't fail us.
+const UIMessagePartSchema = z
+  .object({
+    type: z.string(),
+    text: z.string().optional(),
+  })
+  .passthrough();
+
+const UIMessageSchema = z.object({
+  id: z.string().optional(),
+  role: z.enum(["system", "user", "assistant"]),
+  parts: z.array(UIMessagePartSchema),
 });
+
+const RequestSchema = z
+  .object({
+    threadId: z.string().uuid(),
+    messages: z.array(UIMessageSchema),
+  })
+  .passthrough();
+
+/** Concatenate the text parts of a UIMessage. Ignores tool/data parts. */
+function getMessageText(m: {
+  parts: Array<{ type: string; text?: string }>;
+}): string {
+  return m.parts
+    .filter((p) => p.type === "text" && typeof p.text === "string")
+    .map((p) => p.text!)
+    .join("");
+}
 
 export async function POST(req: Request) {
   let body: unknown;
@@ -85,6 +113,7 @@ export async function POST(req: Request) {
       { status: 400 },
     );
   }
+  const lastUserText = getMessageText(lastUser);
 
   // Persist the user message we haven't seen yet. To dedupe, fetch existing
   // message count and only insert if the count of user messages in the
@@ -104,13 +133,13 @@ export async function POST(req: Request) {
       threadId: thread.id,
       workspaceId,
       role: "user",
-      content: lastUser.content,
+      content: lastUserText,
     });
     if (existingMessages.length === 0) {
       await db
         .update(chatThreads)
         .set({
-          title: deriveTitleFromMessage(lastUser.content),
+          title: deriveTitleFromMessage(lastUserText),
           updatedAt: new Date(),
         })
         .where(eq(chatThreads.id, thread.id));
@@ -145,12 +174,12 @@ export async function POST(req: Request) {
     }
   }
 
-  // Optional KB retrieval per-turn — query against the latest user message.
+  // Optional KB retrieval per-turn — query against the latest user message text.
   let knowledge: string | undefined;
   let retrievedSourceIds: string[] = [];
   if (thread.sourceIds && thread.sourceIds.length > 0) {
     try {
-      const hits = await searchKnowledge(lastUser.content, {
+      const hits = await searchKnowledge(lastUserText, {
         workspaceId,
         sourceIds: thread.sourceIds,
         topK: 6,
@@ -179,10 +208,9 @@ export async function POST(req: Request) {
     modelId: thread.modelId ?? undefined,
   });
 
-  const coreMessages: CoreMessage[] = incoming.map((m) => ({
-    role: m.role as "user" | "assistant" | "system",
-    content: m.content,
-  }));
+  // v6: convert UIMessage parts → ModelMessage shape that streamText expects.
+  // convertToModelMessages is async in v6 — it may resolve tool/file parts.
+  const modelMessages = await convertToModelMessages(incoming as UIMessage[]);
 
   const start = Date.now();
 
@@ -197,11 +225,11 @@ export async function POST(req: Request) {
     const result = streamText({
       model,
       system,
-      messages: coreMessages,
+      messages: modelMessages,
       tools,
       // Allow up to a few sequential tool calls per turn so the model can
       // read-then-write (e.g. get_brand_voice → update_brand_voice).
-      maxSteps: 5,
+      stopWhen: stepCountIs(5),
       temperature: 0.7,
       onFinish: async ({ text, usage, finishReason }) => {
         if (finishReason === "error") return;
@@ -214,8 +242,8 @@ export async function POST(req: Request) {
             modelId,
             provider,
             retrievedSourceIds,
-            inputTokens: usage?.promptTokens ?? null,
-            outputTokens: usage?.completionTokens ?? null,
+            inputTokens: usage?.inputTokens ?? null,
+            outputTokens: usage?.outputTokens ?? null,
             durationMs: Date.now() - start,
           });
           await db
@@ -230,7 +258,7 @@ export async function POST(req: Request) {
 
     void userId; // userId is captured for future telemetry / created_by_user_id columns
 
-    return result.toDataStreamResponse();
+    return result.toUIMessageStreamResponse();
   } catch (err) {
     return NextResponse.json(
       { error: (err as Error).message },

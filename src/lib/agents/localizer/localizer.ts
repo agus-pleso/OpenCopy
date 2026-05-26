@@ -125,7 +125,7 @@ export async function runLocalizerTranscreator(
     system: SYSTEM,
     prompt: buildPrompt(input),
     temperature: 0.6,
-    maxTokens: 4000,
+    maxOutputTokens: 4000,
   });
 
   return {
@@ -134,8 +134,8 @@ export async function runLocalizerTranscreator(
     provider,
     durationMs: Date.now() - start,
     usage: {
-      inputTokens: result.usage?.promptTokens,
-      outputTokens: result.usage?.completionTokens,
+      inputTokens: result.usage?.inputTokens,
+      outputTokens: result.usage?.outputTokens,
     },
   };
 }

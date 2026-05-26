@@ -155,7 +155,7 @@ export async function runDocumentExtractor(
     system: SYSTEM,
     prompt: buildPrompt(input),
     temperature: 0.3,
-    maxTokens: 4000,
+    maxOutputTokens: 4000,
   });
 
   const card = parseVoiceCardMarkdown(result.text, { sampleCount: 1 });
@@ -169,8 +169,8 @@ export async function runDocumentExtractor(
     provider,
     durationMs: Date.now() - start,
     usage: {
-      inputTokens: result.usage?.promptTokens,
-      outputTokens: result.usage?.completionTokens,
+      inputTokens: result.usage?.inputTokens,
+      outputTokens: result.usage?.outputTokens,
     },
   };
 }

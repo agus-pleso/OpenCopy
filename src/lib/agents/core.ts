@@ -4,7 +4,7 @@ import { z } from "zod";
 
 import { resolveModel } from "@/lib/ai/providers";
 import type { ModelRole } from "@/db/schema";
-import { repairJsonText, tryParseAndValidate } from "./json-repair";
+import { tryParseAndValidate } from "./json-repair";
 
 /**
  * Agent core — the primitive every OpenCopy agent is built on.
@@ -107,15 +107,13 @@ export async function runAgent<TInput, TOutput>(
       system,
       prompt: userPrompt,
       temperature: def.temperature ?? 0.7,
-      maxTokens: def.maxTokens,
-      mode: "json",
-      experimental_repairText: async ({ text }) => repairJsonText(text),
+      maxOutputTokens: def.maxTokens,
     });
 
     const durationMs = Date.now() - start;
     const usage = {
-      inputTokens: result.usage?.promptTokens,
-      outputTokens: result.usage?.completionTokens,
+      inputTokens: result.usage?.inputTokens,
+      outputTokens: result.usage?.outputTokens,
     };
     ctx.onEvent?.({
       type: "finished",
@@ -193,7 +191,7 @@ CRITICAL: Output ONLY valid JSON. No \`\`\` fences. No commentary. The output mu
     system: stricterSystem,
     prompt: userPrompt,
     temperature: 0.2,
-    maxTokens: def.maxTokens,
+    maxOutputTokens: def.maxTokens,
   });
 
   const parsed = tryParseAndValidate(def.outputSchema, result.text);
@@ -269,13 +267,13 @@ export async function runTextAgent<TInput>(
       system,
       prompt: def.buildPrompt(input),
       temperature: def.temperature ?? 0.7,
-      maxTokens: def.maxTokens,
+      maxOutputTokens: def.maxTokens,
     });
 
     const durationMs = Date.now() - start;
     const usage = {
-      inputTokens: result.usage?.promptTokens,
-      outputTokens: result.usage?.completionTokens,
+      inputTokens: result.usage?.inputTokens,
+      outputTokens: result.usage?.outputTokens,
     };
     ctx.onEvent?.({
       type: "finished",

@@ -102,7 +102,7 @@ export async function runVoiceAuditor(
     system: SYSTEM,
     prompt: buildPrompt(input),
     temperature: 0.3,
-    maxTokens: 4000,
+    maxOutputTokens: 4000,
   });
 
   return {
@@ -111,8 +111,8 @@ export async function runVoiceAuditor(
     provider,
     durationMs: Date.now() - start,
     usage: {
-      inputTokens: result.usage?.promptTokens,
-      outputTokens: result.usage?.completionTokens,
+      inputTokens: result.usage?.inputTokens,
+      outputTokens: result.usage?.outputTokens,
     },
   };
 }

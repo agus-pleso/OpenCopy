@@ -5,8 +5,8 @@ import { createAnthropic } from "@ai-sdk/anthropic";
 import { createOpenAI } from "@ai-sdk/openai";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { createMistral } from "@ai-sdk/mistral";
-import { createOllama } from "ollama-ai-provider";
-import type { LanguageModelV1 } from "ai";
+import { createOllama } from "ollama-ai-provider-v2";
+import type { LanguageModel } from "ai";
 
 import { db } from "@/db/client";
 import {
@@ -36,8 +36,8 @@ export const KNOWN_PROVIDERS: ApiKeyProvider[] = [
 ];
 
 interface ProviderInstance {
-  /** Returns an AI SDK LanguageModelV1 for the given model id. */
-  model(modelId: string): LanguageModelV1;
+  /** Returns an AI SDK LanguageModel for the given model id. */
+  model(modelId: string): LanguageModel;
 }
 
 type ProviderFactory = (args: {
@@ -52,7 +52,7 @@ const PROVIDER_FACTORIES: Partial<Record<ApiKeyProvider, ProviderFactory>> = {
       baseURL: baseUrl ?? undefined,
     });
     return {
-      model: (modelId: string) => router.chat(modelId) as LanguageModelV1,
+      model: (modelId: string) => router.chat(modelId) as LanguageModel,
     };
   },
 
@@ -62,7 +62,7 @@ const PROVIDER_FACTORIES: Partial<Record<ApiKeyProvider, ProviderFactory>> = {
       baseURL: baseUrl ?? undefined,
     });
     return {
-      model: (modelId: string) => anthropic(modelId) as LanguageModelV1,
+      model: (modelId: string) => anthropic(modelId) as LanguageModel,
     };
   },
 
@@ -72,7 +72,7 @@ const PROVIDER_FACTORIES: Partial<Record<ApiKeyProvider, ProviderFactory>> = {
       baseURL: baseUrl ?? undefined,
     });
     return {
-      model: (modelId: string) => openai(modelId) as LanguageModelV1,
+      model: (modelId: string) => openai(modelId) as LanguageModel,
     };
   },
 
@@ -82,7 +82,7 @@ const PROVIDER_FACTORIES: Partial<Record<ApiKeyProvider, ProviderFactory>> = {
       baseURL: baseUrl ?? undefined,
     });
     return {
-      model: (modelId: string) => google(modelId) as LanguageModelV1,
+      model: (modelId: string) => google(modelId) as LanguageModel,
     };
   },
 
@@ -92,7 +92,7 @@ const PROVIDER_FACTORIES: Partial<Record<ApiKeyProvider, ProviderFactory>> = {
       baseURL: baseUrl ?? undefined,
     });
     return {
-      model: (modelId: string) => mistral(modelId) as LanguageModelV1,
+      model: (modelId: string) => mistral(modelId) as LanguageModel,
     };
   },
 
@@ -103,7 +103,7 @@ const PROVIDER_FACTORIES: Partial<Record<ApiKeyProvider, ProviderFactory>> = {
       baseURL: baseUrl ?? "http://localhost:11434/api",
     });
     return {
-      model: (modelId: string) => ollama(modelId) as LanguageModelV1,
+      model: (modelId: string) => ollama(modelId) as LanguageModel,
     };
   },
 };
@@ -123,7 +123,7 @@ export interface ResolveModelOptions {
 }
 
 export interface ResolvedModel {
-  model: LanguageModelV1;
+  model: LanguageModel;
   modelId: string;
   provider: ApiKeyProvider;
 }

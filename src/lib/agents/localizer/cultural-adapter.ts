@@ -113,7 +113,7 @@ export async function runCulturalAdapter(
     system: SYSTEM,
     prompt: buildPrompt(input),
     temperature: 0.4,
-    maxTokens: 2500,
+    maxOutputTokens: 2500,
   });
 
   return {
@@ -122,8 +122,8 @@ export async function runCulturalAdapter(
     provider,
     durationMs: Date.now() - start,
     usage: {
-      inputTokens: result.usage?.promptTokens,
-      outputTokens: result.usage?.completionTokens,
+      inputTokens: result.usage?.inputTokens,
+      outputTokens: result.usage?.outputTokens,
     },
   };
 }
