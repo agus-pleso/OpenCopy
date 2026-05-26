@@ -68,7 +68,11 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Install pnpm
-        uses: pnpm/action-setup@v6
+        # Pinned to v6.0.7 because v6.0.8's archive started 404'ing on
+        # codeload.github.com mid-release-cycle (every other v6 archive
+        # works; this one specific SHA is unreachable). Bump back to @v6
+        # once GitHub clears the bad archive.
+        uses: pnpm/action-setup@v6.0.7
 
       - name: Install Node
         uses: actions/setup-node@v6
