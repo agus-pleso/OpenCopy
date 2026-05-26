@@ -35,6 +35,12 @@ import {
 
 const TAG_BYTES = 16; // GCM auth tag length
 
+// Caps for untrusted .opencopy archives. Without these, parseOpenCopy() can
+// be fed a zip-bomb (thousands of compressible entries, or one multi-GB
+// entry) and exhaust server memory before any validation runs.
+const MAX_ZIP_ENTRIES = 1000;
+const MAX_ENTRY_BYTES = 100 * 1024 * 1024; // 100 MB
+
 export class ImportError extends Error {
   constructor(
     message: string,
@@ -120,10 +126,34 @@ export function parseOpenCopy(
     );
   }
 
+  // Cap zip unpacking: at most MAX_ZIP_ENTRIES entries, and each entry's
+  // decompressed size must be ≤ MAX_ENTRY_BYTES. Without these caps a
+  // malicious .opencopy file can pack thousands of highly-compressible
+  // entries or one multi-GB entry and exhaust server memory before any
+  // validation runs. fflate's `filter` runs once per entry BEFORE
+  // decompression, so we can reject early.
   let files: Record<string, Uint8Array>;
+  let entryCount = 0;
   try {
-    files = unzipSync(zipBytes);
-  } catch {
+    files = unzipSync(zipBytes, {
+      filter: (entry) => {
+        if (++entryCount > MAX_ZIP_ENTRIES) {
+          throw new ImportError(
+            `zip has more than ${MAX_ZIP_ENTRIES} entries`,
+            "BAD_FORMAT",
+          );
+        }
+        if (entry.originalSize > MAX_ENTRY_BYTES) {
+          throw new ImportError(
+            `entry "${entry.name}" decompressed size ${entry.originalSize} exceeds cap ${MAX_ENTRY_BYTES}`,
+            "BAD_FORMAT",
+          );
+        }
+        return true;
+      },
+    });
+  } catch (err) {
+    if (err instanceof ImportError) throw err;
     throw new ImportError("zip is malformed", "BAD_FORMAT");
   }
 
