@@ -57,7 +57,12 @@ if (devEnabled) {
             where: eq(credentials.userId, existing.id),
           });
           if (!cred) {
-            // Self-serve upgrade for users created via magic-link before dev mode
+            // Self-serve upgrade is ONLY safe for accounts that have never
+            // been claimed — i.e. emailVerified is still null. A row with
+            // emailVerified set came from a magic-link sign-in, and
+            // attaching a password to it here would let any anonymous caller
+            // hijack that account by POSTing the email + a chosen password.
+            if (existing.emailVerified !== null) return null;
             const passwordHash = await hash(password, 10);
             await db.insert(credentials).values({
               userId: existing.id,
