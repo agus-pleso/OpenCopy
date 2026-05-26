@@ -5,7 +5,11 @@
  *  - DB override row beats constants (workspace-scoped).
  *  - Cascade behaviour: deleting a workspace removes its overrides.
  *
- * Uses PGlite (per scripts/test-seo-schema.ts pattern).
+ * Uses PGlite via `@/db/client` so the global-cache invariant in
+ * `src/db/client.ts` holds — creating a second standalone PGlite on the same
+ * dataDir hangs on the file lock (see project_build_gotchas memory + commit
+ * f979b6f). The test sets the env vars *before* importing client.ts so the
+ * embedded path is taken, then drives migrations through that same client.
  *
  * Run: pnpm tsx scripts/test-seo-locale-heuristics.ts
  */
@@ -106,25 +110,27 @@ async function main() {
   console.log("✓ mergeLocaleHeuristics preserves non-overridden fields");
 
   // ------------------------------------------------------------------
-  // 4. PGlite round-trip: insert override, fetch via getLocaleHeuristics,
-  //    confirm the override beats defaults; deleting workspace cascades.
+  // 4. PGlite round-trip via @/db/client. Set the embedded env vars
+  //    BEFORE importing the client so it takes the PGlite path. The
+  //    global cache in client.ts then keeps every downstream
+  //    `getLocaleHeuristics` call on the same instance — no dual-PGlite
+  //    deadlock on the dataDir's file lock.
   // ------------------------------------------------------------------
   const dataDir = mkdtempSync(join(tmpdir(), "opencopy-seo-locale-"));
   process.env.OPENCOPY_EMBEDDED_DB = "1";
   process.env.OPENCOPY_DATA_DIR = dataDir;
   process.env.NODE_ENV = "production";
 
-  console.log("\n→ migrate PGlite");
-  const { PGlite } = await import("@electric-sql/pglite");
-  const { vector } = await import("@electric-sql/pglite/vector");
-  const { drizzle } = await import("drizzle-orm/pglite");
-  const { migrate } = await import("drizzle-orm/pglite/migrator");
+  console.log("\n→ migrate PGlite via @/db/client");
+  const clientMod = await import("../src/db/client");
   const schema = await import("../src/db/schema");
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const db = clientMod.db as any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const pool = clientMod.pool as any;
 
-  const client = new PGlite(dataDir, { extensions: { vector } });
-  await client.waitReady;
-  const db = drizzle(client, { schema });
   await db.execute(sql`CREATE EXTENSION IF NOT EXISTS vector`);
+  const { migrate } = await import("drizzle-orm/pglite/migrator");
   await migrate(db, { migrationsFolder: "./drizzle" });
 
   const [user] = await db
@@ -154,10 +160,8 @@ async function main() {
     },
   });
 
-  // Now point the module's `db` at our local instance. The
-  // `getLocaleHeuristics` function imports `db` from `@/db/client`, which
-  // honours OPENCOPY_EMBEDDED_DB+OPENCOPY_DATA_DIR. Re-import dynamically
-  // so the env-driven path is taken.
+  // `getLocaleHeuristics` reads `db` from `@/db/client` — same cached
+  // PGlite instance, so the row above is visible without a second client.
   const { getLocaleHeuristics } = await import(
     "../src/lib/seo/locale-heuristics"
   );
@@ -205,7 +209,11 @@ async function main() {
   }
   console.log("✓ workspace delete cascades");
 
-  await client.close();
+  await pool.close?.();
+  // Drop the global cache so a second `import("@/db/client")` in the same
+  // process would re-init against a different dataDir, if anyone needs it.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (globalThis as any).__opencopyDb = undefined;
   rmSync(dataDir, { recursive: true, force: true });
 
   console.log("\n✓ locale heuristics smoke clean");
