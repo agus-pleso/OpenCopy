@@ -39,8 +39,10 @@ import {
   type BrandProfileCrawl,
   type BrandProfileKnowledge,
   type BrandProfilePositioning,
+  type BrandProfileRevision,
   type BrandProfileVoiceVariant,
   type Locale,
+  localeEnum,
 } from "@/db/schema";
 import {
   getCurrentWorkspace,
@@ -944,19 +946,16 @@ export async function runNlCommand(input: unknown): Promise<{
 /* Versioning                                                                 */
 /* -------------------------------------------------------------------------- */
 
-export async function listRevisions(): Promise<
-  Array<{
-    id: string;
-    revisionType: string;
-    note: string | null;
-    createdAt: Date;
-    createdByUserId: string;
-  }>
-> {
+export async function listRevisions(): Promise<BrandProfileRevision[]> {
   const { workspace } = await getCurrentWorkspace();
   const profile = await getOrCreateBrandProfile();
 
-  const rows = await db.query.brandProfileRevisions.findMany({
+  // Full rows including the snapshot jsonb. The roll-back UI needs the
+  // snapshot to render a confirm-dialog preview; an earlier iteration
+  // trimmed `snapshot` for payload size but the V1 list view is capped at
+  // 100 rows per workspace and snapshots are ~50 KB each, so the trim
+  // wasn't load-bearing.
+  return db.query.brandProfileRevisions.findMany({
     where: and(
       eq(brandProfileRevisions.profileId, profile.id),
       eq(brandProfileRevisions.workspaceId, workspace.id),
@@ -964,15 +963,64 @@ export async function listRevisions(): Promise<
     orderBy: [desc(brandProfileRevisions.createdAt)],
     limit: 100,
   });
-  // Strip the heavy `snapshot` jsonb from the list view — the UI fetches
-  // the full snapshot only when the marketer clicks "compare" or "roll back".
-  return rows.map((r) => ({
-    id: r.id,
-    revisionType: r.revisionType,
-    note: r.note,
-    createdAt: r.createdAt,
-    createdByUserId: r.createdByUserId,
-  }));
+}
+
+/**
+ * Lighter read for the brand-profile page and settings: returns the
+ * existing profile or null. Doesn't create one (the dashboard
+ * auto-trigger already nudges into onboarding when null). Kept as a
+ * sibling to `getOrCreateBrandProfile` so callers can pick the
+ * "create-if-missing vs. null" semantics they want.
+ */
+export async function getBrandProfile(): Promise<BrandProfile | null> {
+  const { workspace } = await getCurrentWorkspace();
+  const row = await db.query.brandProfiles.findFirst({
+    where: eq(brandProfiles.workspaceId, workspace.id),
+  });
+  return row ?? null;
+}
+
+const UpdateLocalesSchema = z
+  .array(z.enum(localeEnum.enumValues))
+  .min(1)
+  .max(4);
+
+/**
+ * Settings → Brand profile: marketer updates which locales their brand
+ * operates in. Writes a `manual_save` revision so the change is
+ * roll-back-able. Locales already configured with voice/audience entries
+ * are preserved; new locales come up empty (the deep-dive chat fills
+ * them later).
+ */
+export async function updateBrandLocales(
+  locales: Locale[],
+): Promise<{ ok: true }> {
+  const parsed = UpdateLocalesSchema.parse(locales);
+  const { workspace } = await getCurrentWorkspace();
+  await requireRole(workspace.id, "editor");
+  const userId = await requireUserId();
+
+  const profile = await getOrCreateBrandProfile();
+  const updated = await db
+    .update(brandProfiles)
+    .set({ locales: parsed, updatedAt: new Date() })
+    .where(eq(brandProfiles.id, profile.id))
+    .returning();
+
+  if (updated[0]) {
+    await db.insert(brandProfileRevisions).values({
+      profileId: profile.id,
+      workspaceId: workspace.id,
+      snapshot: updated[0],
+      revisionType: "manual_save",
+      note: `Locales set to: ${parsed.join(", ")}`,
+      createdByUserId: userId,
+    });
+  }
+
+  revalidatePath("/brand-profile");
+  revalidatePath("/settings/brand-profile");
+  return { ok: true };
 }
 
 export async function rollBackTo(revisionId: string): Promise<void> {

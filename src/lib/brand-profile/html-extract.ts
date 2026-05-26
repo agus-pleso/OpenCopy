@@ -1,6 +1,7 @@
 import "server-only";
 
 import { load } from "cheerio";
+import type { AnyNode } from "domhandler";
 
 /**
  * Cheerio-based extraction for a single crawled HTML page.
@@ -53,9 +54,9 @@ export function extractPage(html: string): ExtractedPage {
 
   const collect = (sel: string): string[] =>
     $(sel)
-      .map((_, el) => $(el).text().replace(/\s+/g, " ").trim())
+      .map((_: number, el: AnyNode) => $(el).text().replace(/\s+/g, " ").trim())
       .get()
-      .filter((s) => s.length > 0);
+      .filter((s: string) => s.length > 0);
 
   const headings = {
     h1: collect("h1").slice(0, 10),
@@ -112,7 +113,7 @@ export function findNavTargets(html: string, baseUrl: string): string[] {
   const seen = new Set<string>();
   const out: string[] = [];
 
-  $("a[href]").each((_, el) => {
+  $("a[href]").each((_: number, el: AnyNode) => {
     const $el = $(el);
     const rel = ($el.attr("rel") ?? "").toLowerCase();
     if (rel.includes("nofollow") || rel.includes("sponsored")) return;
