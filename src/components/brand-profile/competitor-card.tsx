@@ -50,15 +50,24 @@ export function CompetitorCard({ competitor, className }: Props) {
       )}
 
       <div className="mt-4 grid gap-4 md:grid-cols-2">
-        {competitor.whyTheyWin.length > 0 && (
+        {/* Defensive defaults: NL-command-added competitors arrive without
+         *  whyTheyWin / whyWeWin populated (only name + id). The schema types
+         *  them as required arrays for the post-onboarding case, but the
+         *  Add-Competitor patch shape doesn't seed them — keep the render
+         *  resilient to either shape rather than failing on undefined.length. */}
+        {(competitor.whyTheyWin ?? []).length > 0 && (
           <Panel
             label="Why they win"
             tone="muted"
-            items={competitor.whyTheyWin}
+            items={competitor.whyTheyWin ?? []}
           />
         )}
-        {competitor.whyWeWin.length > 0 && (
-          <Panel label="Why we win" tone="primary" items={competitor.whyWeWin} />
+        {(competitor.whyWeWin ?? []).length > 0 && (
+          <Panel
+            label="Why we win"
+            tone="primary"
+            items={competitor.whyWeWin ?? []}
+          />
         )}
       </div>
     </div>
